@@ -40,6 +40,47 @@ Set `AURELINE_APPLICATION_SIGN_IDENTITY` and `AURELINE_INSTALLER_SIGN_IDENTITY`
 for distribution signing. Without them, the script creates ad-hoc signed local
 development packages.
 
+## Voice and Wave file extensions
+
+Aureline reserves the following product-specific file extensions:
+
+| Data | Extension | Contents | Status |
+|---|---|---|---|
+| Single voice | `.aurelinevoice` | Shared Mac/iPhone JSON containing one voice, including synth parameters, voice mode, and Wave Memory data | Implemented on Mac and iPhone |
+| Wave Memory | `.aurelinewave` | One 32-step Wave Memory waveform, its character, and format version | Reserved; import/export not implemented |
+| Complete voice library | `.aurelinelibrary.xml` | All 50 numbered voices in one XML library or backup file | Implemented on Mac |
+
+The naming follows OpalineFM: `.opalinevoice` and `.opalinelibrary.xml`
+correspond to Aureline's `.aurelinevoice` and `.aurelinelibrary.xml`.
+The Wave Memory format uses the same product-plus-data-type rule:
+`.aurelinewave`.
+
+Mac and iPhone both use `.aurelinevoice` for single-voice files.
+
+LOAD and PASTE temporarily apply their voice data to the currently selected
+numbered voice. They do not modify that slot's saved data. STORE is the only
+operation that overwrites the selected numbered voice; without STORE, selecting
+another voice and returning restores the previously stored override, or the
+factory voice when no override exists. SAVE exports the current sound as an
+external `.aurelinevoice` file without modifying the selected slot.
+
+On Mac, SAVE ALL LIBRARY exports the last stored contents of all 50 numbered
+voices to one `.aurelinelibrary.xml` file. Opening that file with LOAD shows a
+confirmation before all 50 numbered voices are replaced.
+
+The Mac version keeps `factory.aurelinelibrary.xml` in the Aureline documents
+folder as the factory-reset library. Loading it restores all 50 slots after
+confirmation. SAVE ALL LIBRARY refuses to overwrite this reserved file name.
+
+`RetroGame.aurelinelibrary.xml` is also provided in the same folder. It contains
+50 original retro-game voices covering early 8-bit pulse/triangle sounds,
+square-wave PSG tones, multi-channel 5-bit wavetable colours, compact 1980s
+arcade-style wave-memory voices, and noise effects. Its built-in file name is
+also protected from SAVE ALL LIBRARY.
+
+Raw `.xml` and `.json` files may be accepted for debugging or compatibility
+imports, but they are not the standard user-facing extensions.
+
 ## Build the engine tests
 
 ```sh

@@ -57,15 +57,20 @@ void AnalogVoice::prepare(double sampleRate, int voiceIndex)
 
 void AnalogVoice::start(int midiNote, int velocity, std::uint64_t ageValue,
                         double startNote, double glideSeconds, double detuneCents,
-                        double initialPhase)
+                        double initialPhase, bool unison, double unisonPan,
+                        double startDelaySeconds)
 {
     currentNote = std::clamp(midiNote, 0, 127);
     velocityGain = std::clamp(velocity, 1, 127) / 127.0;
     startAge = ageValue;
     unisonDetuneCents = detuneCents;
+    unisonActive = unison;
+    unisonPanPosition = unisonPan;
     configureGlide(startNote, static_cast<double>(currentNote), glideSeconds);
     releasing = false;
     noteSamples = 0;
+    startDelaySamplesRemaining = static_cast<std::uint64_t>(std::llround(
+        std::max(0.0, startDelaySeconds) * currentSampleRate));
     oscillatorA.reset(initialPhase);
     oscillatorB.reset(initialPhase + 0.37);
     filter.reset();
@@ -104,9 +109,12 @@ void AnalogVoice::reset()
     targetPitchNote = 60.0;
     glideStepPerSample = 0.0;
     unisonDetuneCents = 0.0;
+    unisonActive = false;
+    unisonPanPosition = 0.0;
     velocityGain = 0.0;
     releasing = false;
     noteSamples = 0;
+    startDelaySamplesRemaining = 0;
     filterEnvelope.reset();
     amplifierEnvelope.reset();
     filter.reset();
@@ -133,6 +141,11 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
 {
     if (!isActive())
         return 0.0;
+    if (startDelaySamplesRemaining > 0)
+    {
+        --startDelaySamplesRemaining;
+        return 0.0;
+    }
 
     const auto elapsedSeconds = static_cast<double>(noteSamples++) / currentSampleRate;
     double automaticLfoAmount = 0.0;
@@ -144,15 +157,19 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
         automaticLfoAmount = patch.lfoInitialAmount * fadeProgress;
     }
     const auto lfoModulationAmount = std::clamp(automaticLfoAmount + modWheel, 0.0, 1.0);
+    const auto lfoPitchAmount = lfoModulationAmount * lfoModulationAmount;
 
     driftPhase += 6.283185307179586 * driftRateHz / currentSampleRate;
     if (driftPhase >= 6.283185307179586)
         driftPhase -= 6.283185307179586;
     const auto driftCents = std::sin(driftPhase) * patch.vintageAmount * 1.5;
+    const auto unisonDriftCents = unisonActive ? std::sin(driftPhase) * 0.45 : 0.0;
     const auto tuneA = patch.masterTuneCents
-                     + patch.vintageAmount * oscillatorATuneVariation * 6.0 + driftCents;
+                     + patch.vintageAmount * oscillatorATuneVariation * 6.0
+                     + driftCents + unisonDriftCents;
     const auto tuneB = patch.masterTuneCents
-                     + patch.vintageAmount * oscillatorBTuneVariation * 6.0 - driftCents * 0.73;
+                     + patch.vintageAmount * oscillatorBTuneVariation * 6.0
+                     - driftCents * 0.73 + unisonDriftCents;
     const auto envelopeFactor = std::max(0.5, 1.0
         + patch.vintageAmount * envelopeVariation * 0.15);
     const auto filterEnvelopeParameters = variedEnvelope(patch.filterEnvelope, envelopeFactor);
@@ -170,8 +187,8 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
     }
 
     const auto envelopeValue = filterEnvelope.render(filterEnvelopeParameters);
-    const auto lfoPitchA = lfoValue * patch.lfoPitchDepthASemitones * lfoModulationAmount;
-    const auto lfoPitchB = lfoValue * patch.lfoPitchDepthBSemitones * lfoModulationAmount;
+    const auto lfoPitchA = lfoValue * patch.lfoPitchDepthASemitones * lfoPitchAmount;
+    const auto lfoPitchB = lfoValue * patch.lfoPitchDepthBSemitones * lfoPitchAmount;
     const auto pulseWidthB = pulseWidthBSmoother.process(patch.oscillatorB.pulseWidth)
                            + lfoValue * patch.lfoPulseWidthDepthB * lfoModulationAmount;
     const auto b = oscillatorB.render(oscillatorFrequency(patch.oscillatorB,
@@ -179,7 +196,10 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
                                       patch.oscillatorB.sawEnabled,
                                       patch.oscillatorB.triangleEnabled,
                                       patch.oscillatorB.pulseEnabled,
-                                      pulseWidthB)
+                                      pulseWidthB,
+                                      patch.oscillatorB.waveMemoryEnabled,
+                                      patch.oscillatorB.waveMemoryData,
+                                      patch.oscillatorB.waveMemoryCharacter)
                  * oscillatorBLevelSmoother.process(patch.oscillatorB.level);
     if (patch.oscillatorSync && oscillatorB.wrappedLastSample())
         oscillatorA.reset();
@@ -195,7 +215,10 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
                                       patch.oscillatorA.pulseEnabled,
                                       pulseWidthASmoother.process(patch.oscillatorA.pulseWidth)
                                           + lfoValue * patch.lfoPulseWidthDepthA * lfoModulationAmount
-                                          + polyPulseWidthA)
+                                          + polyPulseWidthA,
+                                      patch.oscillatorA.waveMemoryEnabled,
+                                      patch.oscillatorA.waveMemoryData,
+                                      patch.oscillatorA.waveMemoryCharacter)
                  * oscillatorALevelSmoother.process(patch.oscillatorA.level);
     const auto amp = amplifierEnvelope.render(amplifierEnvelopeParameters);
     const auto cutoffOctaves = patch.filterEnvelopeAmount * envelopeValue * 7.0

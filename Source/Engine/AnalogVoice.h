@@ -17,7 +17,8 @@ public:
     void prepare(double sampleRate, int voiceIndex);
     void start(int midiNote, int velocity, std::uint64_t age,
                double startNote, double glideSeconds, double detuneCents = 0.0,
-               double initialPhase = 0.0);
+               double initialPhase = 0.0, bool unison = false,
+               double unisonPan = 0.0, double startDelaySeconds = 0.0);
     void retarget(int midiNote, double glideSeconds);
     void release();
     void reset();
@@ -29,7 +30,9 @@ public:
     double level() const { return amplifierEnvelope.level(); }
     std::uint64_t age() const { return startAge; }
     double panPosition() const { return voicePanPosition; }
+    double effectivePanPosition() const { return unisonActive ? unisonPanPosition : voicePanPosition; }
     double vintagePanPosition() const { return vintagePanVariation; }
+    bool isUnisonVoice() const { return unisonActive; }
 
 private:
     double oscillatorFrequency(const OscillatorParams& oscillator,
@@ -55,6 +58,8 @@ private:
     double targetPitchNote = 60.0;
     double glideStepPerSample = 0.0;
     double unisonDetuneCents = 0.0;
+    bool unisonActive = false;
+    double unisonPanPosition = 0.0;
     double currentSampleRate = 44100.0;
     double voicePanPosition = 0.0;
     double velocityGain = 0.0;
@@ -68,6 +73,7 @@ private:
     double driftPhase = 0.0;
     double driftRateHz = 0.1;
     std::uint64_t noteSamples = 0;
+    std::uint64_t startDelaySamplesRemaining = 0;
     std::uint64_t startAge = 0;
     bool releasing = false;
 };

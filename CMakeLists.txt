@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Aureline VERSION 0.1.0 LANGUAGES C CXX)
+project(Aureline VERSION 1.0.1 LANGUAGES C CXX)
 
 include(CTest)
 
@@ -21,6 +21,8 @@ add_library(aureline_engine STATIC
     Source/DSP/NoiseGenerator.cpp
     Source/DSP/Oscillator.cpp
     Source/Engine/AnalogEngine.cpp
+    Source/Engine/FactoryPresets.cpp
+    Source/Engine/PerformanceSequencer.cpp
     Source/Engine/AnalogVoice.cpp
     Source/Engine/AnalogPatch.cpp
 )

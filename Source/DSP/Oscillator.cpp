@@ -40,6 +40,14 @@ double Oscillator::render(double frequencyHz, Waveform waveform, double pulseWid
 double Oscillator::render(double frequencyHz, bool sawEnabled, bool triangleEnabled,
                           bool pulseEnabled, double pulseWidth)
 {
+    return render(frequencyHz, sawEnabled, triangleEnabled, pulseEnabled, pulseWidth,
+                  false, waveMemoryFactoryBank()[0], WaveMemoryCharacter::fiveBit);
+}
+
+double Oscillator::render(double frequencyHz, bool sawEnabled, bool triangleEnabled,
+                          bool pulseEnabled, double pulseWidth, bool waveMemoryEnabled,
+                          const WaveMemoryData& waveMemory, WaveMemoryCharacter character)
+{
     const auto frequency = std::clamp(frequencyHz, 0.0, currentSampleRate * 0.45);
     const auto increment = frequency / currentSampleRate;
     const auto width = std::clamp(pulseWidth, 0.02, 0.98);
@@ -65,6 +73,27 @@ double Oscillator::render(double frequencyHz, bool sawEnabled, bool triangleEnab
             fallingPhase += 1.0;
         pulse -= polyBlep(fallingPhase, increment);
         sample += pulse;
+        ++waveformCount;
+    }
+    if (waveMemoryEnabled)
+    {
+        const auto tablePosition = phase * static_cast<double>(kWaveMemorySize);
+        const auto index = static_cast<std::size_t>(tablePosition) % kWaveMemorySize;
+        auto quantized = [](std::uint8_t step, WaveMemoryCharacter mode)
+        {
+            if (mode == WaveMemoryCharacter::fourBit)
+                return static_cast<double>(step >> 1U) / 7.5 - 1.0;
+            return static_cast<double>(step) / 15.5 - 1.0;
+        };
+        auto memorySample = quantized(waveMemory[index], character);
+        if (character == WaveMemoryCharacter::smooth)
+        {
+            const auto next = (index + 1U) % kWaveMemorySize;
+            const auto fraction = tablePosition - std::floor(tablePosition);
+            const auto nextSample = quantized(waveMemory[next], character);
+            memorySample += (nextSample - memorySample) * fraction;
+        }
+        sample += memorySample;
         ++waveformCount;
     }
     if (waveformCount == 0)

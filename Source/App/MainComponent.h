@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/AnalogEngine.h"
+#include "Engine/PerformanceSequencer.h"
 
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_gui_extra/juce_gui_extra.h>
@@ -31,6 +32,8 @@ public:
     void releaseNote(int note);
     bool isNoteHeld(int note) const;
     void queueMidiMessage(const juce::MidiMessage& message);
+    void processPluginBlock(juce::AudioBuffer<float>& buffer,
+                            const juce::MidiBuffer& midi);
     juce::ValueTree capturePluginState() const;
     void restorePluginState(const juce::ValueTree& state);
 
@@ -43,6 +46,11 @@ private:
         void drawLinearSlider(juce::Graphics&, int, int, int, int, float,
                               float, float, juce::Slider::SliderStyle,
                               juce::Slider&) override;
+        void drawComboBox(juce::Graphics&, int, int, bool, int, int, int, int,
+                          juce::ComboBox&) override;
+        void drawButtonBackground(juce::Graphics&, juce::Button&, const juce::Colour&,
+                                  bool, bool) override;
+        void drawButtonText(juce::Graphics&, juce::TextButton&, bool, bool) override;
         juce::Font getLabelFont(juce::Label&) override;
     };
 
@@ -140,6 +148,10 @@ private:
         std::atomic<int> voiceMode { 0 };
         std::atomic<int> waveformMaskA { 1 };
         std::atomic<int> waveformMaskB { 1 };
+        std::atomic<int> waveMemoryIndexA { 0 };
+        std::atomic<int> waveMemoryIndexB { 0 };
+        std::atomic<int> waveMemoryCharacterA { 0 };
+        std::atomic<int> waveMemoryCharacterB { 0 };
         std::atomic<int> lfoWaveformMask { 2 };
         std::atomic<bool> oscillatorSync { false };
         std::atomic<float> oscillatorAOctave { 0.0f };
@@ -166,14 +178,35 @@ private:
                        double min, double max, double initial, double skew = 1.0);
     void applyParameters();
     void resetToInitialVoice();
-    void loadFactoryVoice(std::size_t index);
+    void loadVoiceFromFile(const juce::File&);
+    void saveVoiceToFile(const juce::File&);
+    void saveVoiceLibraryToFile(const juce::File&);
+    void writeVoiceLibraryToFile(const juce::File&, bool factoryOnly,
+                                 bool showStatus);
+    void writeRetroGameLibraryToFile(const juce::File&);
+    void confirmAndLoadVoiceLibrary(const juce::File&);
+    void loadVoiceLibraryFromFile(const juce::File&);
+    void storeCurrentVoice();
+    void loadFactoryVoice(std::size_t index, bool useStoredOverride = true);
+    void renderAudioBlock(const juce::AudioSourceChannelInfo& info,
+                          const juce::MidiBuffer& midi);
+    void openWaveMemoryEditor(std::size_t oscillator);
     void syncPcKeyboardNotes();
     void syncControlsFromParameters();
     void timerCallback() override;
 
     AurelineLookAndFeel lookAndFeel;
+    class WaveMemoryEditorWindow;
+    std::unique_ptr<WaveMemoryEditorWindow> waveMemoryEditorWindow;
+    std::array<aureline::WaveMemoryData, 2> userWaveMemory {
+        aureline::waveMemoryFactoryBank()[0], aureline::waveMemoryFactoryBank()[0]
+    };
+    std::array<bool, 2> userWaveMemoryActive { false, false };
+    aureline::WaveMemoryData copiedWaveMemory {};
+    bool hasCopiedWaveMemory = false;
     juce::Image woodBackground;
     aureline::AnalogEngine engine;
+    aureline::PerformanceSequencer performanceSequencer;
     juce::MidiMessageCollector midiCollector;
     std::vector<juce::String> connectedMidiInputIds;
     bool ownsStandaloneAudio = true;
@@ -182,23 +215,33 @@ private:
     static constexpr std::size_t scopeSize = 2048;
     std::array<std::atomic<float>, scopeSize> scopeSamples {};
     std::atomic<std::size_t> scopeWriteIndex { 0 };
-    std::array<bool, 128> arpHeldNotes {};
-    std::array<bool, 128> arpInputHeldNotes {};
+    std::atomic<int> waveformPitchNote { 60 };
+    float waveformOutputLevel = 0.0f;
+    int envelopePreviewKind = 0; // 1 = filter, 2 = amplifier
+    double envelopePreviewStartedMs = 0.0;
+    double envelopePreviewChangedMs = 0.0;
     std::atomic<bool> sequencerResetRequested { false };
     double currentSampleRate = 44100.0;
-    int arpCurrentNote = -1;
-    int arpLastNote = -1;
-    int arpSamplesUntilStep = 0;
-    int arpGateSamplesRemaining = 0;
-    int arpVelocity = 100;
-    bool arpMovingUp = true;
-    std::uint32_t arpRandomState = 0x41555245U;
 
     juce::Label titleLabel;
     juce::Label subtitleLabel;
     juce::Label statusLabel;
     juce::ComboBox presetBox;
-    juce::TextButton initVoiceButton { "INIT VOICE" };
+    juce::TextButton previousVoiceButton { "<" };
+    juce::TextButton nextVoiceButton { ">" };
+    juce::TextButton loadVoiceButton { "LOAD" };
+    juce::TextButton saveVoiceButton { "SAVE" };
+    juce::TextButton copyVoiceButton { "COPY" };
+    juce::TextButton pasteVoiceButton { "PASTE" };
+    juce::TextButton initVoiceButton { "INIT" };
+    juce::TextButton storeVoiceButton { "STORE" };
+    juce::TextButton saveLibraryButton { "SAVE ALL LIBRARY" };
+    juce::ValueTree copiedVoiceState;
+    juce::String copiedVoiceName;
+    juce::String currentVoiceName { "INIT ANALOG" };
+    int selectedFactoryVoiceIndex = -1;
+    bool suppressLastVoicePersistence = false;
+    std::unique_ptr<juce::FileChooser> voiceFileChooser;
     juce::ComboBox voiceModeBox;
     RockerButton monoModeButton { "MONO" };
     RockerButton unisonModeButton { "UNISON" };
@@ -207,15 +250,22 @@ private:
     RockerButton arpHoldButton { "HOLD" };
     RockerButton glideLegatoButton { "LEGATO" };
     RockerButton lfoRetriggerButton { "RETRIG" };
-    std::array<WaveformButton, 3> waveformAButtons {
+    std::array<WaveformButton, 4> waveformAButtons {
         WaveformButton(aureline::Waveform::saw),
         WaveformButton(aureline::Waveform::triangle),
-        WaveformButton(aureline::Waveform::pulse)
+        WaveformButton(aureline::Waveform::pulse),
+        WaveformButton(aureline::Waveform::waveMemory)
     };
-    std::array<WaveformButton, 3> waveformBButtons {
+    std::array<WaveformButton, 4> waveformBButtons {
         WaveformButton(aureline::Waveform::saw),
         WaveformButton(aureline::Waveform::triangle),
-        WaveformButton(aureline::Waveform::pulse)
+        WaveformButton(aureline::Waveform::pulse),
+        WaveformButton(aureline::Waveform::waveMemory)
+    };
+    std::array<juce::ComboBox, 2> waveMemoryBoxes;
+    std::array<juce::ComboBox, 2> waveCharacterBoxes;
+    std::array<juce::TextButton, 2> waveMemoryButtons {
+        juce::TextButton { "EDIT WAVE" }, juce::TextButton { "EDIT WAVE" }
     };
     std::array<WaveformButton, 5> lfoWaveformButtons {
         WaveformButton(aureline::LfoWaveform::sawUp),

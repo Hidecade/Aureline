@@ -1,5 +1,6 @@
 #include "App/MainComponent.h"
 #include "BinaryData.h"
+#include "Engine/FactoryPresets.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,7 +10,175 @@ namespace
 constexpr int firstKeyboardNote = 48;
 constexpr int keyboardNoteCount = 37;
 constexpr int pcKeyboardTranspose = 12;
+// Modern vintage palette: graphite chassis, warm control surfaces,
+// aged brass secondary type, ivory labels, and restrained burnt-orange accents.
+constexpr juce::uint32 themeBackground = 0xff0b0d0c;
+constexpr juce::uint32 themePanel = 0xff171816;
+constexpr juce::uint32 themePanelLight = 0xff302d28;
+constexpr juce::uint32 themeControlSurface = 0xff1c1f1d;
+constexpr juce::uint32 themeLineGray = 0xff626865;
+constexpr juce::uint32 themeAmber = 0xffe9782d;
+constexpr juce::uint32 themeGold = 0xffb9a06f;
+constexpr juce::uint32 themeText = 0xffe7e2d7;
 
+juce::File aurelineDocumentsDirectory()
+{
+    auto directory = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                         .getChildFile("Aureline");
+    directory.createDirectory();
+    return directory;
+}
+
+juce::File lastSelectedVoiceFile()
+{
+    return aurelineDocumentsDirectory().getChildFile(".last-selected-voice");
+}
+
+juce::File storedVoiceFile(std::size_t slot)
+{
+    return aurelineDocumentsDirectory().getChildFile(
+        "slot-" + juce::String(static_cast<int>(slot) + 1).paddedLeft('0', 2)
+        + ".aurelinevoice");
+}
+
+juce::String voiceNameWithoutSlotPrefix(juce::String name)
+{
+    name = name.trim();
+    if (name.length() >= 3
+        && juce::CharacterFunctions::isDigit(name[0])
+        && juce::CharacterFunctions::isDigit(name[1])
+        && juce::CharacterFunctions::isWhitespace(name[2]))
+        name = name.substring(3).trimStart();
+    return name;
+}
+
+juce::String slotVoiceDisplayName(std::size_t index, const juce::String& voiceName)
+{
+    return juce::String(static_cast<int>(index) + 1).paddedLeft('0', 2)
+        + " " + voiceNameWithoutSlotPrefix(voiceName);
+}
+
+bool isReservedLibraryFilename(const juce::File& file)
+{
+    return file.getFileName().equalsIgnoreCase("factory.aurelinelibrary.xml")
+        || file.getFileName().equalsIgnoreCase("RetroGame.aurelinelibrary.xml");
+}
+
+juce::String jsonVoiceKeyForStateKey(const juce::String& key)
+{
+    if (key == "oscillatorALevel") return "oscALevel";
+    if (key == "oscillatorBLevel") return "oscBLevel";
+    if (key == "oscillatorBFine") return "oscBFine";
+    if (key == "filterEnvelope") return "filterEnvAmount";
+    if (key == "filterKeyboardTracking") return "filterKeyTrack";
+    if (key == "attack") return "ampAttack";
+    if (key == "decay") return "ampDecay";
+    if (key == "sustain") return "ampSustain";
+    if (key == "release") return "ampRelease";
+    if (key == "lfoWaveformMask") return "lfoWaveMask";
+    if (key == "polyModFilterEnvelope") return "polyModFilterEnv";
+    if (key == "polyModOscillatorB") return "polyModOscB";
+    if (key == "polyModToFrequencyA") return "polyDestPitch";
+    if (key == "polyModToPulseWidthA") return "polyDestPWA";
+    if (key == "polyModToFilter") return "polyDestFilter";
+    if (key == "master") return "masterGain";
+    if (key == "glideLegatoOnly") return "glideLegato";
+    if (key == "oscillatorSync") return "oscSync";
+    if (key == "oscillatorAOctave") return "oscAOctave";
+    if (key == "oscillatorBOctave") return "oscBOctave";
+    if (key == "oscillatorBLowFrequency") return "oscBLowFrequency";
+    if (key == "oscillatorBKeyboardTracking") return "oscBKeyTrack";
+    if (key == "lfoDestination0") return "lfoDestA";
+    if (key == "lfoDestination1") return "lfoDestB";
+    if (key == "lfoDestination2") return "lfoDestPWA";
+    if (key == "lfoDestination3") return "lfoDestPWB";
+    if (key == "lfoDestination4") return "lfoDestFilter";
+    return key;
+}
+
+juce::String stateKeyForJsonVoiceKey(const juce::String& key)
+{
+    if (key == "oscALevel") return "oscillatorALevel";
+    if (key == "oscBLevel") return "oscillatorBLevel";
+    if (key == "oscBFine") return "oscillatorBFine";
+    if (key == "filterEnvAmount") return "filterEnvelope";
+    if (key == "filterKeyTrack") return "filterKeyboardTracking";
+    if (key == "ampAttack") return "attack";
+    if (key == "ampDecay") return "decay";
+    if (key == "ampSustain") return "sustain";
+    if (key == "ampRelease") return "release";
+    if (key == "lfoWaveMask") return "lfoWaveformMask";
+    if (key == "polyModFilterEnv") return "polyModFilterEnvelope";
+    if (key == "polyModOscB") return "polyModOscillatorB";
+    if (key == "polyDestPitch") return "polyModToFrequencyA";
+    if (key == "polyDestPWA") return "polyModToPulseWidthA";
+    if (key == "polyDestFilter") return "polyModToFilter";
+    if (key == "masterGain") return "master";
+    if (key == "glideLegato") return "glideLegatoOnly";
+    if (key == "oscSync") return "oscillatorSync";
+    if (key == "oscAOctave") return "oscillatorAOctave";
+    if (key == "oscBOctave") return "oscillatorBOctave";
+    if (key == "oscBLowFrequency") return "oscillatorBLowFrequency";
+    if (key == "oscBKeyTrack") return "oscillatorBKeyboardTracking";
+    if (key == "lfoDestA") return "lfoDestination0";
+    if (key == "lfoDestB") return "lfoDestination1";
+    if (key == "lfoDestPWA") return "lfoDestination2";
+    if (key == "lfoDestPWB") return "lfoDestination3";
+    if (key == "lfoDestFilter") return "lfoDestination4";
+    return key;
+}
+
+juce::var makeVoiceFileJson(const juce::ValueTree& state, const juce::String& name)
+{
+    auto patch = std::make_unique<juce::DynamicObject>();
+    for (int index = 0; index < state.getNumProperties(); ++index)
+    {
+        const auto key = state.getPropertyName(index).toString();
+        if (key != "version" && key != "voiceName" && key != "slot")
+            patch->setProperty(jsonVoiceKeyForStateKey(key),
+                               static_cast<double>(
+                                   state.getProperty(state.getPropertyName(index))));
+    }
+
+    auto performance = std::make_unique<juce::DynamicObject>();
+    performance->setProperty("transpose", state.getProperty("transpose", 0.0));
+    performance->setProperty("pitchBendRange",
+                             state.getProperty("pitchBendRange", 2.0));
+
+    auto root = std::make_unique<juce::DynamicObject>();
+    root->setProperty("format", "com.hidecade.aureline.voice");
+    root->setProperty("version", 1);
+    root->setProperty("name", name);
+    root->setProperty("author", "");
+    root->setProperty("category", "User");
+    root->setProperty("patch", juce::var(patch.release()));
+    root->setProperty("performance", juce::var(performance.release()));
+    return juce::var(root.release());
+}
+
+juce::ValueTree stateFromVoiceFileJson(const juce::var& json)
+{
+    const auto* root = json.getDynamicObject();
+    if (root == nullptr
+        || root->getProperty("format").toString() != "com.hidecade.aureline.voice"
+        || static_cast<int>(root->getProperty("version")) != 1)
+        return {};
+
+    const auto* patch = root->getProperty("patch").getDynamicObject();
+    if (patch == nullptr)
+        return {};
+
+    juce::ValueTree state("AurelineState");
+    state.setProperty("version", 2, nullptr);
+    const auto& properties = patch->getProperties();
+    for (int index = 0; index < properties.size(); ++index)
+        state.setProperty(stateKeyForJsonVoiceKey(properties.getName(index).toString()),
+                          properties.getValueAt(index), nullptr);
+    state.setProperty("voiceName", root->getProperty("name"), nullptr);
+    return state;
+}
+
+#if 0 // Factory definitions moved to Engine/FactoryPresets.cpp.
 struct FactoryVoice
 {
     const char* name;
@@ -65,6 +234,9 @@ constexpr std::array<FactoryVoice, 32> factoryVoices {{
     { "31 WIND MACHINE",  2, 1, -1,  1, .24f, .18f, 17, .62f, 2400, .46f, .28f, 1.30f, 2.20f, .72f, 2.70f, 0.4f, .26f, .84f, .74f, 0, false },
     { "32 NOISE SWEEP",   1, 4, -1,  1, .18f, .14f, -9, .78f,  740, .76f, .92f, .80f, 3.10f, .40f, 3.50f, 0.2f, .18f, .76f, .82f, 0, false }
 }};
+#endif
+
+const auto& factoryVoices = aureline::factoryPresets();
 
 std::array<std::uint8_t, 5> lcdGlyph(juce::juce_wchar character)
 {
@@ -177,7 +349,7 @@ void AurelineMainComponent::AurelineLookAndFeel::drawRotarySlider(
         : 0;
     const bool discrete = !numbered && discreteValueCount >= 2 && discreteValueCount <= 12;
     const int tickCount = numbered ? 11 : discrete ? discreteValueCount : 23;
-    const auto inactiveTick = juce::Colour(0xff34383a).withAlpha(0.82f);
+    const auto inactiveTick = juce::Colour(themeLineGray).withAlpha(0.45f);
     const auto activeTick = juce::Colour(0xffc7cac9);
     const auto tickOuter = radius - 1.0f;
     const auto activeIndex = static_cast<int>(std::round(position * static_cast<float>(tickCount - 1)));
@@ -235,15 +407,15 @@ void AurelineMainComponent::AurelineLookAndFeel::drawRotarySlider(
     }
 
     const auto outer = knob.reduced(knob.getWidth() * 0.27f);
-    g.setGradientFill({ juce::Colour(0xff424039), outer.getX(), outer.getY(),
-                        juce::Colour(0xff070706), outer.getRight(), outer.getBottom(), false });
+    g.setGradientFill({ juce::Colour(0xff4a4033), outer.getX(), outer.getY(),
+                        juce::Colour(0xff090806), outer.getRight(), outer.getBottom(), false });
     g.fillEllipse(outer);
     g.setColour(juce::Colour(0xff050505));
     g.drawEllipse(outer, 2.0f);
 
     const auto inner = outer.reduced(outer.getWidth() * 0.16f);
-    g.setGradientFill({ juce::Colour(0xff22221f), inner.getX(), inner.getY(),
-                        juce::Colour(0xff0a0a09), inner.getRight(), inner.getBottom(), false });
+    g.setGradientFill({ juce::Colour(0xff29251f), inner.getX(), inner.getY(),
+                        juce::Colour(0xff0d0b09), inner.getRight(), inner.getBottom(), false });
     g.fillEllipse(inner);
     g.setColour(juce::Colour(0xff000000).withAlpha(0.75f));
     g.drawEllipse(inner, 1.25f);
@@ -251,8 +423,8 @@ void AurelineMainComponent::AurelineLookAndFeel::drawRotarySlider(
     juce::Path pointer;
     pointer.addRoundedRectangle(-1.65f, -radius * 0.54f, 3.3f, radius * 0.43f, 1.2f);
     pointer.applyTransform(juce::AffineTransform::rotation(angle).translated(centre));
-    g.setGradientFill({ juce::Colour(0xfff0f2f1), centre.x, centre.y - radius * 0.54f,
-                        juce::Colour(0xff777d80), centre.x, centre.y, false });
+    g.setGradientFill({ juce::Colour(themeText), centre.x, centre.y - radius * 0.54f,
+                        juce::Colour(themeLineGray), centre.x, centre.y, false });
     g.fillPath(pointer);
 }
 
@@ -262,6 +434,23 @@ void AurelineMainComponent::AurelineLookAndFeel::drawLinearSlider(
 {
     if (style != juce::Slider::LinearVertical)
         return;
+    if (slider.getName() == "waveMemoryStep")
+    {
+        const auto bounds = juce::Rectangle<float>(
+            static_cast<float>(x), static_cast<float>(y),
+            static_cast<float>(width), static_cast<float>(height)).reduced(1.5f, 1.0f);
+        g.setColour(juce::Colour(themeBackground));
+        g.fillRect(bounds);
+        const auto barTop = juce::jlimit(bounds.getY(), bounds.getBottom(), sliderPosition);
+        const auto bar = juce::Rectangle<float>(
+            bounds.getX(), barTop, bounds.getWidth(),
+            juce::jmax(2.0f, bounds.getBottom() - barTop));
+        g.setGradientFill({ juce::Colour(themeAmber), bar.getX(), bar.getY(),
+                            juce::Colour(themeAmber).darker(0.35f),
+                            bar.getX(), bar.getBottom(), false });
+        g.fillRoundedRectangle(bar, 1.0f);
+        return;
+    }
     if (slider.getName() == "volumeFader")
     {
         const auto bounds = juce::Rectangle<float>(static_cast<float>(x), static_cast<float>(y),
@@ -343,7 +532,7 @@ void AurelineMainComponent::AurelineLookAndFeel::drawLinearSlider(
             g.drawLine(wheel.getX() + inset, ribY + 1.0f, wheel.getRight() - inset, ribY + 1.0f, 1.0f);
         }
         const auto indicatorY = juce::jmap(normalized, wheel.getBottom() - 3.0f, wheel.getY() + 3.0f);
-        g.setColour(juce::Colour(0xffc7cac9));
+        g.setColour(juce::Colour(themeAmber));
         g.fillRoundedRectangle(wheel.getX() + 2.0f, indicatorY - 1.5f, wheel.getWidth() - 4.0f, 3.0f, 1.0f);
         return;
     }
@@ -354,10 +543,97 @@ void AurelineMainComponent::AurelineLookAndFeel::drawLinearSlider(
     g.fillRoundedRectangle(track, 3.0f);
     g.setColour(juce::Colour(0xff4b3a21));
     g.drawRoundedRectangle(track, 3.0f, 1.0f);
-    g.setColour(juce::Colour(0xffd69a36));
+    g.setColour(juce::Colour(themeAmber));
     g.fillRoundedRectangle(juce::Rectangle<float>(track.getX() - 4.0f,
                                                    sliderPosition - 5.0f,
                                                    track.getWidth() + 8.0f, 10.0f), 2.0f);
+}
+
+void AurelineMainComponent::AurelineLookAndFeel::drawComboBox(
+    juce::Graphics& g, int width, int height, bool isButtonDown,
+    int buttonX, int buttonY, int buttonWidth, int buttonHeight, juce::ComboBox& box)
+{
+    if (box.getName() != "voiceSelector"
+        && box.getName() != "waveMemorySelector")
+    {
+        juce::LookAndFeel_V4::drawComboBox(g, width, height, isButtonDown,
+                                           buttonX, buttonY, buttonWidth, buttonHeight, box);
+        return;
+    }
+
+    const auto bounds = juce::Rectangle<float>(0.5f, 0.5f,
+                                                static_cast<float>(width - 1),
+                                                static_cast<float>(height - 1));
+    g.setColour(juce::Colour(themeBackground));
+    g.fillRoundedRectangle(bounds, 4.0f);
+    g.setColour(isButtonDown ? juce::Colour(themeAmber)
+                             : juce::Colour(themeLineGray).withAlpha(0.75f));
+    g.drawRoundedRectangle(bounds, 4.0f, 1.2f);
+
+    juce::Path arrow;
+    const auto centre = juce::Point<float>(static_cast<float>(width - 13),
+                                           static_cast<float>(height) * 0.5f);
+    arrow.startNewSubPath(centre.x - 3.0f, centre.y - 1.5f);
+    arrow.lineTo(centre.x, centre.y + 2.0f);
+    arrow.lineTo(centre.x + 3.0f, centre.y - 1.5f);
+    g.setColour(juce::Colour(themeAmber));
+    g.strokePath(arrow, juce::PathStrokeType(1.5f, juce::PathStrokeType::curved,
+                                             juce::PathStrokeType::rounded));
+}
+
+void AurelineMainComponent::AurelineLookAndFeel::drawButtonBackground(
+    juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+    bool highlighted, bool down)
+{
+    if (button.getName() != "voiceActionButton" && button.getName() != "voiceStepButton")
+    {
+        juce::LookAndFeel_V4::drawButtonBackground(g, button, backgroundColour,
+                                                   highlighted, down);
+        return;
+    }
+
+    const bool step = button.getName() == "voiceStepButton";
+    const bool store = button.getButtonText() == "STORE";
+    const auto bounds = button.getLocalBounds().toFloat().reduced(0.5f);
+    const auto top = store ? juce::Colour(themeAmber)
+                           : step ? juce::Colour(0xff3a3731) : juce::Colour(themePanelLight);
+    const auto bottom = store ? juce::Colour(0xff6f2412)
+                              : step ? juce::Colour(0xff171614) : juce::Colour(0xff17110d);
+    g.setGradientFill({ down ? top.brighter(0.12f) : top, bounds.getX(), bounds.getY(),
+                        down ? bottom.brighter(0.08f) : bottom,
+                        bounds.getX(), bounds.getBottom(), false });
+    g.fillRoundedRectangle(bounds, 3.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.72f));
+    g.drawRoundedRectangle(bounds, 3.0f, 1.0f);
+    if (highlighted && !down)
+    {
+        g.setColour(juce::Colours::white.withAlpha(0.06f));
+        g.drawRoundedRectangle(bounds.reduced(1.0f), 2.0f, 1.0f);
+    }
+}
+
+void AurelineMainComponent::AurelineLookAndFeel::drawButtonText(
+    juce::Graphics& g, juce::TextButton& button, bool highlighted, bool down)
+{
+    if (button.getName() != "voiceActionButton" && button.getName() != "voiceStepButton")
+    {
+        juce::LookAndFeel_V4::drawButtonText(g, button, highlighted, down);
+        return;
+    }
+
+    const bool step = button.getName() == "voiceStepButton";
+    const bool store = button.getButtonText() == "STORE";
+    const bool editWave = button.getButtonText() == "EDIT WAVE";
+    const bool saveAll = button.getButtonText() == "SAVE ALL LIBRARY";
+    g.setFont(juce::FontOptions(editWave ? 11.0f : saveAll ? 10.0f
+                                                      : step ? 14.0f : 9.0f,
+                                juce::Font::bold));
+    g.setColour(store && !down ? juce::Colours::black
+                               : down ? juce::Colours::white
+                                      : step ? juce::Colour(themeText)
+                                             : juce::Colour(themeAmber));
+    g.drawFittedText(button.getButtonText(), button.getLocalBounds().reduced(3, 1),
+                     juce::Justification::centred, 1);
 }
 
 juce::Font AurelineMainComponent::AurelineLookAndFeel::getLabelFont(juce::Label& label)
@@ -409,7 +685,7 @@ void AurelineMainComponent::Keyboard::paint(juce::Graphics& g)
         const bool down = note == heldNote || owner.isNoteHeld(note);
         g.setGradientFill({ down ? juce::Colour(0xff78551d) : juce::Colour(0xff252018),
                             key.getX(), key.getY(),
-                            down ? juce::Colour(0xffd39328) : juce::Colour(0xff050403),
+                            down ? juce::Colour(themeAmber) : juce::Colour(0xff050403),
                             key.getX(), key.getBottom(), false });
         g.fillRoundedRectangle(key, 1.5f);
         g.setColour(juce::Colours::black);
@@ -554,7 +830,24 @@ void AurelineMainComponent::WaveformButton::paintButton(juce::Graphics& g, bool 
     const bool sawDown = isLfoButton && buttonLfoWaveform == aureline::LfoWaveform::sawDown;
     const bool sampleAndHold = isLfoButton
         && buttonLfoWaveform == aureline::LfoWaveform::sampleAndHold;
-    if (sawUp)
+    const bool waveMemory = !isLfoButton
+        && buttonWaveform == aureline::Waveform::waveMemory;
+    if (waveMemory)
+    {
+        constexpr std::array<float, 9> steps { 0.72f, 0.25f, 0.48f, 0.08f, 0.38f,
+                                               0.82f, 0.56f, 0.18f, 0.64f };
+        const auto stepWidth = icon.getWidth() / static_cast<float>(steps.size());
+        path.startNewSubPath(icon.getX(), icon.getY() + steps[0] * icon.getHeight());
+        for (std::size_t index = 0; index < steps.size(); ++index)
+        {
+            const auto x = icon.getX() + static_cast<float>(index) * stepWidth;
+            const auto y = icon.getY() + steps[index] * icon.getHeight();
+            if (index > 0)
+                path.lineTo(x, y);
+            path.lineTo(x + stepWidth, y);
+        }
+    }
+    else if (sawUp)
     {
         path.startNewSubPath(icon.getX(), icon.getBottom());
         path.lineTo(icon.getRight(), icon.getY());
@@ -639,6 +932,613 @@ void AurelineMainComponent::WaveformButton::paintButton(juce::Graphics& g, bool 
                rocker.getRight() - 1.5f, rocker.getBottom() - 1.5f, 1.0f);
 }
 
+class AurelineMainComponent::WaveMemoryEditorWindow final : public juce::Component
+{
+    class Editor final : public juce::Component,
+                         private juce::Slider::Listener,
+                         private juce::ComboBox::Listener,
+                         private juce::Button::Listener
+    {
+    public:
+        Editor(AurelineMainComponent& ownerIn, std::size_t oscillatorIn)
+            : owner(ownerIn), oscillator(oscillatorIn)
+        {
+            memoryBox.setName("voiceSelector");
+            for (std::size_t index = 0; index < aureline::kWaveMemoryFactoryCount; ++index)
+                memoryBox.addItem(aureline::waveMemoryFactoryNames()[index],
+                                  static_cast<int>(index) + 1);
+            memoryBox.setSelectedId((oscillator == 0
+                ? owner.parameters.waveMemoryIndexA.load()
+                : owner.parameters.waveMemoryIndexB.load()) + 1,
+                juce::dontSendNotification);
+            memoryBox.addListener(this);
+            addAndMakeVisible(memoryBox);
+
+            for (const auto* name : { "5-BIT", "4-BIT", "SMOOTH" })
+                characterBox.addItem(name, characterBox.getNumItems() + 1);
+            characterBox.setName("voiceSelector");
+            characterBox.setSelectedId((oscillator == 0
+                ? owner.parameters.waveMemoryCharacterA.load()
+                : owner.parameters.waveMemoryCharacterB.load()) + 1,
+                juce::dontSendNotification);
+            characterBox.addListener(this);
+            addAndMakeVisible(characterBox);
+
+            for (std::size_t index = 0; index < steps.size(); ++index)
+            {
+                auto& slider = steps[index];
+                slider.setSliderStyle(juce::Slider::LinearVertical);
+                slider.setName("waveMemoryStep");
+                slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+                slider.setRange(0.0, 31.0, 1.0);
+                slider.setValue(owner.userWaveMemory[oscillator][index],
+                                juce::dontSendNotification);
+                slider.setColour(juce::Slider::backgroundColourId, juce::Colour(0xff080b0a));
+                slider.setColour(juce::Slider::trackColourId, juce::Colour(themeAmber));
+                slider.setInterceptsMouseClicks(false, false);
+                slider.addListener(this);
+                addAndMakeVisible(slider);
+            }
+
+            for (auto* button : { &auditionButton, &copyButton, &pasteButton,
+                                  &initButton, &closeButton })
+            {
+                button->setName("voiceStepButton");
+                button->addListener(this);
+                addAndMakeVisible(*button);
+            }
+            pasteButton.setEnabled(owner.hasCopiedWaveMemory);
+            setSize(760, 390);
+        }
+
+        ~Editor() override { stopAudition(); }
+
+        void prepareToClose() { stopAudition(); }
+
+        void mouseDown(const juce::MouseEvent& event) override
+        {
+            lastDrawnStep = -1;
+            lastDrawnValue = -1;
+            drawWaveAt(event.position);
+        }
+
+        void mouseDrag(const juce::MouseEvent& event) override
+        {
+            drawWaveAt(event.position);
+        }
+
+        void mouseUp(const juce::MouseEvent&) override
+        {
+            lastDrawnStep = -1;
+            lastDrawnValue = -1;
+        }
+
+        void paint(juce::Graphics& g) override
+        {
+            g.fillAll(juce::Colour(0xff0c100f));
+            g.setColour(juce::Colour(themeAmber));
+            g.setFont(juce::FontOptions(18.0f, juce::Font::bold));
+            g.drawText("WAVE MEMORY " + juce::String(oscillator == 0 ? "A" : "B"),
+                       18, 12, 420, 28, juce::Justification::centredLeft);
+            g.setColour(juce::Colour(0xffaeb2b0));
+            g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+            g.drawText("32 STEPS", 18, getHeight() - 30, 420, 18,
+                       juce::Justification::centredLeft);
+            g.setColour(juce::Colour(0xff6d7170));
+            g.drawRoundedRectangle(juce::Rectangle<float>(16.0f, 48.0f, 570.0f, 300.0f),
+                                   5.0f, 1.0f);
+            for (int line = 1; line < 4; ++line)
+            {
+                const auto y = 48.0f + 300.0f * static_cast<float>(line) / 4.0f;
+                g.setColour(juce::Colours::white.withAlpha(line == 2 ? 0.16f : 0.07f));
+                g.drawHorizontalLine(juce::roundToInt(y), 17.0f, 585.0f);
+            }
+            g.setColour(juce::Colour(0xffaeb2b0));
+            g.drawText("MEMORY", 610, 48, 130, 18, juce::Justification::centred);
+            g.drawText("CHARACTER", 610, 104, 130, 18, juce::Justification::centred);
+        }
+
+        void resized() override
+        {
+            constexpr int canvasX = 18;
+            constexpr int canvasY = 52;
+            constexpr int canvasWidth = 566;
+            constexpr int canvasHeight = 292;
+            const auto stepWidth = static_cast<float>(canvasWidth)
+                                 / static_cast<float>(steps.size());
+            for (std::size_t index = 0; index < steps.size(); ++index)
+                steps[index].setBounds(juce::roundToInt(
+                                           canvasX + static_cast<float>(index) * stepWidth),
+                                       canvasY, juce::jmax(3, juce::roundToInt(stepWidth)),
+                                       canvasHeight);
+            memoryBox.setBounds(610, 68, 130, 28);
+            characterBox.setBounds(610, 124, 130, 28);
+            auditionButton.setBounds(610, 178, 130, 34);
+            copyButton.setBounds(610, 220, 62, 30);
+            pasteButton.setBounds(678, 220, 62, 30);
+            initButton.setBounds(610, 258, 130, 30);
+            closeButton.setBounds(610, 316, 130, 32);
+        }
+
+    private:
+        void sliderValueChanged(juce::Slider* slider) override
+        {
+            for (std::size_t index = 0; index < steps.size(); ++index)
+                if (slider == &steps[index])
+                {
+                    owner.userWaveMemory[oscillator][index] = static_cast<std::uint8_t>(
+                        juce::jlimit(0, 31, juce::roundToInt(slider->getValue())));
+                    owner.userWaveMemoryActive[oscillator] = true;
+                    owner.applyParameters();
+                    owner.repaint();
+                    return;
+                }
+        }
+
+        void comboBoxChanged(juce::ComboBox* box) override
+        {
+            if (box == &memoryBox)
+            {
+                const auto selected = juce::jlimit(0,
+                    static_cast<int>(aureline::kWaveMemoryFactoryCount) - 1,
+                    memoryBox.getSelectedId() - 1);
+                owner.userWaveMemory[oscillator] =
+                    aureline::waveMemoryFactoryBank()[static_cast<std::size_t>(selected)];
+                owner.userWaveMemoryActive[oscillator] = false;
+                (oscillator == 0 ? owner.parameters.waveMemoryIndexA
+                                 : owner.parameters.waveMemoryIndexB).store(selected);
+                owner.waveMemoryBoxes[oscillator].setSelectedId(selected + 1,
+                                                               juce::dontSendNotification);
+                reloadSteps();
+            }
+            else if (box == &characterBox)
+            {
+                const auto value = juce::jlimit(0, 2, characterBox.getSelectedId() - 1);
+                (oscillator == 0 ? owner.parameters.waveMemoryCharacterA
+                                 : owner.parameters.waveMemoryCharacterB).store(value);
+                owner.waveCharacterBoxes[oscillator].setSelectedId(value + 1,
+                                                                  juce::dontSendNotification);
+            }
+            owner.applyParameters();
+            owner.repaint();
+        }
+
+        void buttonClicked(juce::Button* button) override
+        {
+            if (button == &copyButton)
+            {
+                owner.copiedWaveMemory = owner.userWaveMemory[oscillator];
+                owner.hasCopiedWaveMemory = true;
+                pasteButton.setEnabled(true);
+            }
+            else if (button == &pasteButton && owner.hasCopiedWaveMemory)
+            {
+                owner.userWaveMemory[oscillator] = owner.copiedWaveMemory;
+                owner.userWaveMemoryActive[oscillator] = true;
+                reloadSteps();
+                owner.applyParameters();
+            }
+            else if (button == &initButton)
+            {
+                owner.userWaveMemory[oscillator] = aureline::waveMemoryFactoryBank()[0];
+                owner.userWaveMemoryActive[oscillator] = false;
+                memoryBox.setSelectedId(1, juce::dontSendNotification);
+                (oscillator == 0 ? owner.parameters.waveMemoryIndexA
+                                 : owner.parameters.waveMemoryIndexB).store(0);
+                owner.waveMemoryBoxes[oscillator].setSelectedId(1, juce::dontSendNotification);
+                reloadSteps();
+                owner.applyParameters();
+            }
+            else if (button == &auditionButton)
+            {
+                auditioning ? stopAudition() : startAudition();
+            }
+            else if (button == &closeButton)
+            {
+                stopAudition();
+                if (auto* window = findParentComponentOfClass<WaveMemoryEditorWindow>())
+                    window->closeEditor();
+            }
+            owner.repaint();
+        }
+
+        void reloadSteps()
+        {
+            for (std::size_t index = 0; index < steps.size(); ++index)
+                steps[index].setValue(owner.userWaveMemory[oscillator][index],
+                                      juce::dontSendNotification);
+        }
+
+        void drawWaveAt(juce::Point<float> position)
+        {
+            constexpr float canvasX = 18.0f;
+            constexpr float canvasY = 52.0f;
+            constexpr float canvasWidth = 566.0f;
+            constexpr float canvasHeight = 292.0f;
+            if (position.x < canvasX || position.x > canvasX + canvasWidth
+                || position.y < canvasY || position.y > canvasY + canvasHeight)
+                return;
+
+            const auto index = juce::jlimit(0, 31, static_cast<int>(
+                (position.x - canvasX) / canvasWidth * 32.0f));
+            auto value = juce::jlimit(0, 31, juce::roundToInt(
+                (canvasY + canvasHeight - position.y) / canvasHeight * 31.0f));
+            const auto character = oscillator == 0
+                ? owner.parameters.waveMemoryCharacterA.load()
+                : owner.parameters.waveMemoryCharacterB.load();
+            if (character == 1)
+            {
+                const auto fourBit = juce::roundToInt(
+                    static_cast<double>(value) / 31.0 * 15.0);
+                value = juce::roundToInt(
+                    static_cast<double>(fourBit) * 31.0 / 15.0);
+            }
+
+            const auto setValue = [this](int stepIndex, int stepValue)
+            {
+                const auto clamped = juce::jlimit(0, 31, stepValue);
+                owner.userWaveMemory[oscillator][static_cast<std::size_t>(stepIndex)]
+                    = static_cast<std::uint8_t>(clamped);
+                steps[static_cast<std::size_t>(stepIndex)].setValue(
+                    clamped, juce::dontSendNotification);
+            };
+
+            if (lastDrawnStep >= 0 && lastDrawnStep != index)
+            {
+                const auto distance = std::abs(index - lastDrawnStep);
+                for (int offset = 0; offset <= distance; ++offset)
+                {
+                    const auto stepIndex = lastDrawnStep
+                        + (index > lastDrawnStep ? offset : -offset);
+                    const auto amount = static_cast<double>(offset) / distance;
+                    setValue(stepIndex, juce::roundToInt(
+                        lastDrawnValue + (value - lastDrawnValue) * amount));
+                }
+            }
+            else
+                setValue(index, value);
+
+            lastDrawnStep = index;
+            lastDrawnValue = value;
+            owner.userWaveMemoryActive[oscillator] = true;
+            owner.applyParameters();
+            owner.repaint();
+            repaint();
+        }
+
+        void startAudition()
+        {
+            restoreMaskA = owner.parameters.waveformMaskA.load();
+            restoreMaskB = owner.parameters.waveformMaskB.load();
+            restoreLevelA = owner.parameters.oscillatorALevel.load();
+            restoreLevelB = owner.parameters.oscillatorBLevel.load();
+            restoreNoise = owner.parameters.noiseLevel.load();
+            owner.parameters.waveformMaskA.store(oscillator == 0 ? 8 : restoreMaskA);
+            owner.parameters.waveformMaskB.store(oscillator == 1 ? 8 : restoreMaskB);
+            owner.parameters.oscillatorALevel.store(oscillator == 0 ? 1.0f : 0.0f);
+            owner.parameters.oscillatorBLevel.store(oscillator == 1 ? 1.0f : 0.0f);
+            owner.parameters.noiseLevel.store(0.0f);
+            owner.applyParameters();
+            owner.playNote(60, 100);
+            auditioning = true;
+            auditionButton.setButtonText("STOP C4");
+        }
+
+        void stopAudition()
+        {
+            if (!auditioning)
+                return;
+            owner.releaseNote(60);
+            owner.parameters.waveformMaskA.store(restoreMaskA);
+            owner.parameters.waveformMaskB.store(restoreMaskB);
+            owner.parameters.oscillatorALevel.store(restoreLevelA);
+            owner.parameters.oscillatorBLevel.store(restoreLevelB);
+            owner.parameters.noiseLevel.store(restoreNoise);
+            owner.applyParameters();
+            auditioning = false;
+            auditionButton.setButtonText("AUDITION C4");
+        }
+
+        AurelineMainComponent& owner;
+        const std::size_t oscillator;
+        std::array<juce::Slider, aureline::kWaveMemorySize> steps;
+        juce::ComboBox memoryBox;
+        juce::ComboBox characterBox;
+        juce::TextButton auditionButton { "AUDITION C4" };
+        juce::TextButton copyButton { "COPY" };
+        juce::TextButton pasteButton { "PASTE" };
+        juce::TextButton initButton { "INIT" };
+        juce::TextButton closeButton { "CLOSE" };
+        bool auditioning = false;
+        int lastDrawnStep = -1;
+        int lastDrawnValue = -1;
+        int restoreMaskA = 0, restoreMaskB = 0;
+        float restoreLevelA = 0.0f, restoreLevelB = 0.0f, restoreNoise = 0.0f;
+    };
+
+public:
+    WaveMemoryEditorWindow(AurelineMainComponent& owner, std::size_t oscillator)
+    {
+        editor = std::make_unique<Editor>(owner, oscillator);
+        addAndMakeVisible(*editor);
+        setInterceptsMouseClicks(true, true);
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        g.fillAll(juce::Colours::black.withAlpha(0.72f));
+    }
+
+    void resized() override
+    {
+        editor->setBounds(getLocalBounds().withSizeKeepingCentre(
+            juce::jmin(760, getWidth() - 32),
+            juce::jmin(390, getHeight() - 32)));
+    }
+
+    void closeEditor()
+    {
+        editor->prepareToClose();
+        setVisible(false);
+    }
+
+private:
+    std::unique_ptr<Editor> editor;
+};
+
+#if 0 // Removed prototype step sequencer UI.
+class AurelineMainComponent::StepSequencerEditor final : public juce::Component,
+                                                         private juce::Timer
+{
+public:
+    explicit StepSequencerEditor(AurelineMainComponent& ownerIn) : owner(ownerIn)
+    {
+        lengthBox.setName("voiceSelector");
+        for (const auto length : { 16, 32, 48, 64 })
+            lengthBox.addItem(juce::String(length) + " STEPS", length);
+        lengthBox.setSelectedId(owner.stepPattern.length, juce::dontSendNotification);
+        lengthBox.onChange = [this]
+        {
+            owner.stepPattern.length = lengthBox.getSelectedId();
+            page = juce::jmin(page, owner.stepPattern.length / 16 - 1);
+            apply();
+        };
+        addAndMakeVisible(lengthBox);
+
+        resolutionBox.setName("voiceSelector");
+        for (const auto* text : { "1/8", "1/16", "1/32" })
+            resolutionBox.addItem(text, resolutionBox.getNumItems() + 1);
+        resolutionBox.setSelectedId(owner.stepPattern.resolution + 1,
+                                    juce::dontSendNotification);
+        resolutionBox.onChange = [this]
+        {
+            owner.stepPattern.resolution = resolutionBox.getSelectedId() - 1;
+            apply();
+        };
+        addAndMakeVisible(resolutionBox);
+
+        modeBox.setName("voiceSelector");
+        for (const auto* text : { "NOTE", "REST", "TIE" })
+            modeBox.addItem(text, modeBox.getNumItems() + 1);
+        modeBox.onChange = [this]
+        {
+            step().mode = static_cast<aureline::StepMode>(modeBox.getSelectedId() - 1);
+            apply();
+        };
+        addAndMakeVisible(modeBox);
+
+        configureEditorSlider(pitchSlider, -24, 24);
+        configureEditorSlider(velocitySlider, 1, 127);
+        configureEditorSlider(gateSlider, 10, 100);
+        pitchSlider.onValueChange = [this] { step().pitch = juce::roundToInt(pitchSlider.getValue()); apply(); };
+        velocitySlider.onValueChange = [this] { step().velocity = juce::roundToInt(velocitySlider.getValue()); apply(); };
+        gateSlider.onValueChange = [this] { step().gate = juce::roundToInt(gateSlider.getValue()); apply(); };
+
+        for (std::size_t index = 0; index < stepButtons.size(); ++index)
+        {
+            stepButtons[index].setName("voiceStepButton");
+            stepButtons[index].onClick = [this, index]
+            {
+                selected = page * 16 + static_cast<int>(index);
+                refreshControls();
+            };
+            addAndMakeVisible(stepButtons[index]);
+        }
+        for (auto* button : { &previousPageButton, &nextPageButton, &playButton,
+                              &clearButton, &initButton, &closeButton })
+        {
+            button->setName("voiceStepButton");
+            addAndMakeVisible(*button);
+        }
+        previousPageButton.onClick = [this] { page = juce::jmax(0, page - 1); refreshControls(); };
+        nextPageButton.onClick = [this]
+        {
+            page = juce::jmin(owner.stepPattern.length / 16 - 1, page + 1);
+            refreshControls();
+        };
+        playButton.onClick = [this]
+        {
+            owner.stepPattern.enabled = !owner.stepPattern.enabled;
+            owner.sequencerButton.setToggleState(owner.stepPattern.enabled,
+                                                 juce::dontSendNotification);
+            if (owner.stepPattern.enabled)
+            {
+                owner.parameters.arpEnabled.store(false);
+                owner.arpButton.setToggleState(false, juce::dontSendNotification);
+            }
+            else
+                owner.stepSequencer.stop(owner.engine);
+            apply();
+        };
+        clearButton.onClick = [this]
+        {
+            for (auto& item : owner.stepPattern.steps)
+                item.mode = aureline::StepMode::rest;
+            apply();
+        };
+        initButton.onClick = [this]
+        {
+            const auto enabled = owner.stepPattern.enabled;
+            owner.stepPattern = {};
+            owner.stepPattern.enabled = enabled;
+            page = 0;
+            selected = 0;
+            lengthBox.setSelectedId(16, juce::dontSendNotification);
+            resolutionBox.setSelectedId(2, juce::dontSendNotification);
+            apply();
+        };
+        closeButton.onClick = [this] { setVisible(false); };
+        refreshControls();
+        startTimerHz(30);
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        g.fillAll(juce::Colours::black.withAlpha(0.74f));
+        const auto panel = panelBounds().toFloat();
+        g.setColour(juce::Colour(0xff101413));
+        g.fillRoundedRectangle(panel, 7.0f);
+        g.setColour(juce::Colour(0xff765d28));
+        g.drawRoundedRectangle(panel, 7.0f, 1.5f);
+        g.setFont(juce::FontOptions(19.0f, juce::Font::bold));
+        g.setColour(juce::Colour(themeAmber));
+        g.drawText("STEP SEQUENCER", panel.withHeight(42.0f).reduced(18.0f, 0.0f),
+                   juce::Justification::centredLeft);
+        g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+        g.setColour(juce::Colour(0xffaeb2b0));
+        g.drawText("PITCH", labelBounds(0), juce::Justification::centred);
+        g.drawText("VELOCITY", labelBounds(1), juce::Justification::centred);
+        g.drawText("GATE", labelBounds(2), juce::Justification::centred);
+        const auto firstStep = page * 16 + 1;
+        g.drawText(juce::String(firstStep).paddedLeft('0', 2) + "-"
+                       + juce::String(firstStep + 15).paddedLeft('0', 2)
+                       + " / " + juce::String(owner.stepPattern.length),
+                   panelBounds().getX() + 18, panelBounds().getY() + 47,
+                   150, 16, juce::Justification::centredLeft);
+    }
+
+    void paintOverChildren(juce::Graphics& g) override
+    {
+        g.setFont(juce::FontOptions(8.5f, juce::Font::bold));
+        for (std::size_t index = 0; index < stepButtons.size(); ++index)
+        {
+            const auto absolute = page * 16 + static_cast<int>(index) + 1;
+            g.setColour(juce::Colour(themeAmber));
+            g.drawText(juce::String(absolute).paddedLeft('0', 2),
+                       stepButtons[index].getBounds().reduced(4, 3).withHeight(12),
+                       juce::Justification::topLeft);
+        }
+        const auto current = owner.stepSequencer.currentStep();
+        if (current >= page * 16 && current < page * 16 + 16)
+        {
+            const auto index = current - page * 16;
+            g.setColour(juce::Colour(themeAmber).withAlpha(0.42f));
+            g.drawRoundedRectangle(stepButtons[static_cast<std::size_t>(index)]
+                                       .getBounds().toFloat().expanded(2.0f),
+                                   4.0f, 2.0f);
+        }
+    }
+
+    void resized() override
+    {
+        const auto panel = panelBounds();
+        lengthBox.setBounds(panel.getX() + 220, panel.getY() + 10, 120, 28);
+        resolutionBox.setBounds(panel.getX() + 350, panel.getY() + 10, 90, 28);
+        playButton.setBounds(panel.getRight() - 184, panel.getY() + 10, 78, 28);
+        closeButton.setBounds(panel.getRight() - 98, panel.getY() + 10, 80, 28);
+        const int gridX = panel.getX() + 18;
+        const int gridY = panel.getY() + 70;
+        const int gridWidth = panel.getWidth() - 36;
+        const int cellWidth = gridWidth / 16;
+        for (std::size_t index = 0; index < stepButtons.size(); ++index)
+            stepButtons[index].setBounds(gridX + static_cast<int>(index) * cellWidth,
+                                         gridY, cellWidth - 3, 82);
+        previousPageButton.setBounds(panel.getX() + 18, gridY + 94, 42, 28);
+        nextPageButton.setBounds(panel.getX() + 66, gridY + 94, 42, 28);
+        modeBox.setBounds(panel.getX() + 130, gridY + 94, 100, 28);
+        pitchSlider.setBounds(panel.getX() + 270, gridY + 92, 120, 46);
+        velocitySlider.setBounds(panel.getX() + 420, gridY + 92, 120, 46);
+        gateSlider.setBounds(panel.getX() + 570, gridY + 92, 120, 46);
+        clearButton.setBounds(panel.getRight() - 180, gridY + 96, 74, 28);
+        initButton.setBounds(panel.getRight() - 98, gridY + 96, 80, 28);
+    }
+
+private:
+    void configureEditorSlider(juce::Slider& slider, double minimum, double maximum)
+    {
+        slider.setSliderStyle(juce::Slider::LinearHorizontal);
+        slider.setRange(minimum, maximum, 1.0);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 58, 16);
+        addAndMakeVisible(slider);
+    }
+
+    juce::Rectangle<int> panelBounds() const
+    {
+        return getLocalBounds().withSizeKeepingCentre(
+            juce::jmin(920, getWidth() - 30), juce::jmin(310, getHeight() - 30));
+    }
+
+    juce::Rectangle<int> labelBounds(int index) const
+    {
+        const auto panel = panelBounds();
+        return { panel.getX() + 270 + index * 150, panel.getY() + 156, 120, 16 };
+    }
+
+    aureline::StepData& step()
+    {
+        return owner.stepPattern.steps[static_cast<std::size_t>(
+            juce::jlimit(0, 63, selected))];
+    }
+
+    void apply()
+    {
+        owner.stepSequencer.setPattern(owner.stepPattern);
+        owner.stepSequencer.setTempo(owner.parameters.tempoBpm.load());
+        refreshControls();
+        owner.repaint();
+    }
+
+    void refreshControls()
+    {
+        selected = juce::jlimit(page * 16, page * 16 + 15, selected);
+        for (std::size_t index = 0; index < stepButtons.size(); ++index)
+        {
+            const auto absolute = page * 16 + static_cast<int>(index);
+            const auto& item = owner.stepPattern.steps[static_cast<std::size_t>(absolute)];
+            const auto mode = item.mode == aureline::StepMode::rest ? "R"
+                            : item.mode == aureline::StepMode::tie ? "T"
+                            : (item.pitch >= 0 ? "+" : "") + juce::String(item.pitch);
+            stepButtons[index].setButtonText(mode);
+            stepButtons[index].setToggleState(absolute == selected,
+                                              juce::dontSendNotification);
+        }
+        const juce::ScopedValueSetter<bool> guard(refreshing, true);
+        pitchSlider.setValue(step().pitch, juce::dontSendNotification);
+        velocitySlider.setValue(step().velocity, juce::dontSendNotification);
+        gateSlider.setValue(step().gate, juce::dontSendNotification);
+        modeBox.setSelectedId(static_cast<int>(step().mode) + 1,
+                              juce::dontSendNotification);
+        previousPageButton.setEnabled(page > 0);
+        nextPageButton.setEnabled(page + 1 < owner.stepPattern.length / 16);
+        playButton.setButtonText(owner.stepPattern.enabled ? "STOP" : "PLAY");
+        repaint();
+    }
+
+    void timerCallback() override { repaint(); }
+
+    AurelineMainComponent& owner;
+    std::array<juce::TextButton, 16> stepButtons;
+    juce::ComboBox lengthBox, resolutionBox, modeBox;
+    juce::Slider pitchSlider, velocitySlider, gateSlider;
+    juce::TextButton previousPageButton { "<" }, nextPageButton { ">" };
+    juce::TextButton playButton { "PLAY" }, clearButton { "CLEAR" };
+    juce::TextButton initButton { "INIT" }, closeButton { "CLOSE" };
+    int page = 0;
+    int selected = 0;
+    bool refreshing = false;
+};
+#endif
+
 AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     : ownsStandaloneAudio(useStandaloneAudio), keyboard(*this)
 {
@@ -646,32 +1546,55 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
         BinaryData::aurelinewoodbackground_png,
         BinaryData::aurelinewoodbackground_pngSize);
     setLookAndFeel(&lookAndFeel);
+    lookAndFeel.setColour(juce::PopupMenu::backgroundColourId, juce::Colour(themePanel));
+    lookAndFeel.setColour(juce::PopupMenu::textColourId, juce::Colour(themeText));
+    lookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(themeAmber));
+    lookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::black);
     titleLabel.setText("AURELINE", juce::dontSendNotification);
     titleLabel.setFont(juce::FontOptions(25.0f, juce::Font::bold));
-    titleLabel.setColour(juce::Label::textColourId, juce::Colour(0xff050607));
+    titleLabel.setColour(juce::Label::textColourId, juce::Colour(themeAmber));
     titleLabel.setJustificationType(juce::Justification::centredBottom);
     addAndMakeVisible(titleLabel);
     subtitleLabel.setText("8-VOICE ANALOG MODELING SYNTHESIZER", juce::dontSendNotification);
-    subtitleLabel.setColour(juce::Label::textColourId, juce::Colour(0xff08090a));
+    subtitleLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+    subtitleLabel.setColour(juce::Label::textColourId, juce::Colour(themeGold));
     subtitleLabel.setJustificationType(juce::Justification::bottomLeft);
     addAndMakeVisible(subtitleLabel);
     statusLabel.setText("Audio ready  |  MIDI: all inputs", juce::dontSendNotification);
-    statusLabel.setColour(juce::Label::textColourId, juce::Colour(0xff8f8068));
-    statusLabel.setJustificationType(juce::Justification::centredRight);
+    statusLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    statusLabel.setColour(juce::Label::textColourId, juce::Colour(themeGold));
+    statusLabel.setJustificationType(juce::Justification::bottomRight);
     addAndMakeVisible(statusLabel);
 
     presetBox.addItem("INIT ANALOG", 1);
     for (std::size_t index = 0; index < factoryVoices.size(); ++index)
-        presetBox.addItem(factoryVoices[index].name, static_cast<int>(index) + 2);
+        presetBox.addItem(slotVoiceDisplayName(index, factoryVoices[index].name),
+                          static_cast<int>(index) + 2);
     presetBox.setSelectedId(1);
+    presetBox.setName("voiceSelector");
+    presetBox.setColour(juce::ComboBox::textColourId, juce::Colour(themeAmber));
+    presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(themeBackground));
+    presetBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(themeLineGray));
+    presetBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(themeAmber));
     presetBox.addListener(this);
     addAndMakeVisible(presetBox);
-    initVoiceButton.addListener(this);
-    initVoiceButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff251b14));
-    initVoiceButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffbf5728));
-    initVoiceButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffad55));
-    initVoiceButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    addAndMakeVisible(initVoiceButton);
+    for (auto* button : { &previousVoiceButton, &nextVoiceButton })
+    {
+        button->setName("voiceStepButton");
+        button->addListener(this);
+        addAndMakeVisible(*button);
+    }
+    for (auto* button : { &loadVoiceButton, &saveVoiceButton, &copyVoiceButton,
+                          &pasteVoiceButton, &initVoiceButton, &storeVoiceButton })
+    {
+        button->addListener(this);
+        button->setName("voiceActionButton");
+        addAndMakeVisible(*button);
+    }
+    saveLibraryButton.addListener(this);
+    saveLibraryButton.setName("voiceActionButton");
+    addAndMakeVisible(saveLibraryButton);
+    pasteVoiceButton.setEnabled(false);
     voiceModeBox.addItem("POLY", 1);
     voiceModeBox.addItem("MONO", 2);
     voiceModeBox.addItem("UNISON", 3);
@@ -698,18 +1621,49 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     arpHoldButton.setClickingTogglesState(true);
     arpHoldButton.addListener(this);
     addAndMakeVisible(arpHoldButton);
-    for (auto* button : { &waveformAButtons[0], &waveformAButtons[1], &waveformAButtons[2] })
+    for (auto& button : waveformAButtons)
     {
-        button->addListener(this);
-        addAndMakeVisible(*button);
+        button.addListener(this);
+        addAndMakeVisible(button);
     }
-    for (auto* button : { &waveformBButtons[0], &waveformBButtons[1], &waveformBButtons[2] })
+    for (auto& button : waveformBButtons)
     {
-        button->addListener(this);
-        addAndMakeVisible(*button);
+        button.addListener(this);
+        addAndMakeVisible(button);
     }
     waveformAButtons[0].setToggleState(true, juce::dontSendNotification);
     waveformBButtons[0].setToggleState(true, juce::dontSendNotification);
+    for (std::size_t oscillator = 0; oscillator < waveMemoryBoxes.size(); ++oscillator)
+    {
+        auto& memory = waveMemoryBoxes[oscillator];
+        for (std::size_t index = 0; index < aureline::kWaveMemoryFactoryCount; ++index)
+            memory.addItem(aureline::waveMemoryFactoryNames()[index],
+                           static_cast<int>(index) + 1);
+        memory.setSelectedId(1, juce::dontSendNotification);
+        memory.addListener(this);
+        memory.setName("waveMemorySelector");
+        memory.setColour(juce::ComboBox::textColourId, juce::Colour(themeAmber));
+        memory.setColour(juce::ComboBox::backgroundColourId, juce::Colour(themeBackground));
+        memory.setColour(juce::ComboBox::outlineColourId, juce::Colour(themeLineGray));
+        addAndMakeVisible(memory);
+
+        auto& character = waveCharacterBoxes[oscillator];
+        character.addItem("5-BIT", 1);
+        character.addItem("4-BIT", 2);
+        character.addItem("SMOOTH", 3);
+        character.setSelectedId(1, juce::dontSendNotification);
+        character.addListener(this);
+        character.setName("waveMemorySelector");
+        character.setColour(juce::ComboBox::textColourId, juce::Colour(themeAmber));
+        character.setColour(juce::ComboBox::backgroundColourId, juce::Colour(themeBackground));
+        character.setColour(juce::ComboBox::outlineColourId, juce::Colour(themeLineGray));
+        addAndMakeVisible(character);
+
+        auto& waveButton = waveMemoryButtons[oscillator];
+        waveButton.setName("voiceStepButton");
+        waveButton.addListener(this);
+        addAndMakeVisible(waveButton);
+    }
     for (auto& button : lfoWaveformButtons)
     {
         button.addListener(this);
@@ -740,7 +1694,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     {
         label->setFont(juce::FontOptions(10.5f, juce::Font::bold));
         label->setJustificationType(juce::Justification::centred);
-        label->setColour(juce::Label::textColourId, juce::Colour(0xffc7c9c8));
+        label->setColour(juce::Label::textColourId, juce::Colour(themeText));
         addAndMakeVisible(*label);
     }
     oscillatorAShapeLabel.setText("- SHAPE -", juce::dontSendNotification);
@@ -771,7 +1725,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
         addAndMakeVisible(button);
     }
 
-    const std::array<const char*, 23> names { "VCO A", "VCO B", "B FINE", "PW A", "PW B",
+    const std::array<const char*, 23> names { "VCO A", "VCO B", "DETUNE", "PW A", "PW B",
         "NOISE", "CUTOFF", "RESONANCE", "FILTER ENV", "KEY TRACK", "ATTACK", "DECAY",
         "SUSTAIN", "RELEASE", "LFO RATE", "INITIAL AMT", "FILTER ENV", "OSC B", "VOLUME",
         "ATTACK", "DECAY", "SUSTAIN", "RELEASE" };
@@ -784,6 +1738,22 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     for (std::size_t i = 0; i < knobs.size(); ++i)
         configureKnob(knobs[i], knobLabels[i], names[i], mins[i], maxs[i], values[i],
                       i == 6 ? 0.25 : 1.0);
+    knobs[14].setRange(0.01, 30.0, 0.01);
+    knobs[14].setSkewFactorFromMidPoint(2.0);
+    knobs[14].setNumDecimalPlacesToDisplay(2);
+    knobs[14].textFromValueFunction = [](double value)
+    {
+        if (value < 1.0)
+            return juce::String(value, 2);
+        if (value < 10.0)
+            return juce::String(value, 1);
+        return juce::String(value, 0);
+    };
+    knobs[14].valueFromTextFunction = [](const juce::String& text)
+    {
+        return juce::jlimit(0.01, 30.0, text.getDoubleValue());
+    };
+    knobs[14].updateText();
     knobLabels[18].setFont(juce::FontOptions(11.5f, juce::Font::bold));
     configureKnob(spreadKnob, spreadLabel, "SPREAD", 0.0, 1.0, 0.0);
     configureKnob(vintageKnob, vintageLabel, "VINTAGE", 0.0, 1.0, 0.0);
@@ -816,6 +1786,9 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
         performanceLabels[i].setFont(juce::FontOptions(i == 0 || i == 3 ? 9.0f : 8.0f));
         performanceKnobs[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 38, 14);
     }
+    performanceLabels[4].setFont(juce::FontOptions(10.5f));
+    performanceKnobs[4].setName({});
+    performanceKnobs[4].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 62, 16);
     configureKnob(arpKnobs[0], arpLabels[0], "ARP RATE", 0.0, 2.0, 1.0);
     configureKnob(arpKnobs[1], arpLabels[1], "DIRECTION", 0.0, 3.0, 0.0);
     configureKnob(arpKnobs[2], arpLabels[2], "GATE", 0.1, 0.95, 0.75);
@@ -838,13 +1811,15 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     arpKnobs[0].updateText();
     arpKnobs[1].updateText();
 
-    const auto useZeroToTenDisplay = [](juce::Slider& slider)
+    const auto useZeroToTenDisplay = [](juce::Slider& slider,
+                                        bool showOneDecimal = false)
     {
-        slider.setNumDecimalPlacesToDisplay(0);
-        slider.textFromValueFunction = [&slider](double value)
+        slider.setNumDecimalPlacesToDisplay(showOneDecimal ? 1 : 0);
+        slider.textFromValueFunction = [&slider, showOneDecimal](double value)
         {
             const auto position = slider.valueToProportionOfLength(value);
-            return juce::String(juce::roundToInt(position * 10.0));
+            return showOneDecimal ? juce::String(position * 10.0, 1)
+                                  : juce::String(juce::roundToInt(position * 10.0));
         };
         slider.valueFromTextFunction = [&slider](const juce::String& text)
         {
@@ -853,15 +1828,15 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
         };
         slider.updateText();
     };
-    constexpr std::array<std::size_t, 21> zeroToTenKnobIndices {
+    constexpr std::array<std::size_t, 20> zeroToTenKnobIndices {
         0, 1, 3, 4, 5, 6, 7, 8, 9,
-        10, 11, 12, 13, 14, 15, 16, 17,
+        10, 11, 12, 13, 15, 16, 17,
         19, 20, 21, 22
     };
     for (const auto index : zeroToTenKnobIndices)
-        useZeroToTenDisplay(knobs[index]);
+        useZeroToTenDisplay(knobs[index], index == 15);
     for (auto* slider : { &spreadKnob, &vintageKnob, &lfoDelayKnob, &lfoFadeKnob,
-                          &performanceKnobs[3], &arpKnobs[2] })
+                          &performanceKnobs[3], &performanceKnobs[4], &arpKnobs[2] })
         useZeroToTenDisplay(*slider);
 
     pitchWheel.setSliderStyle(juce::Slider::LinearVertical);
@@ -890,7 +1865,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     addAndMakeVisible(transposeFader);
     for (auto* label : { &pitchLabel, &modLabel, &transposeLabel })
     {
-        label->setColour(juce::Label::textColourId, juce::Colour(0xffc7c9c8));
+        label->setColour(juce::Label::textColourId, juce::Colour(themeText));
         label->setJustificationType(juce::Justification::centred);
         addAndMakeVisible(*label);
     }
@@ -905,6 +1880,20 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     pcKeyboardHeldNotes.fill(false);
     for (auto& sample : scopeSamples)
         sample.store(0.0f);
+    auto startupVoiceIndex = 0;
+    const auto selectionFile = lastSelectedVoiceFile();
+    if (selectionFile.existsAsFile())
+        startupVoiceIndex = selectionFile.loadFileAsString().trim().getIntValue();
+    startupVoiceIndex = juce::jlimit(
+        0, static_cast<int>(factoryVoices.size()) - 1, startupVoiceIndex);
+    loadFactoryVoice(static_cast<std::size_t>(startupVoiceIndex));
+    writeVoiceLibraryToFile(
+        aurelineDocumentsDirectory().getChildFile(
+            "factory.aurelinelibrary.xml"),
+        true, false);
+    writeRetroGameLibraryToFile(
+        aurelineDocumentsDirectory().getChildFile(
+            "RetroGame.aurelinelibrary.xml"));
     startTimerHz(30);
     setSize(1024, 668);
     setWantsKeyboardFocus(true);
@@ -940,7 +1929,7 @@ void AurelineMainComponent::configureKnob(juce::Slider& slider, juce::Label& lab
     const juce::String& name, double min, double max, double initial, double skew)
 {
     label.setText(name, juce::dontSendNotification);
-    label.setColour(juce::Label::textColourId, juce::Colour(0xffc7c9c8));
+    label.setColour(juce::Label::textColourId, juce::Colour(themeText));
     label.setJustificationType(juce::Justification::centred);
     label.setFont(juce::FontOptions(10.5f));
     addAndMakeVisible(label);
@@ -963,6 +1952,7 @@ void AurelineMainComponent::prepareToPlay(int, double sampleRate)
 {
     currentSampleRate = sampleRate;
     engine.prepare(sampleRate);
+    performanceSequencer.prepare(sampleRate);
     midiCollector.reset(sampleRate);
 }
 
@@ -976,9 +1966,27 @@ void AurelineMainComponent::applyParameters()
     patch.oscillatorA.sawEnabled = (waveformMaskA & 1) != 0;
     patch.oscillatorA.triangleEnabled = (waveformMaskA & 2) != 0;
     patch.oscillatorA.pulseEnabled = (waveformMaskA & 4) != 0;
+    patch.oscillatorA.waveMemoryEnabled = (waveformMaskA & 8) != 0;
+    patch.oscillatorA.waveMemoryIndex = parameters.waveMemoryIndexA.load();
+    patch.oscillatorA.waveMemoryCharacter = static_cast<aureline::WaveMemoryCharacter>(
+        juce::jlimit(0, 2, parameters.waveMemoryCharacterA.load()));
+    patch.oscillatorA.waveMemoryData = userWaveMemoryActive[0]
+        ? userWaveMemory[0]
+        : aureline::waveMemoryFactoryBank()[static_cast<std::size_t>(juce::jlimit(
+            0, static_cast<int>(aureline::kWaveMemoryFactoryCount) - 1,
+            patch.oscillatorA.waveMemoryIndex))];
     patch.oscillatorB.sawEnabled = (waveformMaskB & 1) != 0;
     patch.oscillatorB.triangleEnabled = (waveformMaskB & 2) != 0;
     patch.oscillatorB.pulseEnabled = (waveformMaskB & 4) != 0;
+    patch.oscillatorB.waveMemoryEnabled = (waveformMaskB & 8) != 0;
+    patch.oscillatorB.waveMemoryIndex = parameters.waveMemoryIndexB.load();
+    patch.oscillatorB.waveMemoryCharacter = static_cast<aureline::WaveMemoryCharacter>(
+        juce::jlimit(0, 2, parameters.waveMemoryCharacterB.load()));
+    patch.oscillatorB.waveMemoryData = userWaveMemoryActive[1]
+        ? userWaveMemory[1]
+        : aureline::waveMemoryFactoryBank()[static_cast<std::size_t>(juce::jlimit(
+            0, static_cast<int>(aureline::kWaveMemoryFactoryCount) - 1,
+            patch.oscillatorB.waveMemoryIndex))];
     patch.oscillatorA.octave = parameters.oscillatorAOctave.load();
     patch.oscillatorB.octave = parameters.oscillatorBOctave.load();
     patch.oscillatorB.lowFrequencyMode = parameters.oscillatorBLowFrequency.load();
@@ -1012,8 +2020,8 @@ void AurelineMainComponent::applyParameters()
     patch.lfoRetrigger = parameters.lfoRetrigger.load();
     // Keep the full knob/wheel range musical: pitch remains vibrato rather than
     // an octave trill, while PW and filter still reach clearly audible depths.
-    patch.lfoPitchDepthASemitones = parameters.lfoDestinations[0].load() ? 1.0 : 0.0;
-    patch.lfoPitchDepthBSemitones = parameters.lfoDestinations[1].load() ? 1.0 : 0.0;
+    patch.lfoPitchDepthASemitones = parameters.lfoDestinations[0].load() ? 12.0 : 0.0;
+    patch.lfoPitchDepthBSemitones = parameters.lfoDestinations[1].load() ? 12.0 : 0.0;
     patch.lfoPulseWidthDepthA = parameters.lfoDestinations[2].load() ? 0.25 : 0.0;
     patch.lfoPulseWidthDepthB = parameters.lfoDestinations[3].load() ? 0.25 : 0.0;
     patch.lfoFilterDepthOctaves = parameters.lfoDestinations[4].load() ? 2.0 : 0.0;
@@ -1042,6 +2050,7 @@ void AurelineMainComponent::applyParameters()
     engine.setModWheel(parameters.modWheel.load());
 }
 
+#if 0 // Replaced by the shared JUCE-independent PerformanceSequencer implementation below.
 void AurelineMainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
 {
     info.clearActiveBufferRegion();
@@ -1261,12 +2270,145 @@ void AurelineMainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo
     }
     scopeWriteIndex.store(writeIndex, std::memory_order_release);
 }
+#endif
+
+void AurelineMainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
+{
+    juce::MidiBuffer midi;
+    midiCollector.removeNextBlockOfMessages(midi, info.numSamples);
+    renderAudioBlock(info, midi);
+}
+
+void AurelineMainComponent::processPluginBlock(juce::AudioBuffer<float>& buffer,
+                                                const juce::MidiBuffer& midi)
+{
+    juce::AudioSourceChannelInfo info(&buffer, 0, buffer.getNumSamples());
+    renderAudioBlock(info, midi);
+}
+
+void AurelineMainComponent::renderAudioBlock(
+    const juce::AudioSourceChannelInfo& info, const juce::MidiBuffer& midi)
+{
+    info.clearActiveBufferRegion();
+    applyParameters();
+    aureline::PerformanceSequencerSettings settings;
+    settings.arpeggiatorEnabled = parameters.arpEnabled.load();
+    settings.chordEnabled = parameters.chordEnabled.load();
+    settings.holdEnabled = parameters.arpHold.load();
+    settings.tempoBpm = parameters.tempoBpm.load();
+    settings.rate = parameters.arpRate.load();
+    settings.direction = parameters.arpDirection.load();
+    settings.gate = parameters.arpGate.load();
+    settings.scaleRoot = parameters.scaleRoot.load();
+    performanceSequencer.setSettings(settings);
+    if (sequencerResetRequested.exchange(false))
+    {
+        performanceSequencer.panic(engine);
+        for (int note = 0; note < 128; ++note)
+            if (heldNotes[static_cast<std::size_t>(note)].load())
+                performanceSequencer.noteOn(engine, note, 100);
+    }
+
+    auto handleMessage = [this](const juce::MidiMessage& message)
+    {
+        if (message.isNoteOn())
+        {
+            waveformPitchNote.store(message.getNoteNumber(), std::memory_order_relaxed);
+            heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(true);
+            performanceSequencer.noteOn(engine, message.getNoteNumber(),
+                                        static_cast<int>(message.getVelocity()));
+        }
+        else if (message.isNoteOff())
+        {
+            heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(false);
+            performanceSequencer.noteOff(engine, message.getNoteNumber());
+        }
+        else if (message.isPitchWheel())
+        {
+            const auto value = juce::jlimit(
+                -1.0f, 1.0f,
+                static_cast<float>(message.getPitchWheelValue() - 8192) / 8192.0f);
+            parameters.pitchBend.store(value);
+            engine.setPitchBend(value);
+        }
+        else if (message.isController() && message.getControllerNumber() == 1)
+        {
+            const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
+            parameters.modWheel.store(value);
+            engine.setModWheel(value);
+        }
+        else if (message.isController() && message.getControllerNumber() == 64)
+            engine.setSustainPedal(message.getControllerValue() >= 64);
+        else if (message.isAllNotesOff() || message.isAllSoundOff())
+        {
+            performanceSequencer.panic(engine);
+        }
+    };
+
+    auto* left = info.buffer->getWritePointer(0, info.startSample);
+    auto* right = info.buffer->getNumChannels() > 1
+        ? info.buffer->getWritePointer(1, info.startSample) : left;
+    auto iterator = midi.cbegin();
+    const auto end = midi.cend();
+    for (int sample = 0; sample < info.numSamples; ++sample)
+    {
+        while (iterator != end && (*iterator).samplePosition <= sample)
+        {
+            handleMessage((*iterator).getMessage());
+            ++iterator;
+        }
+        const auto output = performanceSequencer.renderStereoSample(engine);
+        left[sample] = static_cast<float>(output.left);
+        right[sample] = static_cast<float>(output.right);
+    }
+
+    const int stride = juce::jmax(1, info.numSamples / 128);
+    auto writeIndex = scopeWriteIndex.load(std::memory_order_relaxed);
+    for (int sample = 0; sample < info.numSamples; sample += stride)
+    {
+        scopeSamples[writeIndex].store(left[sample], std::memory_order_relaxed);
+        writeIndex = (writeIndex + 1) % scopeSize;
+    }
+    scopeWriteIndex.store(writeIndex, std::memory_order_release);
+}
 
 void AurelineMainComponent::releaseResources() { engine.panic(); }
 
 void AurelineMainComponent::handleIncomingMidiMessage(juce::MidiInput*, const juce::MidiMessage& message)
 {
     midiCollector.addMessageToQueue(message);
+    if (message.isNoteOn())
+        waveformPitchNote.store(message.getNoteNumber(), std::memory_order_relaxed);
+    if (message.isPitchWheel())
+    {
+        const auto value = juce::jlimit(
+            -1.0f, 1.0f,
+            static_cast<float>(message.getPitchWheelValue() - 8192) / 8192.0f);
+        parameters.pitchBend.store(value);
+        juce::MessageManager::callAsync(
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this), value]
+            {
+                if (safe != nullptr)
+                {
+                    safe->pitchWheel.setValue(value, juce::dontSendNotification);
+                    safe->pitchWheel.repaint();
+                }
+            });
+    }
+    else if (message.isController() && message.getControllerNumber() == 1)
+    {
+        const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
+        parameters.modWheel.store(value);
+        juce::MessageManager::callAsync(
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this), value]
+            {
+                if (safe != nullptr)
+                {
+                    safe->modWheel.setValue(value, juce::dontSendNotification);
+                    safe->modWheel.repaint();
+                }
+            });
+    }
     if (message.isNoteOnOrOff())
     {
         heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(message.isNoteOn());
@@ -1280,6 +2422,7 @@ void AurelineMainComponent::handleIncomingMidiMessage(juce::MidiInput*, const ju
 
 void AurelineMainComponent::playNote(int note, int velocity)
 {
+    waveformPitchNote.store(note, std::memory_order_relaxed);
     heldNotes[static_cast<std::size_t>(note)].store(true);
     midiCollector.addMessageToQueue(juce::MidiMessage::noteOn(1, note, static_cast<juce::uint8>(velocity)));
 }
@@ -1297,13 +2440,45 @@ bool AurelineMainComponent::isNoteHeld(int note) const
 
 void AurelineMainComponent::queueMidiMessage(const juce::MidiMessage& message)
 {
+    if (message.isNoteOn())
+        waveformPitchNote.store(message.getNoteNumber(), std::memory_order_relaxed);
+    if (message.isPitchWheel())
+    {
+        const auto value = juce::jlimit(
+            -1.0f, 1.0f,
+            static_cast<float>(message.getPitchWheelValue() - 8192) / 8192.0f);
+        parameters.pitchBend.store(value);
+        juce::MessageManager::callAsync(
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this), value]
+            {
+                if (safe != nullptr)
+                {
+                    safe->pitchWheel.setValue(value, juce::dontSendNotification);
+                    safe->pitchWheel.repaint();
+                }
+            });
+    }
+    else if (message.isController() && message.getControllerNumber() == 1)
+    {
+        const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
+        parameters.modWheel.store(value);
+        juce::MessageManager::callAsync(
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this), value]
+            {
+                if (safe != nullptr)
+                {
+                    safe->modWheel.setValue(value, juce::dontSendNotification);
+                    safe->modWheel.repaint();
+                }
+            });
+    }
     midiCollector.addMessageToQueue(message);
 }
 
 juce::ValueTree AurelineMainComponent::capturePluginState() const
 {
     juce::ValueTree state("AurelineState");
-    state.setProperty("version", 1, nullptr);
+    state.setProperty("version", 2, nullptr);
 #define SAVE_FLOAT(name) state.setProperty(#name, parameters.name.load(), nullptr)
 #define SAVE_INT(name) state.setProperty(#name, parameters.name.load(), nullptr)
 #define SAVE_BOOL(name) state.setProperty(#name, parameters.name.load(), nullptr)
@@ -1321,7 +2496,8 @@ juce::ValueTree AurelineMainComponent::capturePluginState() const
     SAVE_FLOAT(oscillatorAOctave); SAVE_FLOAT(oscillatorBOctave); SAVE_FLOAT(arpGate);
     SAVE_INT(scaleRoot); SAVE_INT(voiceMode); SAVE_INT(waveformMaskA);
     SAVE_INT(waveformMaskB); SAVE_INT(lfoWaveformMask); SAVE_INT(arpRate);
-    SAVE_INT(arpDirection);
+    SAVE_INT(arpDirection); SAVE_INT(waveMemoryIndexA); SAVE_INT(waveMemoryIndexB);
+    SAVE_INT(waveMemoryCharacterA); SAVE_INT(waveMemoryCharacterB);
     SAVE_BOOL(lfoRetrigger); SAVE_BOOL(glideLegatoOnly); SAVE_BOOL(oscillatorSync);
     SAVE_BOOL(oscillatorBLowFrequency); SAVE_BOOL(oscillatorBKeyboardTracking);
     SAVE_BOOL(polyModToFrequencyA); SAVE_BOOL(polyModToPulseWidthA);
@@ -1330,6 +2506,16 @@ juce::ValueTree AurelineMainComponent::capturePluginState() const
     for (std::size_t index = 0; index < parameters.lfoDestinations.size(); ++index)
         state.setProperty("lfoDestination" + juce::String(index),
                           parameters.lfoDestinations[index].load(), nullptr);
+    for (std::size_t oscillator = 0; oscillator < userWaveMemory.size(); ++oscillator)
+    {
+        const auto suffix = oscillator == 0 ? "A" : "B";
+        state.setProperty("waveMemoryUser" + juce::String(suffix),
+                          userWaveMemoryActive[oscillator], nullptr);
+        for (std::size_t step = 0; step < aureline::kWaveMemorySize; ++step)
+            state.setProperty("waveMemoryStep" + juce::String(suffix)
+                                  + juce::String(static_cast<int>(step)).paddedLeft('0', 2),
+                              static_cast<int>(userWaveMemory[oscillator][step]), nullptr);
+    }
 #undef SAVE_FLOAT
 #undef SAVE_INT
 #undef SAVE_BOOL
@@ -1369,7 +2555,8 @@ void AurelineMainComponent::restorePluginState(const juce::ValueTree& state)
     LOAD_FLOAT(oscillatorAOctave); LOAD_FLOAT(oscillatorBOctave); LOAD_FLOAT(arpGate);
     LOAD_INT(scaleRoot); LOAD_INT(voiceMode); LOAD_INT(waveformMaskA);
     LOAD_INT(waveformMaskB); LOAD_INT(lfoWaveformMask); LOAD_INT(arpRate);
-    LOAD_INT(arpDirection);
+    LOAD_INT(arpDirection); LOAD_INT(waveMemoryIndexA); LOAD_INT(waveMemoryIndexB);
+    LOAD_INT(waveMemoryCharacterA); LOAD_INT(waveMemoryCharacterB);
     LOAD_BOOL(lfoRetrigger); LOAD_BOOL(glideLegatoOnly); LOAD_BOOL(oscillatorSync);
     LOAD_BOOL(oscillatorBLowFrequency); LOAD_BOOL(oscillatorBKeyboardTracking);
     LOAD_BOOL(polyModToFrequencyA); LOAD_BOOL(polyModToPulseWidthA);
@@ -1383,6 +2570,21 @@ void AurelineMainComponent::restorePluginState(const juce::ValueTree& state)
         const auto name = "lfoDestination" + juce::String(index);
         if (state.hasProperty(name))
             parameters.lfoDestinations[index].store(static_cast<bool>(state[name]));
+    }
+    for (std::size_t oscillator = 0; oscillator < userWaveMemory.size(); ++oscillator)
+    {
+        const auto suffix = oscillator == 0 ? "A" : "B";
+        const auto activeName = "waveMemoryUser" + juce::String(suffix);
+        userWaveMemoryActive[oscillator] = state.hasProperty(activeName)
+            && static_cast<bool>(state[activeName]);
+        for (std::size_t step = 0; step < aureline::kWaveMemorySize; ++step)
+        {
+            const auto name = "waveMemoryStep" + juce::String(suffix)
+                            + juce::String(static_cast<int>(step)).paddedLeft('0', 2);
+            if (state.hasProperty(name))
+                userWaveMemory[oscillator][step] = static_cast<std::uint8_t>(
+                    juce::jlimit(0, 31, static_cast<int>(state[name])));
+        }
     }
     sequencerResetRequested.store(true);
     if (juce::MessageManager::getInstance()->isThisTheMessageThread())
@@ -1450,6 +2652,14 @@ void AurelineMainComponent::syncControlsFromParameters()
         waveformBButtons[index].setToggleState((maskB & (1 << index)) != 0,
                                                 juce::dontSendNotification);
     }
+    waveMemoryBoxes[0].setSelectedId(parameters.waveMemoryIndexA.load() + 1,
+                                     juce::dontSendNotification);
+    waveMemoryBoxes[1].setSelectedId(parameters.waveMemoryIndexB.load() + 1,
+                                     juce::dontSendNotification);
+    waveCharacterBoxes[0].setSelectedId(parameters.waveMemoryCharacterA.load() + 1,
+                                        juce::dontSendNotification);
+    waveCharacterBoxes[1].setSelectedId(parameters.waveMemoryCharacterB.load() + 1,
+                                        juce::dontSendNotification);
     constexpr std::array<int, 5> lfoBits { 1, 2, 8, 4, 16 };
     for (std::size_t index = 0; index < lfoWaveformButtons.size(); ++index)
         lfoWaveformButtons[index].setToggleState((lfoMask & lfoBits[index]) != 0,
@@ -1502,6 +2712,25 @@ void AurelineMainComponent::sliderValueChanged(juce::Slider* slider)
             return;
         }
         const auto index = static_cast<std::size_t>(slider - knobs.data());
+        const bool userIsAdjusting = slider->isMouseButtonDown();
+        if (userIsAdjusting && index >= 19 && index <= 22)
+        {
+            const auto now = juce::Time::getMillisecondCounterHiRes();
+            if (envelopePreviewKind != 1
+                || now - envelopePreviewChangedMs >= 2200.0)
+                envelopePreviewStartedMs = now;
+            envelopePreviewKind = 1;
+            envelopePreviewChangedMs = now;
+        }
+        else if (userIsAdjusting && index >= 10 && index <= 13)
+        {
+            const auto now = juce::Time::getMillisecondCounterHiRes();
+            if (envelopePreviewKind != 2
+                || now - envelopePreviewChangedMs >= 2200.0)
+                envelopePreviewStartedMs = now;
+            envelopePreviewKind = 2;
+            envelopePreviewChangedMs = now;
+        }
         switch (index)
         {
             case 0: parameters.oscillatorALevel.store(value); break;
@@ -1539,20 +2768,528 @@ void AurelineMainComponent::comboBoxChanged(juce::ComboBox* box)
         const int selectedIndex = presetBox.getSelectedId() - 2;
         if (selectedIndex >= 0 && selectedIndex < static_cast<int>(factoryVoices.size()))
             loadFactoryVoice(static_cast<std::size_t>(selectedIndex));
+        else
+            selectedFactoryVoiceIndex = -1;
     }
     else if (box == &voiceModeBox)
     {
         parameters.voiceMode.store(juce::jlimit(0, 2, voiceModeBox.getSelectedId() - 1));
         repaint();
     }
+    else
+    {
+        for (std::size_t index = 0; index < waveMemoryBoxes.size(); ++index)
+        {
+            if (box == &waveMemoryBoxes[index])
+            {
+                const auto selected = juce::jlimit(0,
+                    static_cast<int>(aureline::kWaveMemoryFactoryCount) - 1,
+                    waveMemoryBoxes[index].getSelectedId() - 1);
+                userWaveMemory[index] =
+                    aureline::waveMemoryFactoryBank()[static_cast<std::size_t>(selected)];
+                userWaveMemoryActive[index] = false;
+                (index == 0 ? parameters.waveMemoryIndexA
+                            : parameters.waveMemoryIndexB).store(selected);
+                return;
+            }
+            if (box == &waveCharacterBoxes[index])
+            {
+                const auto selected = juce::jlimit(0, 2,
+                    waveCharacterBoxes[index].getSelectedId() - 1);
+                (index == 0 ? parameters.waveMemoryCharacterA
+                            : parameters.waveMemoryCharacterB).store(selected);
+                return;
+            }
+        }
+    }
 }
 
-void AurelineMainComponent::loadFactoryVoice(std::size_t index)
+void AurelineMainComponent::saveVoiceToFile(const juce::File& requestedFile)
+{
+    auto file = requestedFile.hasFileExtension(".aurelinevoice")
+        ? requestedFile : requestedFile.withFileExtension(".aurelinevoice");
+    auto state = capturePluginState();
+    const auto json = makeVoiceFileJson(state, currentVoiceName);
+    if (file.replaceWithText(juce::JSON::toString(json, true)))
+        statusLabel.setText("Voice saved: " + file.getFileName(), juce::dontSendNotification);
+    else
+        statusLabel.setText("Voice save failed", juce::dontSendNotification);
+}
+
+void AurelineMainComponent::saveVoiceLibraryToFile(const juce::File& requestedFile)
+{
+    const auto file = requestedFile.getFullPathName().endsWithIgnoreCase(
+                          ".aurelinelibrary.xml")
+        ? requestedFile
+        : juce::File(requestedFile.getFullPathName() + ".aurelinelibrary.xml");
+    if (isReservedLibraryFilename(file))
+    {
+        statusLabel.setText(
+            file.getFileName() + " is reserved and cannot be overwritten",
+            juce::dontSendNotification);
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Reserved built-in library",
+            file.getFileName() + " is a built-in voice library and cannot be "
+            "overwritten. Please choose a different file name.");
+        return;
+    }
+    writeVoiceLibraryToFile(file, false, true);
+}
+
+void AurelineMainComponent::writeVoiceLibraryToFile(
+    const juce::File& file, bool factoryOnly, bool showStatus)
+{
+    const auto currentState = capturePluginState().createCopy();
+    const auto currentIndex = selectedFactoryVoiceIndex;
+    const auto currentSelectedId = presetBox.getSelectedId();
+    const auto currentName = currentVoiceName;
+    const juce::ScopedValueSetter<bool> persistenceGuard(
+        suppressLastVoicePersistence, true);
+
+    juce::ValueTree library("AurelineLibrary");
+    library.setProperty("format", "com.hidecade.aureline.library", nullptr);
+    library.setProperty("version", 1, nullptr);
+    library.setProperty("voiceCount", static_cast<int>(factoryVoices.size()), nullptr);
+    for (std::size_t index = 0; index < factoryVoices.size(); ++index)
+    {
+        loadFactoryVoice(index, !factoryOnly);
+        auto voice = capturePluginState().createCopy();
+        voice.setProperty("slot", static_cast<int>(index), nullptr);
+        voice.setProperty("voiceName", currentVoiceName, nullptr);
+        library.addChild(voice, -1, nullptr);
+    }
+
+    restorePluginState(currentState);
+    selectedFactoryVoiceIndex = currentIndex;
+    presetBox.setSelectedId(currentSelectedId, juce::dontSendNotification);
+    currentVoiceName = currentName;
+
+    const auto xml = library.createXml();
+    const bool saved = xml != nullptr && file.replaceWithText(xml->toString());
+    if (showStatus)
+        statusLabel.setText(saved ? "All 50 voices saved: " + file.getFileName()
+                                  : "Voice library save failed",
+                            juce::dontSendNotification);
+}
+
+void AurelineMainComponent::writeRetroGameLibraryToFile(const juce::File& file)
+{
+    static constexpr std::array<const char*, 50> names {{
+        "8BIT HERO", "8BIT QUEST", "PIXEL PLUCK", "BLOCKY BASS",
+        "TRIANGLE CAVE", "COIN SPARK", "BOSS WARNING", "CHIP FANFARE",
+        "DUNGEON STEP", "TINY DRUM", "CASTLE LEAD", "POWER UP",
+        "SECRET DOOR", "NIGHT STAGE", "FINAL CASTLE",
+        "PSG RACER", "PSG SKYLINE", "TONE CHANNEL", "NOISE RIDER",
+        "ARCADE START", "SEGA BLUE", "RING PULSE", "GRID RUNNER",
+        "SPACE PORT", "PSG VICTORY",
+        "WAVE HERO", "TURBO WAVE", "CRYSTAL CHANNEL", "NEON BASS",
+        "SIX VOICE PAD", "LASER HARBOR", "DIGITAL STEEL", "ORBIT LEAD",
+        "WAVE RUNNER", "SUNSET CHIP",
+        "MAZE CHOMP", "STAR SWARM", "HAPPY HOP", "FRUIT BONUS",
+        "ALIEN MARCH", "DOT RUNNER", "GALAXY DIVE", "TOY PARADE",
+        "ARCADE SIREN", "HIGH SCORE",
+        "LASER ZAP", "NOISE BURST", "SHIP EXPLODE", "WARP FALL",
+        "GAME OVER"
+    }};
+
+    const auto currentState = capturePluginState().createCopy();
+    const auto currentIndex = selectedFactoryVoiceIndex;
+    const auto currentSelectedId = presetBox.getSelectedId();
+    const auto savedVoiceName = currentVoiceName;
+    const juce::ScopedValueSetter<bool> persistenceGuard(
+        suppressLastVoicePersistence, true);
+
+    juce::ValueTree library("AurelineLibrary");
+    library.setProperty("format", "com.hidecade.aureline.library", nullptr);
+    library.setProperty("version", 1, nullptr);
+    library.setProperty("voiceCount", 50, nullptr);
+
+    for (std::size_t index = 0; index < names.size(); ++index)
+    {
+        loadFactoryVoice(index, false);
+        auto voice = capturePluginState().createCopy();
+        voice.setProperty("slot", static_cast<int>(index), nullptr);
+        voice.setProperty("voiceName", names[index], nullptr);
+        voice.setProperty("vintage", 0.12 + (index % 4) * 0.04, nullptr);
+        voice.setProperty("spread", index % 5 == 0 ? 0.22 : 0.0, nullptr);
+        voice.setProperty("noiseLevel", 0.0, nullptr);
+        voice.setProperty("oscillatorALevel", 0.78, nullptr);
+        voice.setProperty("oscillatorBLevel", index % 3 == 0 ? 0.22 : 0.0, nullptr);
+        voice.setProperty("attack", index % 10 == 4 ? 0.08 : 0.005, nullptr);
+        voice.setProperty("decay", 0.10 + (index % 5) * 0.07, nullptr);
+        voice.setProperty("sustain", index % 4 == 0 ? 0.72 : 0.28, nullptr);
+        voice.setProperty("release", 0.04 + (index % 4) * 0.06, nullptr);
+        voice.setProperty("filterAttack", 0.002, nullptr);
+        voice.setProperty("filterDecay", 0.12, nullptr);
+        voice.setProperty("filterSustain", 0.25, nullptr);
+        voice.setProperty("filterRelease", 0.08, nullptr);
+        voice.setProperty("voiceMode", index % 6 == 0 ? 0 : 1, nullptr);
+        voice.setProperty("lfoAmount", 0.0, nullptr);
+        voice.setProperty("lfoDelay", 0.0, nullptr);
+        voice.setProperty("lfoFade", 0.0, nullptr);
+        for (int destination = 0; destination < 5; ++destination)
+            voice.setProperty("lfoDestination" + juce::String(destination),
+                              false, nullptr);
+
+        if (index < 15) // Pulse/triangle/noise character of early 8-bit consoles.
+        {
+            const bool triangle = index == 4 || index == 8 || index == 13;
+            voice.setProperty("waveformMaskA", triangle ? 2 : 4, nullptr);
+            voice.setProperty("pulseWidthA",
+                              std::array<double, 4> { 0.125, 0.25, 0.5, 0.75 }[index % 4],
+                              nullptr);
+            voice.setProperty("oscillatorAOctave", index % 5 == 3 ? -1.0 : 0.0,
+                              nullptr);
+            voice.setProperty("cutoff", triangle ? 5200.0 : 9000.0, nullptr);
+            if (index == 5 || index == 9 || index == 12)
+                voice.setProperty("noiseLevel", 0.20 + (index % 3) * 0.12, nullptr);
+        }
+        else if (index < 25) // Three-channel square PSG plus noise.
+        {
+            voice.setProperty("waveformMaskA", 4, nullptr);
+            voice.setProperty("waveformMaskB", 4, nullptr);
+            voice.setProperty("pulseWidthA", 0.5, nullptr);
+            voice.setProperty("pulseWidthB", index % 2 == 0 ? 0.25 : 0.5, nullptr);
+            voice.setProperty("oscillatorBFine", 0.0, nullptr);
+            voice.setProperty("oscillatorBOctave", index % 3 == 0 ? 1.0 : 0.0, nullptr);
+            voice.setProperty("noiseLevel", index == 18 || index == 23 ? 0.32 : 0.0,
+                              nullptr);
+            voice.setProperty("cutoff", 7600.0, nullptr);
+        }
+        else if (index < 35) // Multi-channel 5-bit wavetable style.
+        {
+            voice.setProperty("waveformMaskA", 8, nullptr);
+            voice.setProperty("waveformMaskB", index % 2 == 0 ? 8 : 0, nullptr);
+            voice.setProperty("waveMemoryUserA", true, nullptr);
+            voice.setProperty("waveMemoryUserB", true, nullptr);
+            voice.setProperty("waveMemoryCharacterA", 0, nullptr);
+            voice.setProperty("waveMemoryCharacterB", 0, nullptr);
+            for (int step = 0; step < 32; ++step)
+            {
+                const auto phase = juce::MathConstants<double>::twoPi * step / 32.0;
+                const auto harmonic = 0.68 * std::sin(phase)
+                    + (0.16 + (index % 4) * 0.05) * std::sin(phase * (2 + index % 3))
+                    + 0.10 * std::sin(phase * 5.0);
+                const auto value = juce::jlimit(
+                    0, 31, juce::roundToInt(15.5 + harmonic * 14.0));
+                voice.setProperty("waveMemoryStepA"
+                                      + juce::String(step).paddedLeft('0', 2),
+                                  value, nullptr);
+                voice.setProperty("waveMemoryStepB"
+                                      + juce::String(step).paddedLeft('0', 2),
+                                  juce::jlimit(0, 31, 31 - value), nullptr);
+            }
+            voice.setProperty("cutoff", 11000.0, nullptr);
+        }
+        else if (index < 45) // Compact arcade wavetable voices.
+        {
+            voice.setProperty("waveformMaskA", 8, nullptr);
+            voice.setProperty("waveformMaskB", 0, nullptr);
+            voice.setProperty("waveMemoryUserA", true, nullptr);
+            voice.setProperty("waveMemoryCharacterA", 1, nullptr);
+            for (int step = 0; step < 32; ++step)
+            {
+                const auto phase = juce::MathConstants<double>::twoPi * step / 32.0;
+                double sample = std::sin(phase);
+                if (index == 35) sample += 0.48 * std::sin(phase * 3.0);
+                if (index == 36) sample += 0.38 * std::sin(phase * 5.0);
+                if (index == 37) sample = std::sin(phase) > 0.0 ? 0.75 : -0.55;
+                if (index == 39 || index == 41) sample += 0.45 * std::sin(phase * 2.0);
+                const auto value = juce::jlimit(
+                    0, 31, juce::roundToInt(15.5 + sample * 11.0));
+                voice.setProperty("waveMemoryStepA"
+                                      + juce::String(step).paddedLeft('0', 2),
+                                  value, nullptr);
+            }
+            if (index == 43)
+            {
+                voice.setProperty("lfoRate", 6.5, nullptr);
+                voice.setProperty("lfoAmount", 0.16, nullptr);
+                voice.setProperty("lfoDestination0", true, nullptr);
+            }
+            voice.setProperty("cutoff", 8800.0, nullptr);
+        }
+        else // Short noise, laser and falling-pitch effects.
+        {
+            voice.setProperty("waveformMaskA", index == 46 || index == 47 ? 0 : 4,
+                              nullptr);
+            voice.setProperty("noiseLevel", index == 46 ? 0.65
+                                      : index == 47 ? 0.92 : 0.28, nullptr);
+            voice.setProperty("sustain", 0.0, nullptr);
+            voice.setProperty("decay", index == 47 ? 0.85 : 0.18, nullptr);
+            voice.setProperty("release", 0.05, nullptr);
+            voice.setProperty("filterEnvelope", index % 2 == 0 ? 0.9 : -0.75,
+                              nullptr);
+            voice.setProperty("filterDecay", 0.35, nullptr);
+            voice.setProperty("lfoRate",
+                              8.0 + static_cast<double>(index - 45) * 2.0,
+                              nullptr);
+            voice.setProperty("lfoAmount", index == 47 ? 0.22 : 0.16, nullptr);
+            voice.setProperty("lfoDestination0", true, nullptr);
+        }
+
+        // Period-authentic, restrained pitch modulation for sustained leads,
+        // fanfares and wavetable/arcade tones. With the engine's squared curve,
+        // 0.06..0.12 corresponds to roughly +/-0.04..0.17 semitones.
+        static constexpr std::array<std::size_t, 21> melodicLfoVoices {{
+            0, 1, 6, 7, 10, 13, 14,
+            15, 16, 19, 20, 24,
+            25, 27, 29, 30, 32, 34,
+            36, 40, 44
+        }};
+        if (std::find(melodicLfoVoices.begin(), melodicLfoVoices.end(), index)
+            != melodicLfoVoices.end())
+        {
+            const auto amount = 0.06 + static_cast<double>(index % 4) * 0.02;
+            voice.setProperty("lfoRate", 4.5 + static_cast<double>(index % 5) * 0.7,
+                              nullptr);
+            voice.setProperty("lfoAmount", amount, nullptr);
+            voice.setProperty("lfoDelay", index % 3 == 0 ? 0.16 : 0.0, nullptr);
+            voice.setProperty("lfoFade", index % 3 == 0 ? 0.28 : 0.0, nullptr);
+            voice.setProperty("lfoDestination0", true, nullptr);
+            if (static_cast<double>(voice.getProperty("oscillatorBLevel", 0.0)) > 0.01)
+                voice.setProperty("lfoDestination1", true, nullptr);
+        }
+        library.addChild(voice, -1, nullptr);
+    }
+
+    restorePluginState(currentState);
+    selectedFactoryVoiceIndex = currentIndex;
+    presetBox.setSelectedId(currentSelectedId, juce::dontSendNotification);
+    currentVoiceName = savedVoiceName;
+    if (const auto xml = library.createXml(); xml != nullptr)
+        file.replaceWithText(xml->toString());
+}
+
+void AurelineMainComponent::confirmAndLoadVoiceLibrary(const juce::File& file)
+{
+    juce::AlertWindow::showAsync(
+        juce::MessageBoxOptions()
+            .withIconType(juce::MessageBoxIconType::WarningIcon)
+            .withTitle("Replace all 50 voices?")
+            .withMessage("Loading this library will overwrite every numbered voice. "
+                         "This cannot be undone.")
+            .withButton("REPLACE ALL")
+            .withButton("CANCEL"),
+        [safe = juce::Component::SafePointer<AurelineMainComponent>(this), file](int result)
+        {
+            if (safe != nullptr && result == 1)
+                safe->loadVoiceLibraryFromFile(file);
+        });
+}
+
+void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file)
+{
+    const auto xml = juce::XmlDocument::parse(file);
+    const auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
+                                        : juce::ValueTree {};
+    if (!library.isValid()
+        || library.getType().toString() != "AurelineLibrary"
+        || library.getProperty("format").toString() != "com.hidecade.aureline.library"
+        || static_cast<int>(library.getProperty("version")) != 1
+        || library.getNumChildren() != static_cast<int>(factoryVoices.size()))
+    {
+        statusLabel.setText("Voice library load failed: invalid file",
+                            juce::dontSendNotification);
+        return;
+    }
+
+    for (int index = 0; index < library.getNumChildren(); ++index)
+    {
+        const auto voice = library.getChild(index);
+        if (!voice.isValid() || static_cast<int>(voice.getProperty("slot", -1)) != index)
+        {
+            statusLabel.setText("Voice library load failed: invalid slot data",
+                                juce::dontSendNotification);
+            return;
+        }
+    }
+
+    struct PendingVoiceWrite
+    {
+        juce::File destination;
+        juce::String contents;
+        juce::String previousContents;
+        bool previouslyExisted = false;
+    };
+    std::vector<PendingVoiceWrite> pendingWrites;
+    std::vector<juce::String> loadedVoiceNames;
+    pendingWrites.reserve(static_cast<std::size_t>(library.getNumChildren()));
+    loadedVoiceNames.reserve(static_cast<std::size_t>(library.getNumChildren()));
+    for (int index = 0; index < library.getNumChildren(); ++index)
+    {
+        const auto slotName = juce::String(factoryVoices[
+            static_cast<std::size_t>(index)].name);
+        const auto destination = storedVoiceFile(static_cast<std::size_t>(index));
+        auto voiceName = library.getChild(index).getProperty("voiceName").toString().trim();
+        if (voiceName.isEmpty())
+            voiceName = voiceNameWithoutSlotPrefix(slotName);
+        voiceName = voiceNameWithoutSlotPrefix(voiceName);
+        const auto json = makeVoiceFileJson(library.getChild(index), voiceName);
+        pendingWrites.push_back({
+            destination,
+            juce::JSON::toString(json, true),
+            destination.existsAsFile() ? destination.loadFileAsString() : juce::String {},
+            destination.existsAsFile()
+        });
+        loadedVoiceNames.push_back(voiceName);
+    }
+
+    std::size_t written = 0;
+    for (; written < pendingWrites.size(); ++written)
+    {
+        if (!pendingWrites[written].destination.replaceWithText(
+                pendingWrites[written].contents))
+        {
+            for (std::size_t rollback = 0; rollback < written; ++rollback)
+            {
+                const auto& item = pendingWrites[rollback];
+                if (item.previouslyExisted)
+                    item.destination.replaceWithText(item.previousContents);
+                else
+                    item.destination.deleteFile();
+            }
+            statusLabel.setText("Voice library load failed; previous library restored",
+                                juce::dontSendNotification);
+            return;
+        }
+    }
+
+    for (std::size_t index = 0; index < loadedVoiceNames.size(); ++index)
+        presetBox.changeItemText(static_cast<int>(index) + 2,
+                                 slotVoiceDisplayName(index,
+                                                      loadedVoiceNames[index]));
+
+    if (selectedFactoryVoiceIndex >= 0
+        && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
+        loadFactoryVoice(static_cast<std::size_t>(selectedFactoryVoiceIndex));
+    statusLabel.setText("All 50 voices replaced from: " + file.getFileName(),
+                        juce::dontSendNotification);
+}
+
+void AurelineMainComponent::loadVoiceFromFile(const juce::File& file)
+{
+    envelopePreviewKind = 0;
+    const auto json = juce::JSON::parse(file.loadFileAsString());
+    const auto state = stateFromVoiceFileJson(json);
+    if (!state.isValid())
+    {
+        statusLabel.setText("Voice load failed", juce::dontSendNotification);
+        return;
+    }
+    restorePluginState(state);
+    auto selectedVoiceName = state.getProperty("voiceName").toString().trim();
+    if (selectedVoiceName.isEmpty())
+        selectedVoiceName = file.getFileNameWithoutExtension();
+    selectedVoiceName = selectedVoiceName
+        .retainCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ ")
+        .trim();
+    selectedVoiceName = voiceNameWithoutSlotPrefix(selectedVoiceName);
+    if (selectedVoiceName.isEmpty())
+        selectedVoiceName = "LOADED VOICE";
+    if (selectedFactoryVoiceIndex >= 0
+        && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
+    {
+        presetBox.changeItemText(selectedFactoryVoiceIndex + 2,
+                                 slotVoiceDisplayName(
+                                     static_cast<std::size_t>(selectedFactoryVoiceIndex),
+                                     selectedVoiceName));
+        presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+                                juce::dontSendNotification);
+    }
+    currentVoiceName = selectedVoiceName;
+    statusLabel.setText("Voice loaded temporarily into: " + selectedVoiceName,
+                        juce::dontSendNotification);
+}
+
+void AurelineMainComponent::storeCurrentVoice()
+{
+    if (selectedFactoryVoiceIndex < 0
+        || selectedFactoryVoiceIndex >= static_cast<int>(factoryVoices.size()))
+    {
+        statusLabel.setText("Select a numbered voice before STORE",
+                            juce::dontSendNotification);
+        return;
+    }
+    const auto slotName = juce::String(factoryVoices[
+        static_cast<std::size_t>(selectedFactoryVoiceIndex)].name);
+    auto voiceName = currentVoiceName.trim();
+    if (voiceName.isEmpty())
+        voiceName = slotName;
+    auto file = storedVoiceFile(static_cast<std::size_t>(selectedFactoryVoiceIndex));
+    currentVoiceName = voiceName;
+    saveVoiceToFile(file);
+    presetBox.changeItemText(
+        selectedFactoryVoiceIndex + 2,
+        slotVoiceDisplayName(static_cast<std::size_t>(selectedFactoryVoiceIndex),
+                             voiceName));
+    presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+                            juce::dontSendNotification);
+    statusLabel.setText("Voice stored in slot "
+                            + juce::String(selectedFactoryVoiceIndex + 1)
+                            + ": " + voiceName,
+                        juce::dontSendNotification);
+}
+
+void AurelineMainComponent::openWaveMemoryEditor(std::size_t oscillator)
+{
+    if (oscillator >= waveMemoryButtons.size())
+        return;
+    const auto selected = oscillator == 0
+        ? parameters.waveMemoryIndexA.load() : parameters.waveMemoryIndexB.load();
+    if (!userWaveMemoryActive[oscillator])
+        userWaveMemory[oscillator] = aureline::waveMemoryFactoryBank()[
+            static_cast<std::size_t>(juce::jlimit(
+                0, static_cast<int>(aureline::kWaveMemoryFactoryCount) - 1, selected))];
+    auto& mask = oscillator == 0 ? parameters.waveformMaskA : parameters.waveformMaskB;
+    mask.store(mask.load() | 8);
+    waveformAButtons[3].setToggleState(
+        (parameters.waveformMaskA.load() & 8) != 0, juce::dontSendNotification);
+    waveformBButtons[3].setToggleState(
+        (parameters.waveformMaskB.load() & 8) != 0, juce::dontSendNotification);
+    applyParameters();
+    waveMemoryEditorWindow =
+        std::make_unique<WaveMemoryEditorWindow>(*this, oscillator);
+    addAndMakeVisible(*waveMemoryEditorWindow);
+    waveMemoryEditorWindow->setBounds(getLocalBounds());
+    waveMemoryEditorWindow->toFront(true);
+}
+
+void AurelineMainComponent::loadFactoryVoice(std::size_t index,
+                                              bool useStoredOverride)
 {
     if (index >= factoryVoices.size())
         return;
 
+    selectedFactoryVoiceIndex = static_cast<int>(index);
+    if (!suppressLastVoicePersistence)
+        lastSelectedVoiceFile().replaceWithText(juce::String(index));
+    presetBox.changeItemText(static_cast<int>(index) + 2,
+                             slotVoiceDisplayName(index, factoryVoices[index].name));
+    currentVoiceName = voiceNameWithoutSlotPrefix(factoryVoices[index].name);
+    presetBox.setSelectedId(static_cast<int>(index) + 2,
+                            juce::dontSendNotification);
+    auto overrideFile = storedVoiceFile(index);
+    const auto legacyOverrideFile = aurelineDocumentsDirectory().getChildFile(
+        juce::String(factoryVoices[index].name) + ".aurelinevoice");
+    if (useStoredOverride && !overrideFile.existsAsFile()
+        && legacyOverrideFile.existsAsFile())
+    {
+        if (!legacyOverrideFile.moveFileTo(overrideFile))
+            overrideFile = legacyOverrideFile;
+    }
+    if (useStoredOverride && overrideFile.existsAsFile())
+    {
+        loadVoiceFromFile(overrideFile);
+        presetBox.setSelectedId(static_cast<int>(index) + 2,
+                                juce::dontSendNotification);
+        return;
+    }
+
+    envelopePreviewKind = 0;
     const auto& voice = factoryVoices[index];
+    const auto& patch = voice.patch;
     resetToInitialVoice();
 
     const auto setWaveform = [](auto& buttons, int mask)
@@ -1561,58 +3298,101 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index)
             buttons[buttonIndex].setToggleState((mask & (1 << static_cast<int>(buttonIndex))) != 0,
                                                 juce::dontSendNotification);
     };
-    setWaveform(waveformAButtons, voice.waveA);
-    setWaveform(waveformBButtons, voice.waveB);
-    parameters.waveformMaskA.store(voice.waveA);
-    parameters.waveformMaskB.store(voice.waveB);
+    const int waveA = (patch.oscillatorA.sawEnabled ? 1 : 0)
+        | (patch.oscillatorA.triangleEnabled ? 2 : 0) | (patch.oscillatorA.pulseEnabled ? 4 : 0)
+        | (patch.oscillatorA.waveMemoryEnabled ? 8 : 0);
+    const int waveB = (patch.oscillatorB.sawEnabled ? 1 : 0)
+        | (patch.oscillatorB.triangleEnabled ? 2 : 0) | (patch.oscillatorB.pulseEnabled ? 4 : 0)
+        | (patch.oscillatorB.waveMemoryEnabled ? 8 : 0);
+    setWaveform(waveformAButtons, waveA);
+    setWaveform(waveformBButtons, waveB);
+    parameters.waveformMaskA.store(waveA);
+    parameters.waveformMaskB.store(waveB);
+    parameters.waveMemoryIndexA.store(patch.oscillatorA.waveMemoryIndex);
+    parameters.waveMemoryIndexB.store(patch.oscillatorB.waveMemoryIndex);
+    userWaveMemory[0] = patch.oscillatorA.waveMemoryData;
+    userWaveMemory[1] = patch.oscillatorB.waveMemoryData;
+    userWaveMemoryActive = { false, false };
+    parameters.waveMemoryCharacterA.store(static_cast<int>(patch.oscillatorA.waveMemoryCharacter));
+    parameters.waveMemoryCharacterB.store(static_cast<int>(patch.oscillatorB.waveMemoryCharacter));
+    waveMemoryBoxes[0].setSelectedId(patch.oscillatorA.waveMemoryIndex + 1,
+                                     juce::dontSendNotification);
+    waveMemoryBoxes[1].setSelectedId(patch.oscillatorB.waveMemoryIndex + 1,
+                                     juce::dontSendNotification);
+    waveCharacterBoxes[0].setSelectedId(static_cast<int>(patch.oscillatorA.waveMemoryCharacter) + 1,
+                                        juce::dontSendNotification);
+    waveCharacterBoxes[1].setSelectedId(static_cast<int>(patch.oscillatorB.waveMemoryCharacter) + 1,
+                                        juce::dontSendNotification);
 
-    oscillatorARangeKnob.setValue(voice.octaveA, juce::sendNotificationSync);
-    oscillatorBRangeKnob.setValue(voice.octaveB, juce::sendNotificationSync);
-    knobs[0].setValue(voice.levelA, juce::sendNotificationSync);
-    knobs[1].setValue(voice.levelB, juce::sendNotificationSync);
-    knobs[2].setValue(voice.fine, juce::sendNotificationSync);
-    knobs[5].setValue(voice.noise, juce::sendNotificationSync);
-    knobs[6].setValue(voice.cutoff, juce::sendNotificationSync);
-    knobs[7].setValue(voice.resonance, juce::sendNotificationSync);
-    knobs[8].setValue(voice.filterEnvelope, juce::sendNotificationSync);
-    knobs[9].setValue(0.35, juce::sendNotificationSync);
+    oscillatorARangeKnob.setValue(patch.oscillatorA.octave, juce::sendNotificationSync);
+    oscillatorBRangeKnob.setValue(patch.oscillatorB.octave, juce::sendNotificationSync);
+    knobs[0].setValue(patch.oscillatorA.level, juce::sendNotificationSync);
+    knobs[1].setValue(patch.oscillatorB.level, juce::sendNotificationSync);
+    knobs[2].setValue(patch.oscillatorB.fineCents, juce::sendNotificationSync);
+    knobs[5].setValue(patch.noiseLevel, juce::sendNotificationSync);
+    knobs[6].setValue(patch.filterCutoffHz, juce::sendNotificationSync);
+    knobs[7].setValue(patch.filterResonance, juce::sendNotificationSync);
+    knobs[8].setValue(patch.filterEnvelopeAmount, juce::sendNotificationSync);
+    knobs[9].setValue(patch.filterKeyboardTracking, juce::sendNotificationSync);
 
-    knobs[10].setValue(voice.attack, juce::sendNotificationSync);
-    knobs[11].setValue(voice.decay, juce::sendNotificationSync);
-    knobs[12].setValue(voice.sustain, juce::sendNotificationSync);
-    knobs[13].setValue(voice.release, juce::sendNotificationSync);
-    const auto filterAttack = voice.filterAttack >= 0.0f
-        ? voice.filterAttack : juce::jmin(voice.attack, 1.5f);
-    const auto filterDecay = voice.filterDecay >= 0.0f
-        ? voice.filterDecay : juce::jmax(0.08f, voice.decay * 0.8f);
-    const auto filterSustain = voice.filterSustain >= 0.0f
-        ? voice.filterSustain : juce::jlimit(0.0f, 1.0f, voice.sustain * 0.72f);
-    const auto filterRelease = voice.filterRelease >= 0.0f
-        ? voice.filterRelease : voice.release;
-    knobs[19].setValue(filterAttack, juce::sendNotificationSync);
-    knobs[20].setValue(filterDecay, juce::sendNotificationSync);
-    knobs[21].setValue(filterSustain, juce::sendNotificationSync);
-    knobs[22].setValue(filterRelease, juce::sendNotificationSync);
+    knobs[10].setValue(patch.amplifierEnvelope.attackSeconds, juce::sendNotificationSync);
+    knobs[11].setValue(patch.amplifierEnvelope.decaySeconds, juce::sendNotificationSync);
+    knobs[12].setValue(patch.amplifierEnvelope.sustainLevel, juce::sendNotificationSync);
+    knobs[13].setValue(patch.amplifierEnvelope.releaseSeconds, juce::sendNotificationSync);
+    knobs[19].setValue(patch.filterEnvelope.attackSeconds, juce::sendNotificationSync);
+    knobs[20].setValue(patch.filterEnvelope.decaySeconds, juce::sendNotificationSync);
+    knobs[21].setValue(patch.filterEnvelope.sustainLevel, juce::sendNotificationSync);
+    knobs[22].setValue(patch.filterEnvelope.releaseSeconds, juce::sendNotificationSync);
 
-    knobs[14].setValue(voice.lfoRate, juce::sendNotificationSync);
-    knobs[15].setValue(voice.lfoAmount, juce::sendNotificationSync);
-    spreadKnob.setValue(voice.spread, juce::sendNotificationSync);
-    vintageKnob.setValue(voice.vintage, juce::sendNotificationSync);
+    knobs[14].setValue(patch.lfoRateHz, juce::sendNotificationSync);
+    knobs[15].setValue(patch.lfoInitialAmount, juce::sendNotificationSync);
+    const auto polyFilterSource = std::max({ std::abs(patch.polyModFilterEnvelopeToPitch),
+        std::abs(patch.polyModFilterEnvelopeToPulseWidthA),
+        std::abs(patch.polyModFilterEnvelopeToFilter) });
+    const auto polyOscillatorSource = std::max({ std::abs(patch.polyModOscillatorBToPitch),
+        std::abs(patch.polyModOscillatorBToPulseWidthA),
+        std::abs(patch.polyModOscillatorBToFilter) });
+    knobs[16].setValue(polyFilterSource, juce::sendNotificationSync);
+    knobs[17].setValue(polyOscillatorSource, juce::sendNotificationSync);
+    spreadKnob.setValue(patch.stereoSpread, juce::sendNotificationSync);
+    vintageKnob.setValue(patch.vintageAmount, juce::sendNotificationSync);
 
-    const bool hasVibrato = voice.lfoAmount > 0.001f;
+    const std::array<bool, 5> lfoDestinations {
+        patch.lfoPitchDepthASemitones != 0.0, patch.lfoPitchDepthBSemitones != 0.0,
+        patch.lfoPulseWidthDepthA != 0.0, patch.lfoPulseWidthDepthB != 0.0,
+        patch.lfoFilterDepthOctaves != 0.0
+    };
     for (std::size_t destination = 0; destination < lfoDestinationButtons.size(); ++destination)
     {
-        const bool enabled = hasVibrato && destination < 2;
+        const bool enabled = lfoDestinations[destination];
         lfoDestinationButtons[destination].setToggleState(enabled, juce::dontSendNotification);
         parameters.lfoDestinations[destination].store(enabled);
     }
 
-    syncButton.setToggleState(voice.sync, juce::dontSendNotification);
-    parameters.oscillatorSync.store(voice.sync);
-    monoModeButton.setToggleState(voice.voiceMode == 1, juce::dontSendNotification);
-    unisonModeButton.setToggleState(voice.voiceMode == 2, juce::dontSendNotification);
-    parameters.voiceMode.store(voice.voiceMode);
-    voiceModeBox.setSelectedId(voice.voiceMode + 1, juce::dontSendNotification);
+    const std::array<bool, 3> polyDestinations {
+        patch.polyModFilterEnvelopeToPitch != 0.0 || patch.polyModOscillatorBToPitch != 0.0,
+        patch.polyModFilterEnvelopeToPulseWidthA != 0.0 || patch.polyModOscillatorBToPulseWidthA != 0.0,
+        patch.polyModFilterEnvelopeToFilter != 0.0 || patch.polyModOscillatorBToFilter != 0.0
+    };
+    parameters.polyModFilterEnvelope.store(static_cast<float>(polyFilterSource));
+    parameters.polyModOscillatorB.store(static_cast<float>(polyOscillatorSource));
+    parameters.polyModToFrequencyA.store(polyDestinations[0]);
+    parameters.polyModToPulseWidthA.store(polyDestinations[1]);
+    parameters.polyModToFilter.store(polyDestinations[2]);
+    for (std::size_t destination = 0; destination < polyModDestinationButtons.size(); ++destination)
+        polyModDestinationButtons[destination].setToggleState(polyDestinations[destination],
+                                                               juce::dontSendNotification);
+
+    syncButton.setToggleState(patch.oscillatorSync, juce::dontSendNotification);
+    parameters.oscillatorSync.store(patch.oscillatorSync);
+    lowFrequencyButton.setToggleState(patch.oscillatorB.lowFrequencyMode,
+                                      juce::dontSendNotification);
+    parameters.oscillatorBLowFrequency.store(patch.oscillatorB.lowFrequencyMode);
+    const auto voiceMode = static_cast<int>(patch.voiceMode);
+    monoModeButton.setToggleState(voiceMode == 1, juce::dontSendNotification);
+    unisonModeButton.setToggleState(voiceMode == 2, juce::dontSendNotification);
+    parameters.voiceMode.store(voiceMode);
+    voiceModeBox.setSelectedId(voiceMode + 1, juce::dontSendNotification);
 
     presetBox.setSelectedId(static_cast<int>(index) + 2, juce::dontSendNotification);
     applyParameters();
@@ -1621,6 +3401,10 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index)
 
 void AurelineMainComponent::resetToInitialVoice()
 {
+    envelopePreviewKind = 0;
+    userWaveMemory = { aureline::waveMemoryFactoryBank()[0],
+                       aureline::waveMemoryFactoryBank()[0] };
+    userWaveMemoryActive = { false, false };
     constexpr std::array<double, 23> initialKnobValues {
         0.5, 0.5, 7.0, 0.5, 0.5, 0.0, 8000.0, 0.1, 0.25, 0.0,
         0.01, 0.25, 0.75, 0.4, 5.0, 0.0, 0.0, 0.0, 0.8,
@@ -1654,6 +3438,15 @@ void AurelineMainComponent::resetToInitialVoice()
         lfoWaveformButtons[index].setToggleState(index == 1, juce::dontSendNotification);
     parameters.waveformMaskA.store(1);
     parameters.waveformMaskB.store(1);
+    parameters.waveMemoryIndexA.store(0);
+    parameters.waveMemoryIndexB.store(0);
+    parameters.waveMemoryCharacterA.store(0);
+    parameters.waveMemoryCharacterB.store(0);
+    for (std::size_t index = 0; index < waveMemoryBoxes.size(); ++index)
+    {
+        waveMemoryBoxes[index].setSelectedId(1, juce::dontSendNotification);
+        waveCharacterBoxes[index].setSelectedId(1, juce::dontSendNotification);
+    }
     parameters.lfoWaveformMask.store(2);
 
     monoModeButton.setToggleState(false, juce::dontSendNotification);
@@ -1701,8 +3494,119 @@ void AurelineMainComponent::resetToInitialVoice()
 
 void AurelineMainComponent::buttonClicked(juce::Button* button)
 {
-    if (button == &initVoiceButton)
+    for (std::size_t index = 0; index < waveMemoryButtons.size(); ++index)
+        if (button == &waveMemoryButtons[index])
+        {
+            openWaveMemoryEditor(index);
+            return;
+        }
+
+    if (button == &previousVoiceButton || button == &nextVoiceButton)
+    {
+        const int itemCount = presetBox.getNumItems();
+        if (itemCount > 0)
+        {
+            const int direction = button == &previousVoiceButton ? -1 : 1;
+            const int current = juce::jmax(0, presetBox.getSelectedItemIndex());
+            presetBox.setSelectedItemIndex((current + direction + itemCount) % itemCount,
+                                           juce::sendNotificationSync);
+        }
+    }
+    else if (button == &loadVoiceButton)
+    {
+        // macOS native file dialogs only filter reliably by the final suffix.
+        // Allow XML here, then identify the compound library extension below.
+        voiceFileChooser = std::make_unique<juce::FileChooser>(
+            "Load Aureline voice or library",
+            aurelineDocumentsDirectory(), "*.aurelinevoice;*.xml");
+        voiceFileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this)](const juce::FileChooser& chooser)
+            {
+                if (safe == nullptr || chooser.getResult() == juce::File {})
+                    return;
+                const auto file = chooser.getResult();
+                if (file.getFullPathName().endsWithIgnoreCase(".aurelinelibrary.xml"))
+                    safe->confirmAndLoadVoiceLibrary(file);
+                else
+                    safe->loadVoiceFromFile(file);
+            });
+    }
+    else if (button == &saveVoiceButton)
+    {
+        auto name = currentVoiceName.retainCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ ").trim();
+        if (name.isEmpty()) name = "AurelineVoice";
+        voiceFileChooser = std::make_unique<juce::FileChooser>("Save Aureline voice",
+            aurelineDocumentsDirectory().getChildFile(name + ".aurelinevoice"), "*.aurelinevoice");
+        voiceFileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this)](const juce::FileChooser& chooser)
+            { if (safe != nullptr && chooser.getResult() != juce::File {}) safe->saveVoiceToFile(chooser.getResult()); });
+    }
+    else if (button == &copyVoiceButton)
+    {
+        copiedVoiceState = capturePluginState().createCopy();
+        copiedVoiceName = currentVoiceName;
+        pasteVoiceButton.setEnabled(true);
+        statusLabel.setText("Voice copied: " + copiedVoiceName, juce::dontSendNotification);
+    }
+    else if (button == &pasteVoiceButton && copiedVoiceState.isValid())
+    {
+        restorePluginState(copiedVoiceState);
+        const auto destinationName = voiceNameWithoutSlotPrefix(copiedVoiceName);
+        currentVoiceName = destinationName;
+        if (selectedFactoryVoiceIndex >= 0
+            && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
+        {
+            presetBox.changeItemText(
+                selectedFactoryVoiceIndex + 2,
+                slotVoiceDisplayName(
+                    static_cast<std::size_t>(selectedFactoryVoiceIndex),
+                    destinationName));
+            presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+                                    juce::dontSendNotification);
+        }
+        statusLabel.setText("Voice pasted temporarily into: " + destinationName,
+                            juce::dontSendNotification);
+    }
+    else if (button == &storeVoiceButton)
+        storeCurrentVoice();
+    else if (button == &saveLibraryButton)
+    {
+        voiceFileChooser = std::make_unique<juce::FileChooser>(
+            "Save all Aureline voices",
+            aurelineDocumentsDirectory().getChildFile(
+                "Aureline Library.aurelinelibrary.xml"),
+            "*.xml");
+        voiceFileChooser->launchAsync(
+            juce::FileBrowserComponent::saveMode
+                | juce::FileBrowserComponent::canSelectFiles,
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this)](
+                const juce::FileChooser& chooser)
+            {
+                if (safe != nullptr && chooser.getResult() != juce::File {})
+                    safe->saveVoiceLibraryToFile(chooser.getResult());
+            });
+    }
+    else if (button == &initVoiceButton)
+    {
         resetToInitialVoice();
+        currentVoiceName = "INIT ANALOG";
+        if (selectedFactoryVoiceIndex >= 0
+            && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
+        {
+            const auto slot = static_cast<std::size_t>(selectedFactoryVoiceIndex);
+            presetBox.changeItemText(selectedFactoryVoiceIndex + 2,
+                                     slotVoiceDisplayName(slot, currentVoiceName));
+            presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+                                    juce::dontSendNotification);
+            const auto destinationName = currentVoiceName;
+            statusLabel.setText("Voice initialized temporarily in: " + destinationName,
+                                juce::dontSendNotification);
+        }
+        else
+        {
+            statusLabel.setText("Voice initialized", juce::dontSendNotification);
+        }
+    }
     else if (button == &monoModeButton)
     {
         if (monoModeButton.getToggleState())
@@ -1775,7 +3679,8 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
             {
                 button->setToggleState(true, juce::dontSendNotification);
                 mask = waveformButton.waveform() == aureline::Waveform::saw ? 1
-                    : waveformButton.waveform() == aureline::Waveform::triangle ? 2 : 4;
+                    : waveformButton.waveform() == aureline::Waveform::triangle ? 2
+                    : waveformButton.waveform() == aureline::Waveform::pulse ? 4 : 8;
             }
             parameters.waveformMaskA.store(mask);
         }
@@ -1790,7 +3695,8 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
             {
                 button->setToggleState(true, juce::dontSendNotification);
                 mask = waveformButton.waveform() == aureline::Waveform::saw ? 1
-                    : waveformButton.waveform() == aureline::Waveform::triangle ? 2 : 4;
+                    : waveformButton.waveform() == aureline::Waveform::triangle ? 2
+                    : waveformButton.waveform() == aureline::Waveform::pulse ? 4 : 8;
             }
             parameters.waveformMaskB.store(mask);
         }
@@ -1812,6 +3718,8 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
 
 void AurelineMainComponent::timerCallback()
 {
+    pitchWheel.setValue(parameters.pitchBend.load(), juce::dontSendNotification);
+    modWheel.setValue(parameters.modWheel.load(), juce::dontSendNotification);
     syncPcKeyboardNotes();
     repaint();
 }
@@ -1855,65 +3763,56 @@ void AurelineMainComponent::paint(juce::Graphics& g)
 {
     const auto drawPanel = [&g](juce::Rectangle<float> panel, float radius)
     {
-        g.setGradientFill({ juce::Colour(0xff151719), panel.getX(), panel.getY(),
-                            juce::Colour(0xff030405), panel.getX(), panel.getBottom(), false });
-        g.fillRoundedRectangle(panel, radius);
-        g.setColour(juce::Colour(0xff050504));
-        g.drawRoundedRectangle(panel, radius, 2.0f);
-        g.setColour(juce::Colour(0xff202326));
-        g.drawRoundedRectangle(panel.reduced(2.0f), radius - 1.0f, 1.0f);
+        g.setColour(juce::Colour(themePanel));
+        g.fillRoundedRectangle(panel, juce::jmax(radius, 8.0f));
+        g.setColour(juce::Colour(themeLineGray).withAlpha(0.7f));
+        g.drawRoundedRectangle(panel.reduced(0.5f), juce::jmax(radius, 8.0f), 1.0f);
     };
-    g.fillAll(juce::Colour(0xff11120f));
+    g.fillAll(juce::Colour(themeBackground));
     const auto woodenChassis = getLocalBounds().reduced(7).toFloat();
-    {
-        juce::Graphics::ScopedSaveState savedState(g);
-        juce::Path chassisClip;
-        chassisClip.addRoundedRectangle(woodenChassis, 6.0f);
-        g.reduceClipRegion(chassisClip);
-        if (woodBackground.isValid())
-            g.drawImage(woodBackground, woodenChassis,
-                        juce::RectanglePlacement::fillDestination);
-        else
-        {
-            g.setColour(juce::Colour(0xff4a2412));
-            g.fillRect(woodenChassis);
-        }
-    }
+    g.setColour(juce::Colour(themeBackground));
+    g.fillRoundedRectangle(woodenChassis, 8.0f);
 
     auto headerArea = getLocalBounds().reduced(20).removeFromTop(34)
-                          .removeFromLeft(190).toFloat().reduced(0.0f, 1.0f);
+                          .removeFromLeft(200).withTrimmedBottom(4).toFloat();
     g.setFont(juce::FontOptions(25.0f, juce::Font::bold));
-    g.setColour(juce::Colour(0xff050607));
-    g.drawText("Aureline", headerArea.removeFromLeft(112.0f),
-               juce::Justification::centredLeft);
+    g.setColour(juce::Colour(themeAmber));
+    g.drawText("AURELINE", headerArea.removeFromLeft(140.0f),
+               juce::Justification::bottomLeft);
     auto version = juce::String(JUCE_APPLICATION_VERSION_STRING);
     if (version.endsWith(".0"))
         version = version.dropLastCharacters(2);
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.setColour(juce::Colour(0xff303335));
-    g.drawText("v" + version, headerArea.withTrimmedBottom(6.0f),
+    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.setColour(juce::Colour(themeGold));
+    g.drawText("v" + version, headerArea.translated(0.0f, -3.0f),
                juce::Justification::bottomLeft);
 
     auto area = getLocalBounds().reduced(20);
     area.removeFromTop(34);
     area.removeFromTop(4);
-    const auto display = area.removeFromTop(103);
-    drawPanel(display.toFloat(), 2.0f);
-    area.removeFromTop(4);
-    const auto top = area.removeFromTop(339);
-    drawPanel(top.toFloat(), 2.0f);
+    constexpr int unifiedRowHeight = 104;
+    constexpr int unifiedRowGap = 8;
+    constexpr int controlRowsInsets = 10;
+    const auto display = area.removeFromTop(unifiedRowHeight);
+    area.removeFromTop(unifiedRowGap);
+    const auto top = area.removeFromTop(
+        unifiedRowHeight * 3 + unifiedRowGap * 2 + controlRowsInsets);
+    drawPanel(display.getUnion(top).toFloat(), 8.0f);
     area.removeFromTop(4);
     drawPanel(area.toFloat(), 2.0f);
 
-    auto displayContent = display.reduced(8, 7).toFloat();
+    auto displayContent = display.toFloat().reduced(4.0f, 0.0f)
+                              .withTrimmedTop(6.0f)
+                              .withHeight(static_cast<float>(unifiedRowHeight));
     const auto drawDisplayFrame = [&g](juce::Rectangle<float> bounds, const juce::String& title)
     {
-        g.setGradientFill({ juce::Colour(0xff101719), bounds.getX(), bounds.getY(),
-                            juce::Colour(0xff030708), bounds.getX(), bounds.getBottom(), false });
+        g.setGradientFill({ juce::Colour(themeControlSurface).brighter(0.04f),
+                            bounds.getX(), bounds.getY(),
+                            juce::Colour(themeBackground), bounds.getX(), bounds.getBottom(), false });
         g.fillRoundedRectangle(bounds, 4.0f);
-        g.setColour(juce::Colour(0xff51443c));
+        g.setColour(juce::Colour(themeLineGray).withAlpha(0.75f));
         g.drawRoundedRectangle(bounds, 4.0f, 1.2f);
-        g.setColour(juce::Colour(0xffc7c9c8));
+        g.setColour(juce::Colour(themeText));
         g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
         g.drawText(title, bounds.removeFromTop(17.0f).reduced(7.0f, 0.0f),
                    juce::Justification::centredLeft, false);
@@ -1931,118 +3830,259 @@ void AurelineMainComponent::paint(juce::Graphics& g)
         {
             juce::Graphics::ScopedSaveState savedState(g);
             g.excludeClipRegion(caption.getSmallestIntegerContainer());
-            g.setColour(juce::Colour(0xff737779));
+            g.setColour(juce::Colour(themeLineGray));
             g.drawRoundedRectangle(bounds.reduced(0.5f), 4.0f, 0.75f);
         }
-        g.setColour(juce::Colour(0xffd5d7d6));
+        g.setColour(juce::Colour(themeText));
         g.setFont(captionFont);
         g.drawText(title, caption.reduced(4.0f, 0.0f),
                    juce::Justification::centredLeft, false);
     };
 
     auto lcdColumn = displayContent.removeFromLeft(280.0f);
-    auto lcd = lcdColumn.removeFromTop(56.0f);
+    auto lcd = lcdColumn.removeFromTop(52.0f);
     displayContent.removeFromLeft(8.0f);
     auto arpeggioDisplay = displayContent.removeFromRight(250.0f);
     displayContent.removeFromRight(8.0f);
-    const auto displayMeterWidth = (displayContent.getWidth() - 16.0f) / 3.0f;
-    auto scope = displayContent.removeFromLeft(displayMeterWidth);
-    displayContent.removeFromLeft(8.0f);
-    auto filterEnvelopeDisplay = displayContent.removeFromLeft(displayMeterWidth);
-    displayContent.removeFromLeft(8.0f);
-    auto amplifierDisplay = displayContent;
+    auto mixerDisplay = displayContent.removeFromRight(228.0f);
+    displayContent.removeFromRight(8.0f);
+    auto scope = displayContent;
+    auto filterEnvelopeDisplay = scope;
+    auto amplifierDisplay = filterEnvelopeDisplay;
+    auto waveformPanelArea = scope;
+    auto waveformAPanel = waveformPanelArea.removeFromTop(
+        juce::jmax(1.0f, waveformPanelArea.getHeight() * 0.5f - 2.0f));
+    waveformPanelArea.removeFromTop(4.0f);
+    auto waveformBPanel = waveformPanelArea;
     g.setGradientFill({ juce::Colour(0xff28170d), lcd.getX(), lcd.getY(),
                         juce::Colour(0xff0b0704), lcd.getX(), lcd.getBottom(), false });
     g.fillRoundedRectangle(lcd, 4.0f);
     g.setColour(juce::Colour(0xff594235));
     g.drawRoundedRectangle(lcd, 4.0f, 1.0f);
-    drawDisplayFrame(scope, "WAVEFORM");
-    drawDisplayFrame(filterEnvelopeDisplay, "FILTER ENV");
-    drawDisplayFrame(amplifierDisplay, "AMP ENV");
+    drawDisplayFrame(waveformAPanel, {});
+    drawDisplayFrame(waveformBPanel, {});
+    drawControlFrame(mixerDisplay, "MIXER");
     drawControlFrame(arpeggioDisplay, "ARPEGGIO");
 
-    scope = scope.reduced(8.0f, 20.0f).withTrimmedTop(2.0f);
-    juce::Path wave;
     const auto writeIndex = scopeWriteIndex.load(std::memory_order_acquire);
-    std::array<float, scopeSize> waveformSamples {};
-    float peak = 0.0f;
-    for (std::size_t index = 0; index < scopeSize; ++index)
+    constexpr std::size_t levelWindow = 128;
+    double meanSquare = 0.0;
+    for (std::size_t index = 0; index < levelWindow; ++index)
     {
-        waveformSamples[index] = scopeSamples[(writeIndex + index) % scopeSize]
-            .load(std::memory_order_relaxed);
-        peak = juce::jmax(peak, std::abs(waveformSamples[index]));
+        const auto sampleIndex = (writeIndex + scopeSize - levelWindow + index) % scopeSize;
+        const auto sample = scopeSamples[sampleIndex].load(std::memory_order_relaxed);
+        if (std::isfinite(sample))
+            meanSquare += static_cast<double>(sample) * static_cast<double>(sample);
+    }
+    auto measuredLevel = static_cast<float>(
+        std::sqrt(meanSquare / static_cast<double>(levelWindow)) * 5.0);
+    if (!std::isfinite(measuredLevel))
+        measuredLevel = 0.0f;
+    measuredLevel = juce::jlimit(0.0f, 1.0f, measuredLevel);
+    if (!std::isfinite(waveformOutputLevel))
+        waveformOutputLevel = 0.0f;
+    const auto levelResponse = measuredLevel > waveformOutputLevel ? 0.68f : 0.22f;
+    waveformOutputLevel += (measuredLevel - waveformOutputLevel) * levelResponse;
+    if (measuredLevel < 0.0005f && waveformOutputLevel < 0.002f)
+        waveformOutputLevel = 0.0f;
+
+    constexpr std::size_t shapeSize = 256;
+    std::array<std::array<float, shapeSize>, 2> oscillatorShapes {};
+    const auto renderWaveMemory = [this](double phase, int memoryIndex, int character,
+                                         bool oscillatorA)
+    {
+        const auto oscillator = static_cast<std::size_t>(oscillatorA ? 0 : 1);
+        const auto& data = userWaveMemoryActive[oscillator]
+            ? userWaveMemory[oscillator]
+            : aureline::waveMemoryFactoryBank()[static_cast<std::size_t>(
+                juce::jlimit(0, static_cast<int>(aureline::kWaveMemoryFactoryCount) - 1,
+                             memoryIndex))];
+        const auto position = phase * static_cast<double>(aureline::kWaveMemorySize);
+        const auto index = static_cast<std::size_t>(std::floor(position))
+            % aureline::kWaveMemorySize;
+        const auto quantize = [character](std::uint8_t step)
+        {
+            if (character == 1)
+                return static_cast<double>(std::lround(static_cast<double>(step) / 31.0 * 15.0))
+                    / 15.0 * 2.0 - 1.0;
+            return static_cast<double>(step) / 31.0 * 2.0 - 1.0;
+        };
+        const auto current = quantize(data[index]);
+        if (character != 2)
+            return current;
+        const auto next = quantize(data[(index + 1) % aureline::kWaveMemorySize]);
+        const auto fraction = position - std::floor(position);
+        return current + (next - current) * fraction;
+    };
+    const auto addOscillator = [&](bool oscillatorA)
+    {
+        auto& shape = oscillatorShapes[oscillatorA ? 0 : 1];
+        const auto mask = oscillatorA ? parameters.waveformMaskA.load()
+                                      : parameters.waveformMaskB.load();
+        const auto rawLevel = oscillatorA ? parameters.oscillatorALevel.load()
+                                          : parameters.oscillatorBLevel.load();
+        const auto level = std::isfinite(rawLevel)
+            ? juce::jlimit(0.0f, 1.0f, rawLevel) : 0.0f;
+        const auto rawOctave = oscillatorA ? parameters.oscillatorAOctave.load()
+                                           : parameters.oscillatorBOctave.load();
+        const auto octave = std::isfinite(rawOctave)
+            ? juce::jlimit(-5.0f, 5.0f, rawOctave) : 0.0f;
+        const auto rawFineCents = oscillatorA ? 0.0f : parameters.oscillatorBFine.load();
+        const auto fineCents = std::isfinite(rawFineCents)
+            ? juce::jlimit(-1200.0f, 1200.0f, rawFineCents) : 0.0f;
+        const auto rawPulseWidth = oscillatorA ? parameters.pulseWidthA.load()
+                                               : parameters.pulseWidthB.load();
+        const auto pulseWidth = std::isfinite(rawPulseWidth)
+            ? juce::jlimit(0.01f, 0.99f, rawPulseWidth) : 0.5f;
+        const auto memoryIndex = oscillatorA ? parameters.waveMemoryIndexA.load()
+                                             : parameters.waveMemoryIndexB.load();
+        const auto character = oscillatorA ? parameters.waveMemoryCharacterA.load()
+                                           : parameters.waveMemoryCharacterB.load();
+        const auto enabledCount = ((mask & 1) != 0) + ((mask & 2) != 0)
+            + ((mask & 4) != 0) + ((mask & 8) != 0);
+        if (enabledCount == 0 || level <= 0.0f)
+            return;
+        const auto frequencyRatio = std::pow(2.0,
+            static_cast<double>(octave) + static_cast<double>(fineCents) / 1200.0);
+        for (std::size_t index = 0; index < shapeSize; ++index)
+        {
+            auto phase = std::fmod(static_cast<double>(index) / shapeSize * frequencyRatio, 1.0);
+            if (phase < 0.0)
+                phase += 1.0;
+            double sample = 0.0;
+            if ((mask & 1) != 0) sample += phase * 2.0 - 1.0;
+            if ((mask & 2) != 0) sample += 1.0 - 4.0 * std::abs(phase - 0.5);
+            if ((mask & 4) != 0) sample += phase < pulseWidth ? 1.0 : -1.0;
+            if ((mask & 8) != 0)
+                sample += renderWaveMemory(phase, memoryIndex, character, oscillatorA);
+            shape[index] += static_cast<float>(
+                static_cast<double>(level) * sample / std::sqrt(enabledCount));
+        }
+    };
+    addOscillator(true);
+    addOscillator(false);
+    for (auto& shape : oscillatorShapes)
+    {
+        for (auto& sample : shape)
+        {
+            if (!std::isfinite(sample))
+                sample = 0.0f;
+            sample = juce::jlimit(-1.0f, 1.0f,
+                                  sample * waveformOutputLevel);
+        }
     }
 
-    const float triggerThreshold = juce::jmax(0.002f, peak * 0.05f);
-    std::size_t earlierCrossing = 0;
-    std::size_t previousCrossing = 0;
-    std::size_t latestCrossing = 0;
-    bool hasEarlierCrossing = false;
-    bool hasPreviousCrossing = false;
-    bool hasLatestCrossing = false;
-    bool triggerArmed = false;
-    for (std::size_t index = 1; index < scopeSize; ++index)
+    const auto rawBend = parameters.pitchBend.load() * parameters.pitchBendRange.load();
+    const auto bend = std::isfinite(rawBend) ? juce::jlimit(-48.0f, 48.0f, rawBend) : 0.0f;
+    const auto rawLfoAmount = parameters.lfoAmount.load() + parameters.modWheel.load();
+    const auto lfoAmount = std::isfinite(rawLfoAmount)
+        ? juce::jlimit(0.0f, 1.0f, rawLfoAmount) : 0.0f;
+    const auto rawLfoValue = engine.currentLfoValue();
+    const auto lfoValue = std::isfinite(rawLfoValue)
+        ? juce::jlimit(-1.0, 1.0, rawLfoValue) : 0.0;
+    const bool isSilent = waveformOutputLevel <= 0.001f;
+    auto oscillatorAArea = waveformAPanel.reduced(4.0f, 3.0f);
+    auto oscillatorBArea = waveformBPanel.reduced(4.0f, 3.0f);
+    const auto drawOscillatorWave = [&](const std::array<float, shapeSize>& shape,
+                                        juce::Rectangle<float> waveArea,
+                                        bool oscillatorA)
     {
-        if (waveformSamples[index] <= -triggerThreshold)
-            triggerArmed = true;
-        if (!triggerArmed || waveformSamples[index] < triggerThreshold)
-            continue;
-        if (!hasLatestCrossing || index - latestCrossing >= 8)
+        waveArea = waveArea.reduced(0.0f, 1.0f);
+        const auto destination = oscillatorA ? 0 : 1;
+        const auto vibratoSemitones = parameters.lfoDestinations[
+            static_cast<std::size_t>(destination)].load()
+            ? lfoValue * static_cast<double>(lfoAmount * lfoAmount) * 12.0 : 0.0;
+        const auto rawNote = static_cast<double>(
+            waveformPitchNote.load(std::memory_order_relaxed))
+            + static_cast<double>(bend) + vibratoSemitones;
+        const auto note = std::isfinite(rawNote)
+            ? juce::jlimit(0.0, 127.0, rawNote) : 60.0;
+        const auto rawCycles = 2.0 * std::pow(2.0, (note - 60.0) / 12.0);
+        const auto cycles = std::isfinite(rawCycles)
+            ? juce::jlimit(0.5, 8.0, rawCycles) : 2.0;
+        const auto startPhase = 0.5 - cycles * 0.5;
+        const auto width = juce::jmax(1, static_cast<int>(waveArea.getWidth()));
+        const auto centreHalf = juce::jmin(0.5, 0.5 / cycles);
+        const auto centreStart = static_cast<int>((0.5 - centreHalf) * width);
+        const auto centreEnd = static_cast<int>((0.5 + centreHalf) * width);
+        const auto centreEndWithWrap = juce::jmin(width, centreEnd + 1);
+        juce::Path leftWave, centreWave, rightWave;
+        bool leftStarted = false, centreStarted = false, rightStarted = false;
+        juce::Point<float> previousPoint;
+        bool hasPreviousPoint = false;
+        for (int pixel = 0; pixel <= width; ++pixel)
         {
-            earlierCrossing = previousCrossing;
-            hasEarlierCrossing = hasPreviousCrossing;
-            previousCrossing = latestCrossing;
-            hasPreviousCrossing = hasLatestCrossing;
-            latestCrossing = index;
-            hasLatestCrossing = true;
+            auto phase = std::fmod(
+                startPhase + static_cast<double>(pixel) / width * cycles, 1.0);
+            if (phase < 0.0)
+                phase += 1.0;
+            const auto sampleIndex = juce::jlimit<std::size_t>(
+                0, shapeSize - 1, static_cast<std::size_t>(phase * shapeSize));
+            const auto sample = std::isfinite(shape[sampleIndex])
+                ? shape[sampleIndex] : 0.0f;
+            const auto point = juce::Point<float>(
+                waveArea.getX() + static_cast<float>(pixel),
+                waveArea.getCentreY() - sample * waveArea.getHeight() * 0.47f);
+            auto& path = pixel < centreStart ? leftWave
+                       : pixel <= centreEndWithWrap ? centreWave : rightWave;
+            auto& started = pixel < centreStart ? leftStarted
+                          : pixel <= centreEndWithWrap ? centreStarted : rightStarted;
+            if (!started)
+            {
+                path.startNewSubPath(hasPreviousPoint ? previousPoint : point);
+                started = true;
+                if (hasPreviousPoint)
+                {
+                    if (std::abs(point.y - previousPoint.y)
+                        > waveArea.getHeight() * 0.18f)
+                        path.lineTo(point.x, previousPoint.y);
+                    path.lineTo(point);
+                }
+            }
+            else
+            {
+                if (std::abs(point.y - previousPoint.y)
+                    > waveArea.getHeight() * 0.18f)
+                    path.lineTo(point.x, previousPoint.y);
+                path.lineTo(point);
+            }
+            previousPoint = point;
+            hasPreviousPoint = true;
         }
-        triggerArmed = false;
-    }
-
-    std::size_t cycleLength = juce::jmin<std::size_t>(512, scopeSize - 1);
-    std::size_t cycleStart = scopeSize - cycleLength - 1;
-    if (hasEarlierCrossing && hasPreviousCrossing && hasLatestCrossing
-        && previousCrossing > earlierCrossing)
-    {
-        const auto singleCycleLength = previousCrossing - earlierCrossing;
-        const auto halfCycleLength = singleCycleLength / 2;
-        const auto proposedStart = earlierCrossing >= halfCycleLength
-            ? earlierCrossing - halfCycleLength : 0;
-        const auto proposedLength = singleCycleLength * 2;
-        if (proposedStart + proposedLength < scopeSize)
+        if (isSilent)
         {
-            cycleStart = proposedStart;
-            cycleLength = proposedLength;
+            const auto y = waveArea.getCentreY();
+            g.setColour(juce::Colour(0xffaeb2b0).withAlpha(0.62f));
+            g.drawLine(waveArea.getX(), y,
+                       waveArea.getX() + static_cast<float>(centreStart), y, 1.0f);
+            g.drawLine(waveArea.getX() + static_cast<float>(centreEnd), y,
+                       waveArea.getRight(), y, 1.0f);
+            g.setColour(juce::Colour(0xffff9a42));
+            g.drawLine(waveArea.getX() + static_cast<float>(centreStart), y,
+                       waveArea.getX() + static_cast<float>(centreEnd), y, 1.3f);
         }
-    }
-    for (int pixel = 0; pixel <= static_cast<int>(scope.getWidth()); ++pixel)
-    {
-        const auto normalized = static_cast<float>(pixel) / juce::jmax(1.0f, scope.getWidth());
-        const auto samplePosition = normalized * static_cast<float>(cycleLength);
-        const auto sampleOffset = static_cast<std::size_t>(samplePosition);
-        const auto nextOffset = juce::jmin(sampleOffset + 1, cycleLength);
-        const auto fraction = samplePosition - static_cast<float>(sampleOffset);
-        const auto firstSample = waveformSamples[cycleStart + sampleOffset];
-        const auto secondSample = waveformSamples[cycleStart + nextOffset];
-        constexpr float displayGain = 3.5f;
-        const auto sample = juce::jlimit(-1.0f, 1.0f,
-            juce::jmap(fraction, firstSample, secondSample) * displayGain);
-        const auto point = juce::Point<float>(scope.getX() + static_cast<float>(pixel),
-                                              scope.getCentreY() - sample * scope.getHeight() * 0.47f);
-        if (pixel == 0)
-            wave.startNewSubPath(point);
         else
-            wave.lineTo(point);
-    }
-    g.setColour(juce::Colour(0xffff7a28).withAlpha(0.14f));
-    g.strokePath(wave, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved));
-    g.setColour(juce::Colour(0xffff9a42));
-    g.strokePath(wave, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved));
+        {
+            g.setColour(juce::Colour(0xffaeb2b0).withAlpha(0.78f));
+            g.strokePath(leftWave, juce::PathStrokeType(1.0f));
+            g.strokePath(rightWave, juce::PathStrokeType(1.0f));
+            g.setColour(juce::Colour(0xffff9a42));
+            g.strokePath(centreWave, juce::PathStrokeType(1.3f));
+        }
+    };
+    drawOscillatorWave(oscillatorShapes[0], oscillatorAArea, true);
+    drawOscillatorWave(oscillatorShapes[1], oscillatorBArea, false);
+    g.setColour(juce::Colour(themeText));
+    g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+    g.drawText("OSC A", waveformAPanel.removeFromTop(16.0f).reduced(7.0f, 0.0f),
+               juce::Justification::centredLeft, false);
+    g.drawText("OSC B", waveformBPanel.removeFromTop(16.0f).reduced(7.0f, 0.0f),
+               juce::Justification::centredLeft, false);
 
-    const auto innerLcd = lcd.reduced(6.0f);
+    const auto innerLcd = lcd.reduced(6.0f, 3.0f);
     constexpr int columnsPerChar = 5;
     constexpr int rowsPerChar = 8;
-    constexpr int characterCount = 18;
+    constexpr int characterCount = 16;
     const float pitchFromWidth = innerLcd.getWidth()
         / static_cast<float>(characterCount * (columnsPerChar + 1) - 1);
     const float pitchFromHeight = innerLcd.getHeight() / 18.0f;
@@ -2057,9 +4097,9 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     const auto voiceMode = parameters.voiceMode.load();
     const juce::String modeText = voiceMode == 1 ? "MONO" : voiceMode == 2 ? "UNI" : "POLY";
     const auto tempoText = juce::String(juce::roundToInt(parameters.tempoBpm.load()));
-    const auto playLine = ("PLAY " + modeText + " TEMPO" + tempoText)
+    const auto playLine = (modeText + " TEMPO" + tempoText)
                               .substring(0, characterCount).paddedRight(' ', characterCount);
-    auto voiceLine = presetBox.getText().toUpperCase();
+    auto voiceLine = currentVoiceName.toUpperCase();
     if (voiceLine.isEmpty())
         voiceLine = "INIT ANALOG";
     voiceLine = voiceLine.substring(0, characterCount).paddedRight(' ', characterCount);
@@ -2101,10 +4141,10 @@ void AurelineMainComponent::paint(juce::Graphics& g)
         {
             juce::Graphics::ScopedSaveState savedState(g);
             g.excludeClipRegion(caption.getSmallestIntegerContainer());
-            g.setColour(juce::Colour(0xff737779));
+            g.setColour(juce::Colour(themeLineGray));
             g.drawRoundedRectangle(group.reduced(0.5f), 4.0f, 0.75f);
         }
-        g.setColour(juce::Colour(0xffd5d7d6));
+        g.setColour(juce::Colour(themeText));
         g.setFont(captionFont);
         g.drawText(name, caption.reduced(4.0f, 0.0f), juce::Justification::centredLeft, false);
     };
@@ -2145,31 +4185,62 @@ void AurelineMainComponent::paint(juce::Graphics& g)
         g.setColour(juce::Colour(0xffff9a42));
         g.strokePath(envelope, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved));
     };
-    drawEnvelopeGraph(filterEnvelopeDisplay,
-                      parameters.filterAttack.load(), parameters.filterDecay.load(),
-                      parameters.filterSustain.load(), parameters.filterRelease.load());
-    drawEnvelopeGraph(amplifierDisplay,
-                      parameters.attack.load(), parameters.decay.load(),
-                      parameters.sustain.load(), parameters.release.load());
+    const auto nowMs = juce::Time::getMillisecondCounterHiRes();
+    const auto previewAgeMs = nowMs - envelopePreviewChangedMs;
+    const auto previewVisibleAgeMs = nowMs - envelopePreviewStartedMs;
+    if (envelopePreviewKind != 0 && previewAgeMs < 2200.0)
+    {
+        constexpr double fadeInMs = 180.0;
+        constexpr double fadeOutStartMs = 1600.0;
+        constexpr double fadeOutMs = 600.0;
+        const auto fadeInAlpha = juce::jlimit(0.0, 1.0,
+                                              previewVisibleAgeMs / fadeInMs);
+        const auto fadeOutAlpha = previewAgeMs <= fadeOutStartMs
+            ? 1.0
+            : juce::jlimit(0.0, 1.0,
+                           (fadeOutStartMs + fadeOutMs - previewAgeMs) / fadeOutMs);
+        const auto previewAlpha = static_cast<float>(
+            juce::jmin(fadeInAlpha, fadeOutAlpha));
+        juce::Graphics::ScopedSaveState previewState(g);
+        g.beginTransparencyLayer(previewAlpha);
+        const auto previewArea = envelopePreviewKind == 1
+            ? filterEnvelopeDisplay : amplifierDisplay;
+        drawDisplayFrame(previewArea,
+                         envelopePreviewKind == 1 ? "FILTER ENV" : "AMP ENV");
+        if (envelopePreviewKind == 1)
+            drawEnvelopeGraph(previewArea,
+                              parameters.filterAttack.load(), parameters.filterDecay.load(),
+                              parameters.filterSustain.load(), parameters.filterRelease.load());
+        else
+            drawEnvelopeGraph(previewArea,
+                              parameters.attack.load(), parameters.decay.load(),
+                              parameters.sustain.load(), parameters.release.load());
+        g.endTransparencyLayer();
+    }
     topInside.removeFromLeft(2);
     auto oscillatorGroups = topInside.toFloat();
-    auto commonColumn = oscillatorGroups.removeFromRight(228.0f);
-    auto commonGroup = commonColumn.removeFromTop(rowHeight * 2.0f + 8.0f);
+    auto commonColumn = oscillatorGroups.removeFromRight(280.0f);
+    auto filterGroup = commonColumn.removeFromTop(rowHeight);
+    commonColumn.removeFromTop(8.0f);
+    auto filterEnvelopeGroup = commonColumn.removeFromTop(rowHeight);
     commonColumn.removeFromTop(8.0f);
     auto lfoModGroup = commonColumn.removeFromTop(rowHeight);
+    filterEnvelopeGroup.removeFromLeft(52.0f);
+    lfoModGroup.removeFromLeft(52.0f);
     oscillatorGroups.removeFromRight(8.0f);
     auto oscillatorTopRow = oscillatorGroups.removeFromTop(rowHeight);
-    auto mixerGroup = oscillatorTopRow.removeFromRight(174.0f);
-    oscillatorTopRow.removeFromRight(8.0f);
     oscillatorGroups.removeFromTop(8.0f);
     auto oscillatorBGroup = oscillatorGroups.removeFromTop(rowHeight);
+    oscillatorBGroup = oscillatorBGroup.withWidth(oscillatorBGroup.getWidth() + 52.0f);
     oscillatorGroups.removeFromTop(8.0f);
     drawOscillatorGroup(oscillatorTopRow, "OSCILLATOR A");
-    drawOscillatorGroup(mixerGroup, "MIXER");
     drawOscillatorGroup(oscillatorBGroup, "OSCILLATOR B");
-    drawOscillatorGroup(oscillatorGroups.removeFromTop(rowHeight), "LFO");
-    drawOscillatorGroup(commonGroup, "FILTER");
-    drawOscillatorGroup(lfoModGroup, "AMPLIFIER");
+    auto lfoGroup = oscillatorGroups.removeFromTop(rowHeight);
+    lfoGroup = lfoGroup.withWidth(lfoGroup.getWidth() + 52.0f);
+    drawOscillatorGroup(lfoGroup, "LFO");
+    drawOscillatorGroup(filterEnvelopeGroup, "FILTER ENV");
+    drawOscillatorGroup(filterGroup, "FILTER");
+    drawOscillatorGroup(lfoModGroup, "AMP ENV");
 
 }
 
@@ -2177,25 +4248,62 @@ void AurelineMainComponent::resized()
 {
     auto area = getLocalBounds().reduced(20);
     auto header = area.removeFromTop(34);
-    auto titleBounds = header.removeFromLeft(190);
-    auto subtitleBounds = header.removeFromLeft(300).withTrimmedBottom(4);
+    auto titleBounds = header.removeFromLeft(200);
+    auto subtitleBounds = header.removeFromLeft(310).withTrimmedBottom(4);
     titleLabel.setBounds(titleBounds);
     titleLabel.setVisible(false);
     subtitleLabel.setBounds(subtitleBounds);
-    statusLabel.setBounds(header);
+    auto libraryButtonArea = header.removeFromRight(112);
+    saveLibraryButton.setBounds(libraryButtonArea.reduced(2, 4));
+    statusLabel.setBounds(header.withTrimmedBottom(4));
 
     area.removeFromTop(4);
-    auto display = area.removeFromTop(103).reduced(2);
-    auto displayContent = display.reduced(6, 5);
+    constexpr int unifiedRowHeight = 104;
+    constexpr int unifiedRowGap = 8;
+    constexpr int controlRowsInsets = 10;
+    auto display = area.removeFromTop(unifiedRowHeight);
+    auto displayContent = display.reduced(4, 0).withTrimmedTop(6)
+                              .withHeight(unifiedRowHeight);
     auto lcdColumn = displayContent.removeFromLeft(280);
-    lcdColumn.removeFromTop(61);
-    auto presetRow = lcdColumn.removeFromTop(24);
-    auto initButtonArea = presetRow.removeFromRight(76);
+    lcdColumn.removeFromTop(55);
+    auto presetRow = lcdColumn.removeFromTop(22);
+    auto nextArea = presetRow.removeFromRight(38);
+    presetRow.removeFromRight(4);
+    auto previousArea = presetRow.removeFromRight(38);
     presetRow.removeFromRight(4);
     presetBox.setBounds(presetRow);
-    initVoiceButton.setBounds(initButtonArea);
+    previousVoiceButton.setBounds(previousArea);
+    nextVoiceButton.setBounds(nextArea);
+    lcdColumn.removeFromTop(3);
+    auto voiceActions = lcdColumn.removeFromTop(22);
+    constexpr int voiceActionGap = 2;
+    const int actionWidth =
+        (voiceActions.getWidth() - voiceActionGap * 5) / 6;
+    for (auto* button : { &loadVoiceButton, &saveVoiceButton, &copyVoiceButton,
+                          &pasteVoiceButton, &initVoiceButton, &storeVoiceButton })
+    {
+        button->setBounds(voiceActions.removeFromLeft(actionWidth));
+        voiceActions.removeFromLeft(voiceActionGap);
+    }
     displayContent.removeFromLeft(8);
     auto arpeggioDisplay = displayContent.removeFromRight(250).reduced(6, 0);
+    displayContent.removeFromRight(8);
+    auto mixerDisplay = displayContent.removeFromRight(228).reduced(5, 0);
+    displayContent.removeFromRight(8);
+    auto mixerRow = mixerDisplay;
+    mixerRow.removeFromTop(14);
+    mixerRow.removeFromBottom(6);
+    constexpr std::array<std::size_t, 3> mixerIndices { 0, 1, 5 };
+    for (std::size_t position = 0; position < mixerIndices.size(); ++position)
+    {
+        const auto index = mixerIndices[position];
+        auto cell = juce::Rectangle<int>(mixerRow.getX() + static_cast<int>(position) * 52,
+                                         mixerRow.getY(), 50, mixerRow.getHeight());
+        knobLabels[index].setBounds(cell.removeFromTop(16));
+        knobs[index].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
+    }
+    lowFrequencyButton.setBounds(mixerRow.getX() + 156, mixerRow.getY(), 32, 70);
+    keyboardTrackingButton.setBounds(mixerRow.getX() + 190, mixerRow.getY(), 32, 70);
     arpeggioDisplay.removeFromTop(10);
     const int arpeggioCellWidth = arpeggioDisplay.getWidth() / 4;
     auto layoutTopArpKnob = [](juce::Rectangle<int> cell,
@@ -2210,8 +4318,10 @@ void AurelineMainComponent::resized()
     for (std::size_t index = 0; index < arpKnobs.size(); ++index)
         layoutTopArpKnob(arpeggioDisplay.removeFromLeft(arpeggioCellWidth),
                          arpLabels[index], arpKnobs[index]);
-    area.removeFromTop(4);
-    auto top = area.removeFromTop(339).reduced(4).withTrimmedTop(2);
+    area.removeFromTop(unifiedRowGap);
+    auto top = area.removeFromTop(
+                        unifiedRowHeight * 3 + unifiedRowGap * 2 + controlRowsInsets)
+                   .reduced(4).withTrimmedTop(2);
     auto leftControls = top.removeFromLeft(70).reduced(4, 2);
     const int leftControlRowHeight = leftControls.getHeight() / 3;
     auto layoutNumberedKnobRow = [](juce::Rectangle<int> row,
@@ -2234,7 +4344,7 @@ void AurelineMainComponent::resized()
     top.removeFromLeft(2);
     auto patch = top.removeFromLeft(244).reduced(8, 0);
     top.removeFromLeft(8);
-    auto commonPanel = top.removeFromRight(228);
+    auto commonPanel = top.removeFromRight(280);
     top.removeFromRight(8);
     auto oscillatorPanel = top;
     const int threeRowHeight = (patch.getHeight() - 16) / 3;
@@ -2243,6 +4353,9 @@ void AurelineMainComponent::resized()
         return juce::Rectangle<int>(bounds.getX() + 10 + offset, bounds.getY(),
                                     width, bounds.getHeight());
     };
+    constexpr int waveformButtonWidth = 32;
+    constexpr int waveformButtonHeight = 66;
+    constexpr int waveformButtonCellWidth = 34;
 
     auto polyModRow = patch.removeFromTop(threeRowHeight).reduced(5, 0);
     polyModRow.removeFromTop(14);
@@ -2307,7 +4420,7 @@ void AurelineMainComponent::resized()
         rangeLabel.setBounds(rangeArea.removeFromTop(16));
         auto& range = oscillatorA ? oscillatorARangeKnob : oscillatorBRangeKnob;
         range.setBounds(rangeArea.reduced(1, 0));
-        auto shapeGroup = fixedCell(row, 52, 102);
+        auto shapeGroup = fixedCell(row, 52, 136);
         const auto shapeGroupBounds = shapeGroup;
         auto& shapeLabel = oscillatorA ? oscillatorAShapeLabel : oscillatorBShapeLabel;
         shapeLabel.setBounds(shapeGroupBounds.getX(), row.getBottom() - 14,
@@ -2315,45 +4428,43 @@ void AurelineMainComponent::resized()
         auto& shapeButtons = oscillatorA ? waveformAButtons : waveformBButtons;
         for (std::size_t index = 0; index < shapeButtons.size(); ++index)
         {
-            const auto cell = shapeGroup.removeFromLeft(34);
-            shapeButtons[index].setBounds(cell.getX(), row.getY(), 32, 66);
+            const auto cell = shapeGroup.removeFromLeft(waveformButtonCellWidth);
+            shapeButtons[index].setBounds(cell.getX(), row.getY(),
+                                          waveformButtonWidth, waveformButtonHeight);
         }
+        const auto memoryIndex = static_cast<std::size_t>(oscillatorA ? 0 : 1);
         const auto pwIndex = static_cast<std::size_t>(oscillatorA ? 3 : 4);
-        auto pwArea = fixedCell(row, 156, 50);
+        auto pwArea = fixedCell(row, 190, 50);
         knobLabels[pwIndex].setText("PW", juce::dontSendNotification);
         knobLabels[pwIndex].setBounds(pwArea.removeFromTop(16));
         knobs[pwIndex].setBounds(pwArea);
+        const auto memoryX = row.getX() + 260;
+        const auto memoryWidth = 84;
+        const auto memoryHeight = 22;
+        const auto memoryStackHeight = memoryHeight * 3 + 6;
+        const auto memoryY = row.getCentreY() - memoryStackHeight / 2;
+        waveMemoryBoxes[memoryIndex].setBounds(memoryX, memoryY,
+                                               memoryWidth, memoryHeight);
+        waveCharacterBoxes[memoryIndex].setBounds(memoryX, memoryY + 25,
+                                                  memoryWidth, memoryHeight);
+        waveMemoryButtons[memoryIndex].setBounds(memoryX, memoryY + 50,
+                                                 memoryWidth, memoryHeight);
 
         if (!oscillatorA)
         {
-            auto fineArea = fixedCell(row, 208, 50);
-            knobLabels[2].setBounds(fineArea.removeFromTop(16));
-            knobs[2].setBounds(fineArea.withSizeKeepingCentre(50, fineArea.getHeight()));
-            auto oscillatorButtonGroup = fixedCell(row, 260, 68);
-            const auto lfCell = oscillatorButtonGroup.removeFromLeft(34);
-            const auto kbCell = oscillatorButtonGroup.removeFromLeft(34);
-            lowFrequencyButton.setBounds(lfCell.getCentreX() - 16, row.getY(), 32, 70);
-            keyboardTrackingButton.setBounds(kbCell.getCentreX() - 16, row.getY(), 32, 70);
+            auto detuneArea = juce::Rectangle<int>(row.getRight() - 50, row.getY(),
+                                                   50, row.getHeight());
+            knobLabels[2].setBounds(detuneArea.removeFromTop(16));
+            knobs[2].setBounds(detuneArea.withSizeKeepingCentre(
+                50, detuneArea.getHeight()));
         }
+
     };
     auto oscillatorTopRow = oscillatorPanel.removeFromTop(threeRowHeight);
-    auto mixerPanel = oscillatorTopRow.removeFromRight(174);
-    oscillatorTopRow.removeFromRight(8);
     layoutOscillatorRow(oscillatorTopRow, true);
-
-    auto mixerRow = mixerPanel;
-    mixerRow.removeFromTop(14);
-    mixerRow.removeFromBottom(6);
-    constexpr std::array<std::size_t, 3> mixerIndices { 0, 1, 5 };
-    for (std::size_t position = 0; position < mixerIndices.size(); ++position)
-    {
-        const auto index = mixerIndices[position];
-        auto cell = fixedCell(mixerRow, static_cast<int>(position) * 52, 50);
-        knobLabels[index].setBounds(cell.removeFromTop(16));
-        knobs[index].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
-    }
     oscillatorPanel.removeFromTop(8);
     auto oscillatorBPanel = oscillatorPanel.removeFromTop(threeRowHeight);
+    oscillatorBPanel = oscillatorBPanel.withWidth(oscillatorBPanel.getWidth() + 52);
     layoutOscillatorRow(oscillatorBPanel, false);
     oscillatorPanel.removeFromTop(8);
     auto lfoPanel = oscillatorPanel.removeFromTop(threeRowHeight);
@@ -2363,14 +4474,19 @@ void AurelineMainComponent::resized()
     auto rateCell = fixedCell(lfoRow, 0, 50);
     knobLabels[14].setBounds(rateCell.removeFromTop(16));
     knobs[14].setBounds(rateCell.withSizeKeepingCentre(50, rateCell.getHeight()));
-    auto lfoShapeGroup = fixedCell(lfoRow, 52, 140);
+    constexpr int lfoWaveformButtonWidth = 30;
+    constexpr int lfoWaveformButtonCellWidth = 30;
+    auto lfoShapeGroup = fixedCell(lfoRow, 52,
+                                   lfoWaveformButtonCellWidth
+                                       * static_cast<int>(lfoWaveformButtons.size()));
     const auto lfoShapeGroupBounds = lfoShapeGroup;
     lfoShapeLabel.setBounds(lfoShapeGroupBounds.getX(), lfoRow.getBottom() - 14,
                             lfoShapeGroupBounds.getWidth(), 14);
     for (std::size_t index = 0; index < lfoWaveformButtons.size(); ++index)
     {
-        const auto cell = lfoShapeGroup.removeFromLeft(28);
-        lfoWaveformButtons[index].setBounds(cell.getX(), lfoRow.getY(), 26, 66);
+        const auto cell = lfoShapeGroup.removeFromLeft(lfoWaveformButtonCellWidth);
+        lfoWaveformButtons[index].setBounds(cell.getX(), lfoRow.getY(),
+                                            lfoWaveformButtonWidth, waveformButtonHeight);
     }
     const std::array<juce::Slider*, 3> remainingLfoUnits {
         &knobs[15], &lfoDelayKnob, &lfoFadeKnob
@@ -2380,18 +4496,17 @@ void AurelineMainComponent::resized()
     };
     for (std::size_t index = 0; index < remainingLfoUnits.size(); ++index)
     {
-        auto cell = fixedCell(lfoRow, 194 + static_cast<int>(index) * 52, 50);
+        auto cell = fixedCell(lfoRow, 204 + static_cast<int>(index) * 52, 50);
         remainingLfoLabels[index]->setBounds(cell.removeFromTop(16));
         remainingLfoUnits[index]->setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
     }
-    auto retriggerCell = fixedCell(lfoRow, 350, 34);
+    auto retriggerCell = fixedCell(lfoRow, 360, 34);
     lfoRetriggerButton.setBounds(retriggerCell.getX() + 1, lfoRow.getY(), 32, 70);
 
     constexpr std::array<std::size_t, 8> filterIndices {
         6, 7, 8, 9,
         19, 20, 21, 22
     };
-    constexpr int commonColumns = 4;
     constexpr int commonUnitWidth = 50;
     auto filterPanel = commonPanel.removeFromTop(threeRowHeight * 2 + 8);
     commonPanel.removeFromTop(8);
@@ -2403,15 +4518,28 @@ void AurelineMainComponent::resized()
         knobLabels[index].setBounds(cell.removeFromTop(16));
         knobs[index].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
     };
-    for (std::size_t position = 0; position < filterIndices.size(); ++position)
+    for (std::size_t position = 0; position < filterIndices.size() + 1; ++position)
     {
-        const int column = static_cast<int>(position) % commonColumns;
-        const int rowIndex = static_cast<int>(position) / commonColumns;
+        const bool filterControl = position <= 4;
+        const int column = filterControl ? static_cast<int>(position)
+                                         : static_cast<int>(position - 4);
+        const int rowIndex = filterControl ? 0 : 1;
         const int rowY = filterPanel.getY() + rowIndex * (threeRowHeight + 8);
         auto cell = fixedCell(juce::Rectangle<int>(filterPanel.getX(), rowY,
                                                    filterPanel.getWidth(), threeRowHeight),
                               column * 52, commonUnitWidth);
-        layoutCommonKnob(cell, filterIndices[position]);
+        if (position == 4)
+        {
+            cell.removeFromTop(14);
+            cell.removeFromBottom(6);
+            performanceLabels[4].setBounds(cell.removeFromTop(16));
+            performanceKnobs[4].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
+        }
+        else
+        {
+            const auto sourceIndex = position < 4 ? position : position - 1;
+            layoutCommonKnob(cell, filterIndices[sourceIndex]);
+        }
     }
     auto amplifierRow = lfoModPanel.reduced(4, 0);
     amplifierRow.removeFromTop(14);
@@ -2419,7 +4547,7 @@ void AurelineMainComponent::resized()
     for (std::size_t position = 0; position < 4; ++position)
     {
         const auto index = position + 10;
-        auto cell = fixedCell(amplifierRow, static_cast<int>(position) * 52, 50);
+        auto cell = fixedCell(amplifierRow, (static_cast<int>(position) + 1) * 52, 50);
         knobLabels[index].setBounds(cell.removeFromTop(16));
         knobs[index].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
     }
@@ -2432,11 +4560,11 @@ void AurelineMainComponent::resized()
     auto modArea = performance.removeFromLeft(44).reduced(1, 0);
     modLabel.setBounds(modArea.removeFromBottom(16));
     modWheel.setBounds(modArea.reduced(5, 0));
-    auto performanceControls = performance.removeFromLeft(150).translated(0, 3);
-    for (std::size_t index = 0; index < performanceKnobs.size(); ++index)
+    auto performanceControls = performance.removeFromLeft(100).translated(0, 3);
+    for (std::size_t index = 0; index < performanceKnobs.size() - 1; ++index)
     {
-        const int row = static_cast<int>(index) / 3;
-        const int column = static_cast<int>(index) % 3;
+        const int row = static_cast<int>(index) / 2;
+        const int column = static_cast<int>(index) % 2;
         auto cell = juce::Rectangle<int>(performanceControls.getX() + column * 50,
                                          performanceControls.getY() + row * 68,
                                          50, 68).reduced(2, 0);
@@ -2462,4 +4590,9 @@ void AurelineMainComponent::resized()
                             performanceButtonWidth, performanceButtonHeight);
     performance.removeFromLeft(4);
     keyboard.setBounds(performance.reduced(2));
+    if (waveMemoryEditorWindow != nullptr)
+    {
+        waveMemoryEditorWindow->setBounds(getLocalBounds());
+        waveMemoryEditorWindow->toFront(false);
+    }
 }

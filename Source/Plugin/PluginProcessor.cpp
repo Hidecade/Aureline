@@ -50,14 +50,7 @@ void AurelinePluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                             juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
-    for (const auto metadata : midi)
-    {
-        auto message = metadata.getMessage();
-        message.setTimeStamp(juce::Time::getMillisecondCounterHiRes() * 0.001);
-        interface.queueMidiMessage(message);
-    }
-    juce::AudioSourceChannelInfo info(&buffer, 0, buffer.getNumSamples());
-    interface.getNextAudioBlock(info);
+    interface.processPluginBlock(buffer, midi);
     midi.clear();
 }
 

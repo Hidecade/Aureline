@@ -1,5 +1,7 @@
 #include "DSP/Oscillator.h"
 #include "Engine/AnalogEngine.h"
+#include "Engine/FactoryPresets.h"
+#include "Engine/PerformanceSequencer.h"
 
 #include <algorithm>
 #include <array>
@@ -169,9 +171,29 @@ void testVoiceModesAndGlide()
     patch.unisonDetuneCents = 30.0;
     engine.setPatch(patch);
     engine.noteOn(60, 110);
-    assert(engine.activeVoiceCount() == aureline::kVoiceCount);
+    assert(engine.activeVoiceCount() == aureline::kUnisonVoiceCount);
     for (int sample = 0; sample < 48000; ++sample)
         assert(std::isfinite(engine.renderSample()));
+}
+
+void testMonoReturnsToLastHeldNote()
+{
+    aureline::AnalogEngine engine;
+    engine.prepare(48000.0);
+    auto patch = engine.getPatch();
+    patch.voiceMode = aureline::VoiceMode::mono;
+    patch.amplifierEnvelope.releaseSeconds = 0.01;
+    engine.setPatch(patch);
+    engine.noteOn(48, 100);
+    engine.noteOn(72, 100);
+    engine.noteOff(72);
+    for (int sample = 0; sample < 9600; ++sample)
+        assert(std::isfinite(engine.renderSample()));
+    assert(engine.activeVoiceCount() == 1);
+    engine.noteOff(48);
+    for (int sample = 0; sample < 9600; ++sample)
+        assert(std::isfinite(engine.renderSample()));
+    assert(engine.activeVoiceCount() == 0);
 }
 
 void testStereoSpreadAndFilterExpression()
@@ -227,6 +249,135 @@ void testRapidParameterChangesRemainFinite()
         assert(std::abs(value.right) <= 1.0);
     }
 }
+
+void testFactoryPresets()
+{
+    const auto& presets = aureline::factoryPresets();
+    assert(presets.size() == aureline::kFactoryPresetCount);
+    assert(presets.size() == 50);
+    for (std::size_t index = 0; index < presets.size(); ++index)
+    {
+        const auto& preset = presets[index];
+        assert(preset.name != nullptr && preset.name[0] != '\0');
+        const auto& patch = preset.patch;
+        const bool usesPolyMod = patch.polyModOscillatorBToPitch != 0.0
+            || patch.polyModFilterEnvelopeToPitch != 0.0
+            || patch.polyModOscillatorBToPulseWidthA != 0.0
+            || patch.polyModFilterEnvelopeToPulseWidthA != 0.0
+            || patch.polyModOscillatorBToFilter != 0.0
+            || patch.polyModFilterEnvelopeToFilter != 0.0;
+        const bool usesWaveMemory = patch.oscillatorA.waveMemoryEnabled
+            || patch.oscillatorB.waveMemoryEnabled;
+        if (index < 20)
+        {
+            assert(!usesPolyMod);
+            assert(!usesWaveMemory);
+        }
+        else if (index < 25)
+        {
+            assert(usesPolyMod);
+            assert(!usesWaveMemory);
+        }
+        else if (index < 35)
+        {
+            assert(!usesPolyMod);
+            assert(usesWaveMemory);
+        }
+        else
+        {
+            assert(!usesPolyMod);
+            assert(!usesWaveMemory);
+        }
+        if (index >= 35 && index < 39)
+        {
+            constexpr std::array<double, 4> expectedWidths {
+                0.125, 0.25, 0.5, 0.75
+            };
+            assert(std::abs(patch.oscillatorA.pulseWidth
+                            - expectedWidths[index - 35]) < 0.0001);
+        }
+        aureline::AnalogEngine engine;
+        engine.prepare(48000.0);
+        engine.setPatch(preset.patch);
+        engine.noteOn(60, 100);
+        for (int sample = 0; sample < 1024; ++sample)
+        {
+            const auto output = engine.renderStereoSample();
+            assert(std::isfinite(output.left));
+            assert(std::isfinite(output.right));
+        }
+    }
+}
+
+void testPerformanceSequencer()
+{
+    aureline::AnalogEngine engine;
+    aureline::PerformanceSequencer sequencer;
+    engine.prepare(48000.0);
+    sequencer.prepare(48000.0);
+    aureline::PerformanceSequencerSettings settings;
+    settings.chordEnabled = true;
+    sequencer.setSettings(settings);
+    sequencer.noteOn(engine, 60, 100);
+    assert(engine.activeVoiceCount() == 3);
+    sequencer.noteOff(engine, 60);
+
+    settings.arpeggiatorEnabled = true;
+    settings.holdEnabled = true;
+    settings.tempoBpm = 240.0;
+    settings.rate = 2;
+    sequencer.setSettings(settings);
+    sequencer.noteOn(engine, 60, 110);
+    sequencer.noteOff(engine, 60);
+    double peak = 0.0;
+    for (int sample = 0; sample < 24000; ++sample)
+    {
+        const auto output = sequencer.renderStereoSample(engine);
+        assert(std::isfinite(output.left));
+        assert(std::isfinite(output.right));
+        peak = std::max(peak, std::abs(output.left));
+    }
+    assert(peak > 0.001);
+    sequencer.panic(engine);
+    assert(engine.activeVoiceCount() == 0);
+}
+
+void testWaveMemoryOscillator()
+{
+    assert(aureline::waveMemoryFactoryBank().size() == 16);
+    for (const auto& waveform : aureline::waveMemoryFactoryBank())
+        for (const auto step : waveform)
+            assert(step <= 31);
+
+    for (const auto character : { aureline::WaveMemoryCharacter::fiveBit,
+                                  aureline::WaveMemoryCharacter::fourBit,
+                                  aureline::WaveMemoryCharacter::smooth })
+    {
+        aureline::AnalogEngine engine;
+        engine.prepare(48000.0);
+        auto patch = engine.getPatch();
+        patch.oscillatorA.sawEnabled = false;
+        patch.oscillatorA.triangleEnabled = false;
+        patch.oscillatorA.pulseEnabled = false;
+        patch.oscillatorA.waveMemoryEnabled = true;
+        patch.oscillatorA.waveMemoryIndex = 12;
+        patch.oscillatorA.waveMemoryData = aureline::waveMemoryFactoryBank()[12];
+        patch.oscillatorA.waveMemoryCharacter = character;
+        patch.oscillatorB.level = 0.0;
+        engine.setPatch(patch);
+        engine.noteOn(60, 127);
+        double peak = 0.0;
+        for (int sample = 0; sample < 4096; ++sample)
+        {
+            const auto output = engine.renderStereoSample();
+            assert(std::isfinite(output.left));
+            assert(std::isfinite(output.right));
+            peak = std::max(peak, std::abs(output.left));
+        }
+        assert(peak > 0.001);
+    }
+}
+
 } // namespace
 
 int main()
@@ -239,8 +390,12 @@ int main()
     testModulationRemainsFinite();
     testSyncAndPulseWidthModulation();
     testVoiceModesAndGlide();
+    testMonoReturnsToLastHeldNote();
     testStereoSpreadAndFilterExpression();
     testRapidParameterChangesRemainFinite();
+    testFactoryPresets();
+    testPerformanceSequencer();
+    testWaveMemoryOscillator();
     std::cout << "Aureline engine tests passed\n";
     return 0;
 }

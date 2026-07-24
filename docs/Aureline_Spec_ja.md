@@ -1,7 +1,7 @@
 # Aureline 製品仕様
 
 - 文書バージョン: 0.1
-- 製品バージョン: 0.1.0（開発中）
+- 製品バージョン: 1.0.1
 - ブランド: Hidecade Instruments
 
 ## 1. 製品概要
@@ -19,7 +19,7 @@ Aurelineは、クラシックなポリフォニック・アナログシンセサ
 
 ## 3. 対応形式
 
-初期リリースではmacOSおよびWindowsのStandalone、VST3、macOS Audio Unitを対象とする。MIDI入力とステレオ出力に対応する。iOSおよびAUv3は将来対応とする。
+初期リリースではmacOSおよびWindowsのStandalone、VST3、macOS Audio Unitを対象とする。MIDI入力とステレオ出力に対応する。iOSおよびAUv3は追加対応として開発中とし、詳細は`Aureline_iOS_Spec_ja.md`に定める。
 
 ## 4. 信号経路
 
@@ -116,7 +116,7 @@ Filter ADSRおよびAmplifier ADSRをボイスごとに保持する。時間変�
 
 ## 8. プリセット
 
-拡張子は `.aurelinepreset`、ライブラリは `.aurelinelibrary` とする。全音源パラメータ、Voice Mode、Vintage、Effects、Name、Author、Category、Format Versionを保存する。
+単一音色の拡張子は`.aurelinevoice`、全音色ライブラリは`.aurelinelibrary.xml`とする。全音源パラメータ、Voice Mode、Vintage、Effects、Name、Author、Category、Format Versionを保存する。
 
 ## 9. UI
 

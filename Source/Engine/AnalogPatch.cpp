@@ -22,8 +22,13 @@ void normalizeEnvelope(EnvelopeParams& envelope)
 
 void normalizeOscillator(OscillatorParams& oscillator)
 {
-    if (!oscillator.sawEnabled && !oscillator.triangleEnabled && !oscillator.pulseEnabled)
+    if (!oscillator.sawEnabled && !oscillator.triangleEnabled && !oscillator.pulseEnabled
+        && !oscillator.waveMemoryEnabled)
         oscillator.sawEnabled = true;
+    oscillator.waveMemoryIndex = std::clamp(
+        oscillator.waveMemoryIndex, 0, static_cast<int>(kWaveMemoryFactoryCount) - 1);
+    for (auto& step : oscillator.waveMemoryData)
+        step = static_cast<std::uint8_t>(std::min<int>(31, step));
     oscillator.octave = clamp(oscillator.octave, -3.0, 3.0);
     oscillator.semitones = clamp(oscillator.semitones, -12.0, 12.0);
     oscillator.fineCents = clamp(oscillator.fineCents, -100.0, 100.0);

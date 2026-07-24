@@ -1,0 +1,149 @@
+name: AurelineMobile
+options:
+  bundleIdPrefix: jp.hidecade
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CLANG_CXX_LANGUAGE_STANDARD: c++17
+    CLANG_CXX_LIBRARY: libc++
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+targets:
+  AurelineMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: ../../Source/Engine
+        name: SharedEngine
+      - path: ../../Source/DSP
+        name: SharedDSP
+    dependencies:
+      - target: AurelineAUv3Extension
+        embed: true
+      - sdk: AVFoundation.framework
+      - sdk: AudioToolbox.framework
+      - sdk: CoreMIDI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hidekikonishi.aureline.mobile
+        PRODUCT_NAME: Aureline
+        INFOPLIST_KEY_CFBundleDisplayName: Aureline
+        MARKETING_VERSION: "1.0.1"
+        CURRENT_PROJECT_VERSION: 2
+        TARGETED_DEVICE_FAMILY: 1
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 8H7SC722UJ
+        INFOPLIST_FILE: Sources/Resources/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/Native/AurelineMobile-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - ../../Source
+    info:
+      path: Sources/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Aureline
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleDocumentTypes:
+          - CFBundleTypeExtensions:
+              - aurelinevoice
+            CFBundleTypeName: Aureline Voice
+            LSItemContentTypes:
+              - com.hidecade.aureline.voice
+            LSHandlerRank: Owner
+          - CFBundleTypeExtensions:
+              - xml
+            CFBundleTypeName: Aureline Voice Library
+            LSItemContentTypes:
+              - com.hidecade.aureline.library
+            LSHandlerRank: Owner
+        UTExportedTypeDeclarations:
+          - UTTypeConformsTo:
+              - public.json
+            UTTypeDescription: Aureline Voice
+            UTTypeIdentifier: com.hidecade.aureline.voice
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - aurelinevoice
+          - UTTypeConformsTo:
+              - public.xml
+            UTTypeDescription: Aureline Voice Library
+            UTTypeIdentifier: com.hidecade.aureline.library
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - xml
+        ITSAppUsesNonExemptEncryption: false
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIRequiresFullScreen: true
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIRequiredDeviceCapabilities:
+          - arm64
+  AurelineAUv3Extension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AUv3Extension
+      - path: Sources/Native
+      - path: ../../Source/Engine
+        name: SharedEngine
+      - path: ../../Source/DSP
+        name: SharedDSP
+    dependencies:
+      - sdk: AudioToolbox.framework
+      - sdk: AVFoundation.framework
+      - sdk: CoreAudioKit.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hidekikonishi.aureline.mobile.auv3
+        PRODUCT_NAME: AurelineAUv3Extension
+        PRODUCT_MODULE_NAME: AurelineAUv3Extension
+        INFOPLIST_KEY_CFBundleDisplayName: Aureline
+        MARKETING_VERSION: "1.0.1"
+        CURRENT_PROJECT_VERSION: 2
+        TARGETED_DEVICE_FAMILY: 1
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 8H7SC722UJ
+        APPLICATION_EXTENSION_API_ONLY: true
+        INFOPLIST_FILE: AUv3Extension/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: AUv3Extension/AurelineAUv3Extension-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - ../../Source
+          - Sources/Native
+    info:
+      path: AUv3Extension/Info.plist
+      properties:
+        CFBundleDisplayName: Aureline
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.AudioUnit-UI
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).AudioUnitViewController"
+          NSExtensionAttributes:
+            AudioComponents:
+              - type: aumu
+                subtype: Aurl
+                manufacturer: Hcde
+                name: "Hidecade: Aureline"
+                description: Aureline AUv3 Instrument
+                version: 1
+schemes:
+  AurelineMobile:
+    build:
+      targets:
+        AurelineMobile: all
+    run:
+      config: Release
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

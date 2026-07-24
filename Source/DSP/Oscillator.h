@@ -12,6 +12,9 @@ public:
     double render(double frequencyHz, Waveform waveform, double pulseWidth);
     double render(double frequencyHz, bool sawEnabled, bool triangleEnabled,
                   bool pulseEnabled, double pulseWidth);
+    double render(double frequencyHz, bool sawEnabled, bool triangleEnabled,
+                  bool pulseEnabled, double pulseWidth, bool waveMemoryEnabled,
+                  const WaveMemoryData& waveMemory, WaveMemoryCharacter character);
     bool wrappedLastSample() const { return didWrap; }
 
 private:

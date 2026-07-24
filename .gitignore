@@ -4,5 +4,6 @@ cmake-build-*/
 .vscode/settings.json
 *.user
 *.xcuserstate
+xcuserdata/
 DerivedData/
 dist/

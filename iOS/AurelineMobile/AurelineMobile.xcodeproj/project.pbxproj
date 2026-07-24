@@ -1,0 +1,736 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		068D5D20F6974ED6F947FA61 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 11A918F605875B934D38BD72 /* AudioToolbox.framework */; };
+		0D5E85167F0D8E9A1A544DC6 /* AnalogPatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 99017F679D740DBFB72C5394 /* AnalogPatch.cpp */; };
+		1A6C5D869962649B709BE11A /* PerformanceSequencer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */; };
+		1ACEDD103D4B1AF0F83F9989 /* AudioUnitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB795BE6219E1B2F2AFF878 /* AudioUnitViewController.swift */; };
+		1CB147562E47CA0686B20B5C /* AurelinePresetDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E6709BFF37C82F433453E3 /* AurelinePresetDocument.swift */; };
+		1D85C05286F0B7A3B6C65C02 /* AurelineLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCC82DA4992AD76C79C5059 /* AurelineLibrary.swift */; };
+		2AD0B17E7CC30C9507517298 /* AurelineAUv3Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A28A2CFF4A6137D106022E9A /* AurelineAUv3Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		318216C614F993CE36AA81A2 /* Oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F808B2F272FBFE863F4A761C /* Oscillator.cpp */; };
+		3A3104A67EA04C65231DF4A2 /* AurelineMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E610785DFB0B4ADD2BBD6E /* AurelineMobileApp.swift */; };
+		3A9FA2A944FB84E6DEBFCCBB /* PerformanceSequencer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */; };
+		3BF6DC3246B6FE51004E1C66 /* LadderFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */; };
+		3E4B10EA9659755DC4C25CCB /* PlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 257F4B46C476B31CCE9EC6B1 /* PlayView.swift */; };
+		418A9E7F4717599D5B08D536 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06CF4C4C996A49A8122ACE3 /* Theme.swift */; };
+		43D491C09C80BFEE212CB7BE /* Envelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0945A87AF3B128D1160F90D6 /* Envelope.cpp */; };
+		441584A9E97298CE10BFFC5E /* ParameterKnob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B7E2423631AE6F78549B21D /* ParameterKnob.swift */; };
+		445E34A679D0BCF955DB92D6 /* Lfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */; };
+		527B26A0BEB69679DBF129C5 /* AnalogPatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 99017F679D740DBFB72C5394 /* AnalogPatch.cpp */; };
+		5A98F60FA0EA9FAE99924698 /* NoiseGenerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2287E32BAD9133F32456412B /* NoiseGenerator.cpp */; };
+		607B0F669B5D4D9B3F681B8E /* AnalogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50177BA2189548FA479B660A /* AnalogEngine.cpp */; };
+		654B72EB62E3BC884A4DE7C8 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E8C2F8CFD036F218C73B1B4 /* AVFoundation.framework */; };
+		686B26BC901ACA9B57C97DDC /* MobileAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA049031BD1FD7B2D3D5E92 /* MobileAudioEngine.swift */; };
+		74D99C38BBCCBF72EEE9A73F /* AurelineAUAudioUnit.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0642936FD38563EF92D23D7B /* AurelineAUAudioUnit.mm */; };
+		76DC8738814469ECE744E846 /* MobileSynthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EC19FA4D0B52AC86F6626F /* MobileSynthModel.swift */; };
+		8271DADCB2A07EAFE5D64823 /* AnalogVoice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8B7DC9E83AB8DBC038B1BB70 /* AnalogVoice.cpp */; };
+		840454F93DF5FFB7EA81346E /* AnalogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50177BA2189548FA479B660A /* AnalogEngine.cpp */; };
+		856E9C04DFCE072A9BE8567B /* AurelineMobileEngineBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */; };
+		858658F2BCFE7C7365DA1CA6 /* Envelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0945A87AF3B128D1160F90D6 /* Envelope.cpp */; };
+		8C0678E1D1718A61B4527FE7 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 11A918F605875B934D38BD72 /* AudioToolbox.framework */; };
+		8C09D98F0CAA7DE7C4575C78 /* EditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 707B19AFBE12EDC1C7EB604A /* EditView.swift */; };
+		96E297E186490E209478378A /* AurelineMobileEngineBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */; };
+		97F7436CC08BE57E04F1827D /* AnalogVoice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8B7DC9E83AB8DBC038B1BB70 /* AnalogVoice.cpp */; };
+		A85EDB44DCC519AE909EA403 /* NoiseGenerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2287E32BAD9133F32456412B /* NoiseGenerator.cpp */; };
+		A8D126AAD52B49A3A6109FFA /* MobileKeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9B1FF3FFC9FAF4A75E7B25 /* MobileKeyboardView.swift */; };
+		B297D05A502ECB5335A7FD49 /* FactoryPresets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7E2103AB2CB666761FA5406D /* FactoryPresets.cpp */; };
+		BC8DD6E219209859D475783C /* Lfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */; };
+		C23BE4036BB39BEC864CE07D /* LadderFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */; };
+		C2518F9C8DEAA539FEA8DC3A /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E8C2F8CFD036F218C73B1B4 /* AVFoundation.framework */; };
+		C4973036BE0A760F543C5E7C /* Oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F808B2F272FBFE863F4A761C /* Oscillator.cpp */; };
+		CEEE9E0EF9E86BC4A34BFD21 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 35209BED8D170A5CAB127375 /* Assets.xcassets */; };
+		CFC623223C4F5F6DACE6AF92 /* OpalineStyleKeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593641C931B023EADF0035B6 /* OpalineStyleKeyboardView.swift */; };
+		D3B0AC955B733F2CB61FAA5E /* MobileMIDIInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3131E8243E759E4C9A85C4 /* MobileMIDIInput.swift */; };
+		DCF3573D12BD8D5BC7F3B841 /* FactoryPresets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7E2103AB2CB666761FA5406D /* FactoryPresets.cpp */; };
+		E1075CCBFB46ED8B69230F6A /* CoreAudioKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 904AB98A2E9529C3B155AF10 /* CoreAudioKit.framework */; };
+		E993E8A3EC3449ABD1AE219C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18D02D23AB90752D5310778B /* RootView.swift */; };
+		FC274BEE33E316C7C8E3AA47 /* CoreMIDI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB46AF6E3ECF70B9005BA367 /* CoreMIDI.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CC5476171E30C440AAAFEB05 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D001DDFB41285EF94FCB8A47 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 18D5FA63330BC13FC8BB1788;
+			remoteInfo = AurelineAUv3Extension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7B9A0AB2DB37E9E18547E27A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2AD0B17E7CC30C9507517298 /* AurelineAUv3Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		02E6709BFF37C82F433453E3 /* AurelinePresetDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelinePresetDocument.swift; sourceTree = "<group>"; };
+		0642936FD38563EF92D23D7B /* AurelineAUAudioUnit.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AurelineAUAudioUnit.mm; sourceTree = "<group>"; };
+		0945A87AF3B128D1160F90D6 /* Envelope.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Envelope.cpp; sourceTree = "<group>"; };
+		11A918F605875B934D38BD72 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		18D02D23AB90752D5310778B /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		190EC36FA38A836F832332C6 /* AurelineMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AurelineMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1B3131E8243E759E4C9A85C4 /* MobileMIDIInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileMIDIInput.swift; sourceTree = "<group>"; };
+		21C4BFC86E5787B6BE5E8343 /* LadderFilter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LadderFilter.h; sourceTree = "<group>"; };
+		2287E32BAD9133F32456412B /* NoiseGenerator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = NoiseGenerator.cpp; sourceTree = "<group>"; };
+		257F4B46C476B31CCE9EC6B1 /* PlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayView.swift; sourceTree = "<group>"; };
+		2B7E2423631AE6F78549B21D /* ParameterKnob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterKnob.swift; sourceTree = "<group>"; };
+		3519EFE48B2108C20D64AB1F /* AurelineAUAudioUnit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AurelineAUAudioUnit.h; sourceTree = "<group>"; };
+		35209BED8D170A5CAB127375 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		4E1760F132C0E6545DF898B4 /* Lfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Lfo.h; sourceTree = "<group>"; };
+		50177BA2189548FA479B660A /* AnalogEngine.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AnalogEngine.cpp; sourceTree = "<group>"; };
+		53B7342BE9F79D3438867597 /* Envelope.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Envelope.h; sourceTree = "<group>"; };
+		593641C931B023EADF0035B6 /* OpalineStyleKeyboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpalineStyleKeyboardView.swift; sourceTree = "<group>"; };
+		5D16C2F60FFEEC112EBF15AF /* AurelineMobileEngineBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AurelineMobileEngineBridge.h; sourceTree = "<group>"; };
+		5F6AB21F2C59FD2E8DF2D1E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6BB795BE6219E1B2F2AFF878 /* AudioUnitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioUnitViewController.swift; sourceTree = "<group>"; };
+		6E8C2F8CFD036F218C73B1B4 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		6F6A21C256DA1472315CC200 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		707B19AFBE12EDC1C7EB604A /* EditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditView.swift; sourceTree = "<group>"; };
+		70F273537EEBA7AE8C878A8F /* AnalogVoice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalogVoice.h; sourceTree = "<group>"; };
+		7E2103AB2CB666761FA5406D /* FactoryPresets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FactoryPresets.cpp; sourceTree = "<group>"; };
+		7F9B1FF3FFC9FAF4A75E7B25 /* MobileKeyboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileKeyboardView.swift; sourceTree = "<group>"; };
+		852AAE57AB52D5C48D1BEC8E /* AurelineMobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AurelineMobile-Bridging-Header.h"; sourceTree = "<group>"; };
+		8B7DC9E83AB8DBC038B1BB70 /* AnalogVoice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AnalogVoice.cpp; sourceTree = "<group>"; };
+		8EA50609B10EDC0DD61CCD92 /* Oscillator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Oscillator.h; sourceTree = "<group>"; };
+		904AB98A2E9529C3B155AF10 /* CoreAudioKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudioKit.framework; path = System/Library/Frameworks/CoreAudioKit.framework; sourceTree = SDKROOT; };
+		99017F679D740DBFB72C5394 /* AnalogPatch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AnalogPatch.cpp; sourceTree = "<group>"; };
+		9E8E115C10883B734903D879 /* AurelineAUv3Extension-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AurelineAUv3Extension-Bridging-Header.h"; sourceTree = "<group>"; };
+		A18CF8EDB6ED382264A6D3F9 /* ParameterSmoother.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ParameterSmoother.h; sourceTree = "<group>"; };
+		A28A2CFF4A6137D106022E9A /* AurelineAUv3Extension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AurelineAUv3Extension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A6EC19FA4D0B52AC86F6626F /* MobileSynthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileSynthModel.swift; sourceTree = "<group>"; };
+		AFA049031BD1FD7B2D3D5E92 /* MobileAudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAudioEngine.swift; sourceTree = "<group>"; };
+		BF81DCEE85864FFDB47DE22A /* NoiseGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NoiseGenerator.h; sourceTree = "<group>"; };
+		C06CF4C4C996A49A8122ACE3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LadderFilter.cpp; sourceTree = "<group>"; };
+		C8CC0C67C4AAFC9E134F277F /* AnalogPatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalogPatch.h; sourceTree = "<group>"; };
+		CC030FC8A5025E54DC66C3E0 /* PerformanceSequencer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PerformanceSequencer.h; sourceTree = "<group>"; };
+		CDCC82DA4992AD76C79C5059 /* AurelineLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelineLibrary.swift; sourceTree = "<group>"; };
+		D864F4C0E90892E2447FF0C3 /* AnalogEngine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalogEngine.h; sourceTree = "<group>"; };
+		E8E610785DFB0B4ADD2BBD6E /* AurelineMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelineMobileApp.swift; sourceTree = "<group>"; };
+		EB46AF6E3ECF70B9005BA367 /* CoreMIDI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMIDI.framework; path = System/Library/Frameworks/CoreMIDI.framework; sourceTree = SDKROOT; };
+		EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PerformanceSequencer.cpp; sourceTree = "<group>"; };
+		F236C9CD3872F2B0F906711E /* FactoryPresets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FactoryPresets.h; sourceTree = "<group>"; };
+		F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Lfo.cpp; sourceTree = "<group>"; };
+		F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AurelineMobileEngineBridge.mm; sourceTree = "<group>"; };
+		F808B2F272FBFE863F4A761C /* Oscillator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Oscillator.cpp; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7CA2156D40EBDA3356801AE8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				654B72EB62E3BC884A4DE7C8 /* AVFoundation.framework in Frameworks */,
+				068D5D20F6974ED6F947FA61 /* AudioToolbox.framework in Frameworks */,
+				FC274BEE33E316C7C8E3AA47 /* CoreMIDI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90C706B3D993484ABBE099CA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8C0678E1D1718A61B4527FE7 /* AudioToolbox.framework in Frameworks */,
+				C2518F9C8DEAA539FEA8DC3A /* AVFoundation.framework in Frameworks */,
+				E1075CCBFB46ED8B69230F6A /* CoreAudioKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1847BC7EDFC74A9118DE3073 /* SharedEngine */ = {
+			isa = PBXGroup;
+			children = (
+				50177BA2189548FA479B660A /* AnalogEngine.cpp */,
+				D864F4C0E90892E2447FF0C3 /* AnalogEngine.h */,
+				99017F679D740DBFB72C5394 /* AnalogPatch.cpp */,
+				C8CC0C67C4AAFC9E134F277F /* AnalogPatch.h */,
+				8B7DC9E83AB8DBC038B1BB70 /* AnalogVoice.cpp */,
+				70F273537EEBA7AE8C878A8F /* AnalogVoice.h */,
+				7E2103AB2CB666761FA5406D /* FactoryPresets.cpp */,
+				F236C9CD3872F2B0F906711E /* FactoryPresets.h */,
+				EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */,
+				CC030FC8A5025E54DC66C3E0 /* PerformanceSequencer.h */,
+			);
+			name = SharedEngine;
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		27BF8EC0730EE6DD407F37ED = {
+			isa = PBXGroup;
+			children = (
+				9C04AEB220C5587156E4172A /* Aureline */,
+				44AD6541E563A19E7C80D20E /* AUv3Extension */,
+				AE199A2EF4173024B437FDC6 /* Sources */,
+				886F34FC305E344FC802F9E0 /* Frameworks */,
+				F42EDA38A31EF9DCC5FEB0D4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		30380B044EFF74DB6D650A9A /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				48BAAA36491523753C627A58 /* SharedDSP */,
+				1847BC7EDFC74A9118DE3073 /* SharedEngine */,
+			);
+			path = Source;
+			sourceTree = "<group>";
+		};
+		4470D047DAF1CFCD419E2C5C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				CDCC82DA4992AD76C79C5059 /* AurelineLibrary.swift */,
+				E8E610785DFB0B4ADD2BBD6E /* AurelineMobileApp.swift */,
+				02E6709BFF37C82F433453E3 /* AurelinePresetDocument.swift */,
+				AFA049031BD1FD7B2D3D5E92 /* MobileAudioEngine.swift */,
+				1B3131E8243E759E4C9A85C4 /* MobileMIDIInput.swift */,
+				A6EC19FA4D0B52AC86F6626F /* MobileSynthModel.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		44AD6541E563A19E7C80D20E /* AUv3Extension */ = {
+			isa = PBXGroup;
+			children = (
+				6BB795BE6219E1B2F2AFF878 /* AudioUnitViewController.swift */,
+				3519EFE48B2108C20D64AB1F /* AurelineAUAudioUnit.h */,
+				0642936FD38563EF92D23D7B /* AurelineAUAudioUnit.mm */,
+				9E8E115C10883B734903D879 /* AurelineAUv3Extension-Bridging-Header.h */,
+				5F6AB21F2C59FD2E8DF2D1E3 /* Info.plist */,
+			);
+			path = AUv3Extension;
+			sourceTree = "<group>";
+		};
+		48BAAA36491523753C627A58 /* SharedDSP */ = {
+			isa = PBXGroup;
+			children = (
+				0945A87AF3B128D1160F90D6 /* Envelope.cpp */,
+				53B7342BE9F79D3438867597 /* Envelope.h */,
+				C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */,
+				21C4BFC86E5787B6BE5E8343 /* LadderFilter.h */,
+				F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */,
+				4E1760F132C0E6545DF898B4 /* Lfo.h */,
+				2287E32BAD9133F32456412B /* NoiseGenerator.cpp */,
+				BF81DCEE85864FFDB47DE22A /* NoiseGenerator.h */,
+				F808B2F272FBFE863F4A761C /* Oscillator.cpp */,
+				8EA50609B10EDC0DD61CCD92 /* Oscillator.h */,
+				A18CF8EDB6ED382264A6D3F9 /* ParameterSmoother.h */,
+			);
+			name = SharedDSP;
+			path = DSP;
+			sourceTree = "<group>";
+		};
+		886F34FC305E344FC802F9E0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				11A918F605875B934D38BD72 /* AudioToolbox.framework */,
+				6E8C2F8CFD036F218C73B1B4 /* AVFoundation.framework */,
+				904AB98A2E9529C3B155AF10 /* CoreAudioKit.framework */,
+				EB46AF6E3ECF70B9005BA367 /* CoreMIDI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		9C04AEB220C5587156E4172A /* Aureline */ = {
+			isa = PBXGroup;
+			children = (
+				30380B044EFF74DB6D650A9A /* Source */,
+			);
+			name = Aureline;
+			path = ../..;
+			sourceTree = "<group>";
+		};
+		A022F65CB1D413E2707681C9 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				707B19AFBE12EDC1C7EB604A /* EditView.swift */,
+				257F4B46C476B31CCE9EC6B1 /* PlayView.swift */,
+				18D02D23AB90752D5310778B /* RootView.swift */,
+				C06CF4C4C996A49A8122ACE3 /* Theme.swift */,
+				AA5058164A8D8A973BB97E8E /* Components */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		A239A6504BCB96E7FE993DDE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				35209BED8D170A5CAB127375 /* Assets.xcassets */,
+				6F6A21C256DA1472315CC200 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		AA5058164A8D8A973BB97E8E /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				7F9B1FF3FFC9FAF4A75E7B25 /* MobileKeyboardView.swift */,
+				593641C931B023EADF0035B6 /* OpalineStyleKeyboardView.swift */,
+				2B7E2423631AE6F78549B21D /* ParameterKnob.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		AE199A2EF4173024B437FDC6 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				4470D047DAF1CFCD419E2C5C /* App */,
+				B20069281E1789457427445E /* Native */,
+				A239A6504BCB96E7FE993DDE /* Resources */,
+				A022F65CB1D413E2707681C9 /* UI */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		B20069281E1789457427445E /* Native */ = {
+			isa = PBXGroup;
+			children = (
+				852AAE57AB52D5C48D1BEC8E /* AurelineMobile-Bridging-Header.h */,
+				5D16C2F60FFEEC112EBF15AF /* AurelineMobileEngineBridge.h */,
+				F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */,
+			);
+			path = Native;
+			sourceTree = "<group>";
+		};
+		F42EDA38A31EF9DCC5FEB0D4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A28A2CFF4A6137D106022E9A /* AurelineAUv3Extension.appex */,
+				190EC36FA38A836F832332C6 /* AurelineMobile.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		18D5FA63330BC13FC8BB1788 /* AurelineAUv3Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 41E699B369CD97752215FEAF /* Build configuration list for PBXNativeTarget "AurelineAUv3Extension" */;
+			buildPhases = (
+				8DC6E9C80C77A53AF65A97BB /* Sources */,
+				90C706B3D993484ABBE099CA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AurelineAUv3Extension;
+			packageProductDependencies = (
+			);
+			productName = AurelineAUv3Extension;
+			productReference = A28A2CFF4A6137D106022E9A /* AurelineAUv3Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		98C9CC3DCFD5E65768434311 /* AurelineMobile */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CB87BEB7B4ACA2B83CABFE03 /* Build configuration list for PBXNativeTarget "AurelineMobile" */;
+			buildPhases = (
+				E1E07AC7EF86E50383928158 /* Sources */,
+				04957C55B4696944EDD9E0E7 /* Resources */,
+				7CA2156D40EBDA3356801AE8 /* Frameworks */,
+				7B9A0AB2DB37E9E18547E27A /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F44B10FC26915922565F8D65 /* PBXTargetDependency */,
+			);
+			name = AurelineMobile;
+			packageProductDependencies = (
+			);
+			productName = AurelineMobile;
+			productReference = 190EC36FA38A836F832332C6 /* AurelineMobile.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D001DDFB41285EF94FCB8A47 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					18D5FA63330BC13FC8BB1788 = {
+						DevelopmentTeam = 8H7SC722UJ;
+						ProvisioningStyle = Automatic;
+					};
+					98C9CC3DCFD5E65768434311 = {
+						DevelopmentTeam = 8H7SC722UJ;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 62C1E44877E704D9F976331F /* Build configuration list for PBXProject "AurelineMobile" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 27BF8EC0730EE6DD407F37ED;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F42EDA38A31EF9DCC5FEB0D4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				18D5FA63330BC13FC8BB1788 /* AurelineAUv3Extension */,
+				98C9CC3DCFD5E65768434311 /* AurelineMobile */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		04957C55B4696944EDD9E0E7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CEEE9E0EF9E86BC4A34BFD21 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8DC6E9C80C77A53AF65A97BB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				840454F93DF5FFB7EA81346E /* AnalogEngine.cpp in Sources */,
+				527B26A0BEB69679DBF129C5 /* AnalogPatch.cpp in Sources */,
+				8271DADCB2A07EAFE5D64823 /* AnalogVoice.cpp in Sources */,
+				1ACEDD103D4B1AF0F83F9989 /* AudioUnitViewController.swift in Sources */,
+				74D99C38BBCCBF72EEE9A73F /* AurelineAUAudioUnit.mm in Sources */,
+				96E297E186490E209478378A /* AurelineMobileEngineBridge.mm in Sources */,
+				43D491C09C80BFEE212CB7BE /* Envelope.cpp in Sources */,
+				B297D05A502ECB5335A7FD49 /* FactoryPresets.cpp in Sources */,
+				C23BE4036BB39BEC864CE07D /* LadderFilter.cpp in Sources */,
+				445E34A679D0BCF955DB92D6 /* Lfo.cpp in Sources */,
+				A85EDB44DCC519AE909EA403 /* NoiseGenerator.cpp in Sources */,
+				318216C614F993CE36AA81A2 /* Oscillator.cpp in Sources */,
+				3A9FA2A944FB84E6DEBFCCBB /* PerformanceSequencer.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1E07AC7EF86E50383928158 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				607B0F669B5D4D9B3F681B8E /* AnalogEngine.cpp in Sources */,
+				0D5E85167F0D8E9A1A544DC6 /* AnalogPatch.cpp in Sources */,
+				97F7436CC08BE57E04F1827D /* AnalogVoice.cpp in Sources */,
+				1D85C05286F0B7A3B6C65C02 /* AurelineLibrary.swift in Sources */,
+				3A3104A67EA04C65231DF4A2 /* AurelineMobileApp.swift in Sources */,
+				856E9C04DFCE072A9BE8567B /* AurelineMobileEngineBridge.mm in Sources */,
+				1CB147562E47CA0686B20B5C /* AurelinePresetDocument.swift in Sources */,
+				8C09D98F0CAA7DE7C4575C78 /* EditView.swift in Sources */,
+				858658F2BCFE7C7365DA1CA6 /* Envelope.cpp in Sources */,
+				DCF3573D12BD8D5BC7F3B841 /* FactoryPresets.cpp in Sources */,
+				3BF6DC3246B6FE51004E1C66 /* LadderFilter.cpp in Sources */,
+				BC8DD6E219209859D475783C /* Lfo.cpp in Sources */,
+				686B26BC901ACA9B57C97DDC /* MobileAudioEngine.swift in Sources */,
+				A8D126AAD52B49A3A6109FFA /* MobileKeyboardView.swift in Sources */,
+				D3B0AC955B733F2CB61FAA5E /* MobileMIDIInput.swift in Sources */,
+				76DC8738814469ECE744E846 /* MobileSynthModel.swift in Sources */,
+				5A98F60FA0EA9FAE99924698 /* NoiseGenerator.cpp in Sources */,
+				CFC623223C4F5F6DACE6AF92 /* OpalineStyleKeyboardView.swift in Sources */,
+				C4973036BE0A760F543C5E7C /* Oscillator.cpp in Sources */,
+				441584A9E97298CE10BFFC5E /* ParameterKnob.swift in Sources */,
+				1A6C5D869962649B709BE11A /* PerformanceSequencer.cpp in Sources */,
+				3E4B10EA9659755DC4C25CCB /* PlayView.swift in Sources */,
+				E993E8A3EC3449ABD1AE219C /* RootView.swift in Sources */,
+				418A9E7F4717599D5B08D536 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F44B10FC26915922565F8D65 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 18D5FA63330BC13FC8BB1788 /* AurelineAUv3Extension */;
+			targetProxy = CC5476171E30C440AAAFEB05 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		4E906D716387258DEDBF4F80 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 8H7SC722UJ;
+				HEADER_SEARCH_PATHS = (
+					../../Source,
+				);
+				INFOPLIST_FILE = Sources/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Aureline;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile;
+				PRODUCT_NAME = Aureline;
+				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/Native/AurelineMobile-Bridging-Header.h";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		5C43528E05B748903EFC20BC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		5F05D61256418E92DEBE0B98 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		707CC00C3385CF28981C8FD6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 8H7SC722UJ;
+				HEADER_SEARCH_PATHS = (
+					../../Source,
+				);
+				INFOPLIST_FILE = Sources/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Aureline;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile;
+				PRODUCT_NAME = Aureline;
+				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/Native/AurelineMobile-Bridging-Header.h";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B018FC2268D1D7CCD44C8EC7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 8H7SC722UJ;
+				HEADER_SEARCH_PATHS = (
+					../../Source,
+					Sources/Native,
+				);
+				INFOPLIST_FILE = AUv3Extension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Aureline;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile.auv3;
+				PRODUCT_MODULE_NAME = AurelineAUv3Extension;
+				PRODUCT_NAME = AurelineAUv3Extension;
+				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = "AUv3Extension/AurelineAUv3Extension-Bridging-Header.h";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E14D66E91C25723F1230F3F3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 8H7SC722UJ;
+				HEADER_SEARCH_PATHS = (
+					../../Source,
+					Sources/Native,
+				);
+				INFOPLIST_FILE = AUv3Extension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Aureline;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile.auv3;
+				PRODUCT_MODULE_NAME = AurelineAUv3Extension;
+				PRODUCT_NAME = AurelineAUv3Extension;
+				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = "AUv3Extension/AurelineAUv3Extension-Bridging-Header.h";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		41E699B369CD97752215FEAF /* Build configuration list for PBXNativeTarget "AurelineAUv3Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E14D66E91C25723F1230F3F3 /* Debug */,
+				B018FC2268D1D7CCD44C8EC7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		62C1E44877E704D9F976331F /* Build configuration list for PBXProject "AurelineMobile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5F05D61256418E92DEBE0B98 /* Debug */,
+				5C43528E05B748903EFC20BC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CB87BEB7B4ACA2B83CABFE03 /* Build configuration list for PBXNativeTarget "AurelineMobile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				707CC00C3385CF28981C8FD6 /* Debug */,
+				4E906D716387258DEDBF4F80 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D001DDFB41285EF94FCB8A47 /* Project object */;
+}
