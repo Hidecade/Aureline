@@ -34,7 +34,7 @@ jobs:
         run: cmake -S . -B build/windows-release -G "Visual Studio 17 2022" -A x64 -DAURELINE_BUILD_STANDALONE=ON -DAURELINE_BUILD_PLUGINS=ON
       - name: Build
         shell: pwsh
-        run: cmake --build build/windows-release --config Release --target Aureline_Standalone Aureline_Plugin_VST3
+        run: cmake --build build/windows-release --config Release --target Aureline_Standalone Aureline_Plugin_VST3 aureline_engine_tests
       - name: Test
         shell: pwsh
         run: ctest --test-dir build/windows-release -C Release --output-on-failure
