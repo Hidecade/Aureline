@@ -26,9 +26,9 @@ The repository contains the first headless DSP milestone:
 - velocity and keyboard tracking for the filter;
 - CMake-based engine tests.
 
-The JUCE standalone app, VST3 instrument, and macOS Audio Unit are available
-with the same 1024 x 668 performance UI. All plug-in state is restored with the
-host project.
+The JUCE Standalone app is built from the same plug-in processor as the VST3
+instrument and macOS Audio Unit. All formats share the same audio/MIDI path and
+1024 x 668 performance UI. All plug-in state is restored with the host project.
 
 Build the three macOS installer packages into `dist/` with:
 
@@ -92,7 +92,7 @@ ctest --test-dir build --output-on-failure
 On macOS, launch the standalone build with:
 
 ```sh
-open build/Aureline_Standalone_artefacts/Aureline.app
+open build/Aureline_Plugin_artefacts/Standalone/Aureline.app
 ```
 
 During local development, CMake can reuse JUCE from the sibling OpalineFM

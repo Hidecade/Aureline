@@ -19,7 +19,7 @@ Opaline FMとは別製品として開発し、音源、パッチ、UI、プリ�
 - Filter VelocityとKeyboard Tracking
 - CMakeによるヘッドレス・エンジンテスト
 
-JUCE Standaloneは実装済みです。Opaline FMと同じ1024×668のウインドウ、上部パネル、Pitch／Modホイール、37鍵キーボード、標準オーディオ出力、MIDI入力を備えます。
+JUCE StandaloneはOpaline FMと同様に、VST3／Audio Unitと同じプラグインプロセッサから生成します。全形式で音源処理とMIDI経路、1024×668のUIを共通化しています。
 
 VST3およびmacOS Audio Unitも同じ音源・UIを使用するプラグインとしてビルドできます。成果物は `build/Aureline_Plugin_artefacts/VST3/Aureline.vst3` と `build/Aureline_Plugin_artefacts/AU/Aureline.component` に生成されます。
 
@@ -66,7 +66,7 @@ ctest --test-dir build --output-on-failure
 macOSでは次のコマンドで起動できます。
 
 ```sh
-open build/Aureline_Standalone_artefacts/Aureline.app
+open build/Aureline_Plugin_artefacts/Standalone/Aureline.app
 ```
 
 ローカル開発時は兄弟フォルダのOpalineFMにあるJUCEを再利用できます。独立環境では`AURELINE_JUCE_DIR`を指定するか、`external/JUCE`へJUCEを配置します。

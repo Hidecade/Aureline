@@ -50,47 +50,20 @@ if(AURELINE_BUILD_STANDALONE OR AURELINE_BUILD_PLUGINS)
     if(AURELINE_RESOLVED_JUCE_DIR)
         add_subdirectory("${AURELINE_RESOLVED_JUCE_DIR}" "${CMAKE_BINARY_DIR}/JUCE")
 
-        juce_add_gui_app(Aureline_Standalone
-            PRODUCT_NAME "Aureline"
-            VERSION ${PROJECT_VERSION}
-            COMPANY_NAME "Hidecade"
-            BUNDLE_ID "jp.hidecade.aureline"
-            ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/aureline-icon.png"
-            ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/aureline-icon.png"
-        )
-
         juce_add_binary_data(AurelineAssets
             SOURCES
                 assets/aureline-wood-background.png
         )
 
-        target_sources(Aureline_Standalone PRIVATE
-            Source/App/Main.cpp
-            Source/App/MainComponent.cpp
-            Source/App/MainComponent.h
-        )
-
-        target_compile_definitions(Aureline_Standalone PRIVATE
-            JUCE_WEB_BROWSER=0
-            JUCE_USE_CURL=0
-            JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:Aureline_Standalone,JUCE_PRODUCT_NAME>"
-            JUCE_APPLICATION_VERSION_STRING="${PROJECT_VERSION}"
-        )
-
-        target_link_libraries(Aureline_Standalone PRIVATE
-            aureline_engine
-            AurelineAssets
-            juce::juce_audio_utils
-            juce::juce_gui_extra
-        PUBLIC
-            juce::juce_recommended_config_flags
-            juce::juce_recommended_lto_flags
-            juce::juce_recommended_warning_flags
-        )
-
-        if(AURELINE_BUILD_PLUGINS)
-            set(AURELINE_PLUGIN_FORMATS VST3)
-            if(APPLE)
+        if(AURELINE_BUILD_PLUGINS OR AURELINE_BUILD_STANDALONE)
+            set(AURELINE_PLUGIN_FORMATS)
+            if(AURELINE_BUILD_PLUGINS)
+                list(APPEND AURELINE_PLUGIN_FORMATS VST3)
+            endif()
+            if(AURELINE_BUILD_STANDALONE)
+                list(APPEND AURELINE_PLUGIN_FORMATS Standalone)
+            endif()
+            if(APPLE AND AURELINE_BUILD_PLUGINS)
                 list(APPEND AURELINE_PLUGIN_FORMATS AU)
             endif()
 

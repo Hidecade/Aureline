@@ -40,17 +40,14 @@ if [[ "$skip_build" -eq 0 ]]; then
         -DAURELINE_BUILD_STANDALONE=ON \
         -DAURELINE_BUILD_PLUGINS=ON
     cmake --build "$build_root" --config "$configuration" --target \
-        Aureline_Standalone Aureline_Plugin_VST3 Aureline_Plugin_AU
+        Aureline_Plugin_Standalone Aureline_Plugin_VST3 Aureline_Plugin_AU
 fi
 
-standalone_artifact="$build_root/Aureline_Standalone_artefacts/Aureline.app"
 plugin_artifact_root="$build_root/Aureline_Plugin_artefacts"
-if [[ -d "$build_root/Aureline_Standalone_artefacts/$configuration" ]]; then
-    standalone_artifact="$build_root/Aureline_Standalone_artefacts/$configuration/Aureline.app"
-fi
 if [[ -d "$plugin_artifact_root/$configuration" ]]; then
     plugin_artifact_root="$plugin_artifact_root/$configuration"
 fi
+standalone_artifact="$plugin_artifact_root/Standalone/Aureline.app"
 vst3_artifact="$plugin_artifact_root/VST3/Aureline.vst3"
 au_artifact="$plugin_artifact_root/AU/Aureline.component"
 
