@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var synth: MobileSynthModel
     @State private var editKeyboardOctave = 3
+    @State private var showingAbout = false
 
     var body: some View {
         if synth.screen == .play {
@@ -30,6 +31,9 @@ struct RootView: View {
         .padding(.horizontal, 8)
         .background(AurelineTheme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showingAbout) {
+            AboutView()
+        }
         }
     }
 
@@ -42,6 +46,8 @@ struct RootView: View {
             Text(synth.selectedPreset).font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundStyle(AurelineTheme.text)
             Spacer()
             if synth.screen == .edit {
+                Button("ABOUT") { showingAbout = true }
+                    .buttonStyle(HeaderVoiceButtonStyle(store: false))
                 Button("INIT") { synth.initializePatch() }
                     .buttonStyle(HeaderVoiceButtonStyle(store: false))
                 Button("STORE") {

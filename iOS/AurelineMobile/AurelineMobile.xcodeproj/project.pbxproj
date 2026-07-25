@@ -25,11 +25,13 @@
 		445E34A679D0BCF955DB92D6 /* Lfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */; };
 		527B26A0BEB69679DBF129C5 /* AnalogPatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 99017F679D740DBFB72C5394 /* AnalogPatch.cpp */; };
 		5A98F60FA0EA9FAE99924698 /* NoiseGenerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2287E32BAD9133F32456412B /* NoiseGenerator.cpp */; };
+		5AC17A48ECA8EBB1E9F6329B /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EB7483CDEAA7183EC73CF2 /* AboutView.swift */; };
 		607B0F669B5D4D9B3F681B8E /* AnalogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50177BA2189548FA479B660A /* AnalogEngine.cpp */; };
 		654B72EB62E3BC884A4DE7C8 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E8C2F8CFD036F218C73B1B4 /* AVFoundation.framework */; };
 		686B26BC901ACA9B57C97DDC /* MobileAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA049031BD1FD7B2D3D5E92 /* MobileAudioEngine.swift */; };
 		74D99C38BBCCBF72EEE9A73F /* AurelineAUAudioUnit.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0642936FD38563EF92D23D7B /* AurelineAUAudioUnit.mm */; };
 		76DC8738814469ECE744E846 /* MobileSynthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EC19FA4D0B52AC86F6626F /* MobileSynthModel.swift */; };
+		81F461D9DB1B3250CF677394 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FA174D5774693351F9C44146 /* PrivacyInfo.xcprivacy */; };
 		8271DADCB2A07EAFE5D64823 /* AnalogVoice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8B7DC9E83AB8DBC038B1BB70 /* AnalogVoice.cpp */; };
 		840454F93DF5FFB7EA81346E /* AnalogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50177BA2189548FA479B660A /* AnalogEngine.cpp */; };
 		856E9C04DFCE072A9BE8567B /* AurelineMobileEngineBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */; };
@@ -49,6 +51,7 @@
 		CFC623223C4F5F6DACE6AF92 /* OpalineStyleKeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593641C931B023EADF0035B6 /* OpalineStyleKeyboardView.swift */; };
 		D3B0AC955B733F2CB61FAA5E /* MobileMIDIInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3131E8243E759E4C9A85C4 /* MobileMIDIInput.swift */; };
 		DCF3573D12BD8D5BC7F3B841 /* FactoryPresets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7E2103AB2CB666761FA5406D /* FactoryPresets.cpp */; };
+		DE4CE8C4C5056376E4821B1B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 51EBDB47C56EEF4F88A176C2 /* PrivacyInfo.xcprivacy */; };
 		E1075CCBFB46ED8B69230F6A /* CoreAudioKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 904AB98A2E9529C3B155AF10 /* CoreAudioKit.framework */; };
 		E993E8A3EC3449ABD1AE219C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18D02D23AB90752D5310778B /* RootView.swift */; };
 		FC274BEE33E316C7C8E3AA47 /* CoreMIDI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB46AF6E3ECF70B9005BA367 /* CoreMIDI.framework */; };
@@ -94,6 +97,7 @@
 		35209BED8D170A5CAB127375 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		4E1760F132C0E6545DF898B4 /* Lfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Lfo.h; sourceTree = "<group>"; };
 		50177BA2189548FA479B660A /* AnalogEngine.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AnalogEngine.cpp; sourceTree = "<group>"; };
+		51EBDB47C56EEF4F88A176C2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		53B7342BE9F79D3438867597 /* Envelope.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Envelope.h; sourceTree = "<group>"; };
 		593641C931B023EADF0035B6 /* OpalineStyleKeyboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpalineStyleKeyboardView.swift; sourceTree = "<group>"; };
 		5D16C2F60FFEEC112EBF15AF /* AurelineMobileEngineBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AurelineMobileEngineBridge.h; sourceTree = "<group>"; };
@@ -122,6 +126,7 @@
 		CC030FC8A5025E54DC66C3E0 /* PerformanceSequencer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PerformanceSequencer.h; sourceTree = "<group>"; };
 		CDCC82DA4992AD76C79C5059 /* AurelineLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelineLibrary.swift; sourceTree = "<group>"; };
 		D864F4C0E90892E2447FF0C3 /* AnalogEngine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalogEngine.h; sourceTree = "<group>"; };
+		E1EB7483CDEAA7183EC73CF2 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		E8E610785DFB0B4ADD2BBD6E /* AurelineMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelineMobileApp.swift; sourceTree = "<group>"; };
 		EB46AF6E3ECF70B9005BA367 /* CoreMIDI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMIDI.framework; path = System/Library/Frameworks/CoreMIDI.framework; sourceTree = SDKROOT; };
 		EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PerformanceSequencer.cpp; sourceTree = "<group>"; };
@@ -129,6 +134,7 @@
 		F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Lfo.cpp; sourceTree = "<group>"; };
 		F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AurelineMobileEngineBridge.mm; sourceTree = "<group>"; };
 		F808B2F272FBFE863F4A761C /* Oscillator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Oscillator.cpp; sourceTree = "<group>"; };
+		FA174D5774693351F9C44146 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -214,6 +220,7 @@
 				0642936FD38563EF92D23D7B /* AurelineAUAudioUnit.mm */,
 				9E8E115C10883B734903D879 /* AurelineAUv3Extension-Bridging-Header.h */,
 				5F6AB21F2C59FD2E8DF2D1E3 /* Info.plist */,
+				FA174D5774693351F9C44146 /* PrivacyInfo.xcprivacy */,
 			);
 			path = AUv3Extension;
 			sourceTree = "<group>";
@@ -260,6 +267,7 @@
 		A022F65CB1D413E2707681C9 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				E1EB7483CDEAA7183EC73CF2 /* AboutView.swift */,
 				707B19AFBE12EDC1C7EB604A /* EditView.swift */,
 				257F4B46C476B31CCE9EC6B1 /* PlayView.swift */,
 				18D02D23AB90752D5310778B /* RootView.swift */,
@@ -274,6 +282,7 @@
 			children = (
 				35209BED8D170A5CAB127375 /* Assets.xcassets */,
 				6F6A21C256DA1472315CC200 /* Info.plist */,
+				51EBDB47C56EEF4F88A176C2 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -326,6 +335,7 @@
 			buildConfigurationList = 41E699B369CD97752215FEAF /* Build configuration list for PBXNativeTarget "AurelineAUv3Extension" */;
 			buildPhases = (
 				8DC6E9C80C77A53AF65A97BB /* Sources */,
+				E4D46B5D17E3840777772B01 /* Resources */,
 				90C706B3D993484ABBE099CA /* Frameworks */,
 			);
 			buildRules = (
@@ -405,6 +415,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				CEEE9E0EF9E86BC4A34BFD21 /* Assets.xcassets in Resources */,
+				DE4CE8C4C5056376E4821B1B /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E4D46B5D17E3840777772B01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81F461D9DB1B3250CF677394 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -435,6 +454,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5AC17A48ECA8EBB1E9F6329B /* AboutView.swift in Sources */,
 				607B0F669B5D4D9B3F681B8E /* AnalogEngine.cpp in Sources */,
 				0D5E85167F0D8E9A1A544DC6 /* AnalogPatch.cpp in Sources */,
 				97F7436CC08BE57E04F1827D /* AnalogVoice.cpp in Sources */,

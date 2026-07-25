@@ -13,6 +13,7 @@ struct PlayView: View {
     @State private var pendingLibraryURL: URL?
     @State private var confirmingLibraryLoad = false
     @State private var exportIsLibrary = false
+    @State private var showingAbout = false
     private let visibleWhiteKeys = 15
 
     var body: some View {
@@ -88,6 +89,9 @@ struct PlayView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingAbout) {
+                AboutView()
+            }
     }
 
     private func shiftButtons(up: Bool) -> some View {
@@ -115,8 +119,9 @@ struct PlayView: View {
                     HStack(spacing: 2) {
                         playModeButton("PLAY", active: true) {}
                         playModeButton("EDIT", active: false) { synth.screen = .edit }
+                        playModeButton("ABOUT", active: false) { showingAbout = true }
                     }
-                    .frame(width: 140)
+                    .frame(width: 160)
                     HStack(spacing: 4) {
                         playVoiceButton("LOAD") { importingVoice = true }
                         playVoiceButton("SAVE") { prepareVoiceExport() }
