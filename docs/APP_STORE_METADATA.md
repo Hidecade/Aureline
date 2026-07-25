@@ -10,8 +10,8 @@
 
 ## URLs
 
-- Support URL: `https://hidecade.github.io/Aureline-Support/support/`
-- Privacy Policy URL: `https://hidecade.github.io/Aureline-Support/privacy/`
+- Support URL: `https://hidecade.github.io/Aureline/support/`
+- Privacy Policy URL: `https://hidecade.github.io/Aureline/privacy/`
 
 ## Japanese localization
 

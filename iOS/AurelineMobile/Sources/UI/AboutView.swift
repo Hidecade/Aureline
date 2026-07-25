@@ -32,12 +32,12 @@ struct AboutView: View {
                     section("PRIVACY") {
                         Text("Aureline does not collect, track, sell, or transmit personal data. Voice and library files remain on your device unless you choose to export them.")
                         Link("Privacy Policy",
-                             destination: URL(string: "https://hidecade.github.io/Aureline-Support/privacy/")!)
+                             destination: URL(string: "https://hidecade.github.io/Aureline/privacy/")!)
                     }
 
                     section("SUPPORT") {
                         Link("Aureline Support",
-                             destination: URL(string: "https://hidecade.github.io/Aureline-Support/support/")!)
+                             destination: URL(string: "https://hidecade.github.io/Aureline/support/")!)
                     }
 
                     Text("© 2026 Hideki Konishi / Hidecade Instruments")
