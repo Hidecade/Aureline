@@ -68,6 +68,12 @@ On Mac, SAVE ALL LIBRARY exports the last stored contents of all 50 numbered
 voices to one `.aurelinelibrary.xml` file. Opening that file with LOAD shows a
 confirmation before all 50 numbered voices are replaced.
 
+Mac and iPhone keep the active 50-slot library internally as one
+`active-library.aurelinelibrary.xml` file in Application Support. Library import
+is validated and atomically replaces that file. Legacy `slot-XX.aurelinevoice`
+files are migrated once and then removed, so the Aureline Documents folder does
+not fill up with internal slot files.
+
 The Mac version keeps `factory.aurelinelibrary.xml` in the Aureline documents
 folder as the factory-reset library. Loading it restores all 50 slots after
 confirmation. SAVE ALL LIBRARY refuses to overwrite this reserved file name.

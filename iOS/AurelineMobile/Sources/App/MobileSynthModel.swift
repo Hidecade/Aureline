@@ -120,6 +120,13 @@ final class MobileSynthModel: ObservableObject {
         values = bridge.patchSnapshot() as? [String: Double] ?? [:]
         factoryPresetNames = bridge.factoryPresetNames()
         factorySlotKeys = factoryPresetNames
+        ensureActiveLibrary()
+        if let active = try? readActiveLibrary() {
+            for voice in active where factoryPresetNames.indices.contains(voice.slot) {
+                factoryPresetNames[voice.slot] = slotDisplayName(
+                    voice.slot, voiceNameWithoutSlotPrefix(voice.name))
+            }
+        }
         createBuiltInLibraries()
         let lastSlot = min(49, max(0, UserDefaults.standard.object(
             forKey: lastVoiceDefaultsKey) == nil
@@ -328,11 +335,14 @@ final class MobileSynthModel: ObservableObject {
             throw CocoaError(.fileWriteInvalidFileName)
         }
         let slotName = factorySlotKeys[index]
-        let url = try storedVoiceURL(slot: index)
         let voiceName = selectedPreset.trimmingCharacters(in: .whitespacesAndNewlines)
         let storedName = voiceName.isEmpty
             ? voiceNameWithoutSlotPrefix(slotName) : voiceName
-        try writeVoice(makePreset(name: storedName), to: url)
+        var voices = try currentLibraryVoices()
+        let preset = makePreset(name: storedName)
+        voices[index] = AurelineLibraryVoice(
+            slot: index, name: storedName, patch: preset.patch)
+        try writeActiveLibrary(voices)
         selectedPreset = storedName
         factoryPresetNames[index] = slotDisplayName(index, storedName)
         status = "Voice stored in slot \(index + 1): \(storedName)"
@@ -346,13 +356,21 @@ final class MobileSynthModel: ObservableObject {
         if selectedFactoryPresetIndex != nil {
             UserDefaults.standard.set(index, forKey: lastVoiceDefaultsKey)
         }
-        migrateLegacyStoredVoiceIfNeeded(slot: index, legacyName: slotName)
-        if let url = try? storedVoiceURL(slot: index),
-           let data = try? Data(contentsOf: url),
-           let voice = try? JSONDecoder().decode(AurelineVoiceFile.self, from: data),
-           (try? applyPreset(voice)) != nil {
-            factoryPresetNames[index] = slotDisplayName(index, selectedPreset)
-            return
+        if let voices = try? readActiveLibrary(),
+           voices.indices.contains(index) {
+            let stored = voices[index]
+            let voice = AurelineVoiceFile(
+                format: "com.hidecade.aureline.voice", version: 1,
+                name: stored.name, author: "", category: "User",
+                patch: stored.patch,
+                performance: [
+                    "transpose": stored.patch["transpose"] ?? 0,
+                    "pitchBendRange": stored.patch["pitchBendRange"] ?? 2
+                ])
+            if (try? applyPreset(voice)) != nil {
+                factoryPresetNames[index] = slotDisplayName(index, selectedPreset)
+                return
+            }
         }
         bridge.loadFactoryPreset(Int32(index))
         values = bridge.patchSnapshot() as? [String: Double] ?? [:]
@@ -412,41 +430,8 @@ final class MobileSynthModel: ObservableObject {
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
         let voices = try AurelineLibraryCodec.decode(Data(contentsOf: url))
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var pending: [(url: URL, data: Data, previous: Data?)] = []
-        for voice in voices {
-            guard factorySlotKeys.indices.contains(voice.slot) else {
-                throw CocoaError(.fileReadCorruptFile)
-            }
-            let file = try storedVoiceURL(slot: voice.slot)
-            let storedVoice = AurelineVoiceFile(
-                format: "com.hidecade.aureline.voice", version: 1,
-                name: voiceNameWithoutSlotPrefix(voice.name),
-                author: "", category: "User", patch: voice.patch,
-                performance: [
-                    "transpose": voice.patch["transpose"] ?? 0,
-                    "pitchBendRange": voice.patch["pitchBendRange"] ?? 2
-                ])
-            pending.append((file, try encoder.encode(storedVoice),
-                            try? Data(contentsOf: file)))
-        }
-        var written = 0
-        do {
-            for item in pending {
-                try item.data.write(to: item.url, options: .atomic)
-                written += 1
-            }
-        } catch {
-            for item in pending.prefix(written) {
-                if let previous = item.previous {
-                    try? previous.write(to: item.url, options: .atomic)
-                } else {
-                    try? FileManager.default.removeItem(at: item.url)
-                }
-            }
-            throw error
-        }
+        try writeActiveLibrary(voices)
+        removeLegacyStoredVoices()
         for voice in voices {
             factoryPresetNames[voice.slot] = slotDisplayName(
                 voice.slot, voiceNameWithoutSlotPrefix(voice.name))
@@ -472,19 +457,74 @@ final class MobileSynthModel: ObservableObject {
         try encoder.encode(voice).write(to: url, options: .atomic)
     }
 
-    private func storedVoiceURL(slot: Int) throws -> URL {
-        try userPresetDirectory().appendingPathComponent(
-            String(format: "slot-%02d.aurelinevoice", slot + 1))
+    private func applicationSupportDirectory() throws -> URL {
+        let base = try FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask,
+            appropriateFor: nil, create: true)
+        let directory = base.appendingPathComponent("Aureline", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true)
+        return directory
     }
 
-    private func migrateLegacyStoredVoiceIfNeeded(slot: Int, legacyName: String) {
-        guard let destination = try? storedVoiceURL(slot: slot),
-              !FileManager.default.fileExists(atPath: destination.path),
-              let directory = try? userPresetDirectory() else { return }
-        let legacy = directory.appendingPathComponent(safeFilename(legacyName))
-            .appendingPathExtension("aurelinevoice")
-        guard FileManager.default.fileExists(atPath: legacy.path) else { return }
-        try? FileManager.default.moveItem(at: legacy, to: destination)
+    private func activeLibraryURL() throws -> URL {
+        try applicationSupportDirectory().appendingPathComponent(
+            "active-library.aurelinelibrary.xml")
+    }
+
+    private func readActiveLibrary() throws -> [AurelineLibraryVoice] {
+        try AurelineLibraryCodec.decode(Data(contentsOf: activeLibraryURL()))
+    }
+
+    private func writeActiveLibrary(_ voices: [AurelineLibraryVoice]) throws {
+        try AurelineLibraryCodec.encode(voices).write(
+            to: activeLibraryURL(), options: .atomic)
+    }
+
+    private func ensureActiveLibrary() {
+        if (try? readActiveLibrary()) != nil {
+            removeLegacyStoredVoices()
+            return
+        }
+        var voices = factoryLibraryVoices()
+        guard let documents = try? userPresetDirectory() else { return }
+        let decoder = JSONDecoder()
+        for index in factorySlotKeys.indices {
+            let candidates = [
+                documents.appendingPathComponent(
+                    String(format: "slot-%02d.aurelinevoice", index + 1)),
+                documents.appendingPathComponent(
+                    safeFilename(factorySlotKeys[index]))
+                    .appendingPathExtension("aurelinevoice")
+            ]
+            guard let legacy = candidates.first(where: {
+                      FileManager.default.fileExists(atPath: $0.path)
+                  }),
+                  let data = try? Data(contentsOf: legacy),
+                  let voice = try? decoder.decode(AurelineVoiceFile.self, from: data)
+            else { continue }
+            voices[index] = AurelineLibraryVoice(
+                slot: index, name: voiceNameWithoutSlotPrefix(voice.name),
+                patch: voice.patch)
+        }
+        guard (try? writeActiveLibrary(voices)) != nil else { return }
+        removeLegacyStoredVoices()
+    }
+
+    private func removeLegacyStoredVoices() {
+        guard let documents = try? userPresetDirectory() else { return }
+        for index in factorySlotKeys.indices {
+            let files = [
+                documents.appendingPathComponent(
+                    String(format: "slot-%02d.aurelinevoice", index + 1)),
+                documents.appendingPathComponent(
+                    safeFilename(factorySlotKeys[index]))
+                    .appendingPathExtension("aurelinevoice")
+            ]
+            for file in files where FileManager.default.fileExists(atPath: file.path) {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
     }
 
     private func userPresetDirectory() throws -> URL {
@@ -522,17 +562,10 @@ final class MobileSynthModel: ObservableObject {
     }
 
     private func currentLibraryVoices() throws -> [AurelineLibraryVoice] {
+        if let active = try? readActiveLibrary() { return active }
         let factory = factoryLibraryVoices()
-        return try factorySlotKeys.indices.map { index in
-            let url = try storedVoiceURL(slot: index)
-            if let data = try? Data(contentsOf: url),
-               let voice = try? JSONDecoder().decode(AurelineVoiceFile.self,
-                                                     from: data) {
-                return AurelineLibraryVoice(slot: index, name: voice.name,
-                                            patch: voice.patch)
-            }
-            return factory[index]
-        }
+        try writeActiveLibrary(factory)
+        return factory
     }
 
     private func createBuiltInLibraries() {

@@ -29,16 +29,56 @@ juce::File aurelineDocumentsDirectory()
     return directory;
 }
 
-juce::File lastSelectedVoiceFile()
+juce::File aurelineApplicationSupportDirectory()
 {
-    return aurelineDocumentsDirectory().getChildFile(".last-selected-voice");
+    auto directory = juce::File::getSpecialLocation(
+                         juce::File::userApplicationDataDirectory)
+                         .getChildFile("Aureline");
+    directory.createDirectory();
+    return directory;
 }
 
-juce::File storedVoiceFile(std::size_t slot)
+juce::File lastSelectedVoiceFile()
+{
+    const auto current = aurelineApplicationSupportDirectory().getChildFile(
+        ".last-selected-voice");
+    const auto legacy = aurelineDocumentsDirectory().getChildFile(
+        ".last-selected-voice");
+    if (!current.existsAsFile() && legacy.existsAsFile())
+        legacy.moveFileTo(current);
+    return current;
+}
+
+juce::File legacyStoredVoiceFile(std::size_t slot)
 {
     return aurelineDocumentsDirectory().getChildFile(
         "slot-" + juce::String(static_cast<int>(slot) + 1).paddedLeft('0', 2)
         + ".aurelinevoice");
+}
+
+juce::File activeLibraryFile()
+{
+    return aurelineApplicationSupportDirectory().getChildFile(
+        "active-library.aurelinelibrary.xml");
+}
+
+juce::ValueTree readActiveLibrary()
+{
+    const auto xml = juce::XmlDocument::parse(activeLibraryFile());
+    const auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
+                                        : juce::ValueTree {};
+    if (!library.isValid()
+        || library.getType().toString() != "AurelineLibrary"
+        || library.getProperty("format").toString()
+               != "com.hidecade.aureline.library"
+        || static_cast<int>(library.getProperty("version")) != 1
+        || library.getNumChildren() != 50)
+        return {};
+    for (int index = 0; index < library.getNumChildren(); ++index)
+        if (static_cast<int>(
+                library.getChild(index).getProperty("slot", -1)) != index)
+            return {};
+    return library;
 }
 
 juce::String voiceNameWithoutSlotPrefix(juce::String name)
@@ -1880,6 +1920,23 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     pcKeyboardHeldNotes.fill(false);
     for (auto& sample : scopeSamples)
         sample.store(0.0f);
+    if (readActiveLibrary().getNumChildren()
+        != static_cast<int>(factoryVoices.size()))
+    {
+        writeVoiceLibraryToFile(activeLibraryFile(), false, false);
+    }
+    if (readActiveLibrary().getNumChildren()
+        == static_cast<int>(factoryVoices.size()))
+    {
+        for (std::size_t index = 0; index < factoryVoices.size(); ++index)
+        {
+            legacyStoredVoiceFile(index).deleteFile();
+            aurelineDocumentsDirectory()
+                .getChildFile(juce::String(factoryVoices[index].name)
+                              + ".aurelinevoice")
+                .deleteFile();
+        }
+    }
     auto startupVoiceIndex = 0;
     const auto selectionFile = lastSelectedVoiceFile();
     if (selectionFile.existsAsFile())
@@ -3106,54 +3163,35 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file)
         }
     }
 
-    struct PendingVoiceWrite
-    {
-        juce::File destination;
-        juce::String contents;
-        juce::String previousContents;
-        bool previouslyExisted = false;
-    };
-    std::vector<PendingVoiceWrite> pendingWrites;
     std::vector<juce::String> loadedVoiceNames;
-    pendingWrites.reserve(static_cast<std::size_t>(library.getNumChildren()));
     loadedVoiceNames.reserve(static_cast<std::size_t>(library.getNumChildren()));
     for (int index = 0; index < library.getNumChildren(); ++index)
     {
         const auto slotName = juce::String(factoryVoices[
             static_cast<std::size_t>(index)].name);
-        const auto destination = storedVoiceFile(static_cast<std::size_t>(index));
         auto voiceName = library.getChild(index).getProperty("voiceName").toString().trim();
         if (voiceName.isEmpty())
             voiceName = voiceNameWithoutSlotPrefix(slotName);
         voiceName = voiceNameWithoutSlotPrefix(voiceName);
-        const auto json = makeVoiceFileJson(library.getChild(index), voiceName);
-        pendingWrites.push_back({
-            destination,
-            juce::JSON::toString(json, true),
-            destination.existsAsFile() ? destination.loadFileAsString() : juce::String {},
-            destination.existsAsFile()
-        });
+        library.getChild(index).setProperty("voiceName", voiceName, nullptr);
         loadedVoiceNames.push_back(voiceName);
     }
 
-    std::size_t written = 0;
-    for (; written < pendingWrites.size(); ++written)
+    const auto normalizedXml = library.createXml();
+    if (normalizedXml == nullptr
+        || !activeLibraryFile().replaceWithText(normalizedXml->toString()))
     {
-        if (!pendingWrites[written].destination.replaceWithText(
-                pendingWrites[written].contents))
-        {
-            for (std::size_t rollback = 0; rollback < written; ++rollback)
-            {
-                const auto& item = pendingWrites[rollback];
-                if (item.previouslyExisted)
-                    item.destination.replaceWithText(item.previousContents);
-                else
-                    item.destination.deleteFile();
-            }
-            statusLabel.setText("Voice library load failed; previous library restored",
-                                juce::dontSendNotification);
-            return;
-        }
+        statusLabel.setText("Voice library load failed; previous library restored",
+                            juce::dontSendNotification);
+        return;
+    }
+    for (std::size_t index = 0; index < factoryVoices.size(); ++index)
+    {
+        legacyStoredVoiceFile(index).deleteFile();
+        aurelineDocumentsDirectory()
+            .getChildFile(juce::String(factoryVoices[index].name)
+                          + ".aurelinevoice")
+            .deleteFile();
     }
 
     for (std::size_t index = 0; index < loadedVoiceNames.size(); ++index)
@@ -3217,9 +3255,26 @@ void AurelineMainComponent::storeCurrentVoice()
     auto voiceName = currentVoiceName.trim();
     if (voiceName.isEmpty())
         voiceName = slotName;
-    auto file = storedVoiceFile(static_cast<std::size_t>(selectedFactoryVoiceIndex));
     currentVoiceName = voiceName;
-    saveVoiceToFile(file);
+    auto library = readActiveLibrary();
+    if (library.getNumChildren() != static_cast<int>(factoryVoices.size()))
+    {
+        statusLabel.setText("Voice store failed: active library is invalid",
+                            juce::dontSendNotification);
+        return;
+    }
+    auto voice = capturePluginState().createCopy();
+    voice.setProperty("slot", selectedFactoryVoiceIndex, nullptr);
+    voice.setProperty("voiceName", voiceName, nullptr);
+    library.removeChild(selectedFactoryVoiceIndex, nullptr);
+    library.addChild(voice, selectedFactoryVoiceIndex, nullptr);
+    const auto xml = library.createXml();
+    if (xml == nullptr
+        || !activeLibraryFile().replaceWithText(xml->toString()))
+    {
+        statusLabel.setText("Voice store failed", juce::dontSendNotification);
+        return;
+    }
     presetBox.changeItemText(
         selectedFactoryVoiceIndex + 2,
         slotVoiceDisplayName(static_cast<std::size_t>(selectedFactoryVoiceIndex),
@@ -3270,7 +3325,12 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index,
     currentVoiceName = voiceNameWithoutSlotPrefix(factoryVoices[index].name);
     presetBox.setSelectedId(static_cast<int>(index) + 2,
                             juce::dontSendNotification);
-    auto overrideFile = storedVoiceFile(index);
+    const auto activeLibrary = readActiveLibrary();
+    const auto activeVoice = activeLibrary.getNumChildren()
+            == static_cast<int>(factoryVoices.size())
+        ? activeLibrary.getChild(static_cast<int>(index))
+        : juce::ValueTree {};
+    auto overrideFile = legacyStoredVoiceFile(index);
     const auto legacyOverrideFile = aurelineDocumentsDirectory().getChildFile(
         juce::String(factoryVoices[index].name) + ".aurelinevoice");
     if (useStoredOverride && !overrideFile.existsAsFile()
@@ -3278,6 +3338,20 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index,
     {
         if (!legacyOverrideFile.moveFileTo(overrideFile))
             overrideFile = legacyOverrideFile;
+    }
+    if (useStoredOverride && activeVoice.isValid()
+        && static_cast<int>(activeVoice.getProperty("slot", -1))
+               == static_cast<int>(index))
+    {
+        restorePluginState(activeVoice);
+        currentVoiceName = voiceNameWithoutSlotPrefix(
+            activeVoice.getProperty("voiceName").toString());
+        presetBox.changeItemText(
+            static_cast<int>(index) + 2,
+            slotVoiceDisplayName(index, currentVoiceName));
+        presetBox.setSelectedId(static_cast<int>(index) + 2,
+                                juce::dontSendNotification);
+        return;
     }
     if (useStoredOverride && overrideFile.existsAsFile())
     {

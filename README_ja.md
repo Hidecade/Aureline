@@ -51,6 +51,8 @@ LOADとPASTEは、読み込んだ音色データを現在選択中の番号へ�
 
 Mac版のSAVE ALL LIBRARYは、50個すべての番号について最後にSTOREされた内容を1つの`.aurelinelibrary.xml`へ保存します。LOADでこのファイルを開くと確認メッセージを表示し、承認後に50音色すべてを置き換えます。
 
+Mac／iPhoneとも、使用中の50スロットはApplication Support内の1つの`active-library.aurelinelibrary.xml`として内部保存します。ライブラリLOADは内容の検証後にこのファイルをアトミック置換します。旧`slot-XX.aurelinevoice`は一度だけ移行して削除するため、Aurelineの書類フォルダに内部スロットファイルが増え続けることはありません。
+
 Mac版はAurelineの書類フォルダに出荷状態復元用の`factory.aurelinelibrary.xml`を用意します。このファイルをLOADして確認すると、50スロットすべてを出荷状態へ戻せます。SAVE ALL LIBRARYでは、この予約ファイル名への上書きを拒否します。
 
 同じフォルダに`RetroGame.aurelinelibrary.xml`も用意します。初期8-bit機風のパルス／三角波、矩形波PSG、5-bitウェーブテーブル、80年代アーケード風の波形メモリ、ノイズ効果音を使ったオリジナル50音色を収録します。この内蔵ファイル名もSAVE ALL LIBRARYでは上書きできません。
