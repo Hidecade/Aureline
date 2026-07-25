@@ -2339,8 +2339,10 @@ void AurelineMainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo
 void AurelineMainComponent::processPluginBlock(juce::AudioBuffer<float>& buffer,
                                                 const juce::MidiBuffer& midi)
 {
+    auto combinedMidi = midi;
+    midiCollector.removeNextBlockOfMessages(combinedMidi, buffer.getNumSamples());
     juce::AudioSourceChannelInfo info(&buffer, 0, buffer.getNumSamples());
-    renderAudioBlock(info, midi);
+    renderAudioBlock(info, combinedMidi);
 }
 
 void AurelineMainComponent::renderAudioBlock(
