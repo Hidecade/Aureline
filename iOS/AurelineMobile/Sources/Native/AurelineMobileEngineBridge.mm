@@ -15,7 +15,7 @@ namespace
 enum class CommandType { noteOn, noteOff, sustain, pitchBend, modWheel, panic };
 struct Command { CommandType type {}; int note = 0; int velocity = 0; double value = 0.0; };
 constexpr uint32_t kCommandCapacity = 1024;
-constexpr std::size_t kScopeSize = 128;
+constexpr std::size_t kScopeSize = 2048;
 
 enum Parameter : NSUInteger
 {

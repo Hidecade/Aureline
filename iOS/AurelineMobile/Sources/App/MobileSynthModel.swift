@@ -805,8 +805,8 @@ final class MobileSynthModel: ObservableObject {
             let samples: [Float] = self.bridge.scopeSnapshotData().withUnsafeBytes { bytes in
                 Array(bytes.bindMemory(to: Float.self))
             }
-            if samples.count == 128 {
-                self.scopeSamples = samples
+            if samples.count >= 512 {
+                self.scopeSamples = self.triggeredScopeWindow(samples)
                 let meanSquare = samples.reduce(0.0) {
                     $0 + Double($1) * Double($1)
                 } / Double(samples.count)
@@ -818,5 +818,65 @@ final class MobileSynthModel: ObservableObject {
                 self.waveformOutputLevel = next
             }
         }
+    }
+
+    private func triggeredScopeWindow(_ samples: [Float]) -> [Float] {
+        let windowSize = 512
+        let preTrigger = 48
+        guard samples.count >= windowSize else { return samples }
+
+        let mean = samples.reduce(0, +) / Float(samples.count)
+        let lastCrossing = samples.count - (windowSize - preTrigger)
+        var crossings: [Int] = []
+        if lastCrossing > 1 {
+            for index in 1..<lastCrossing where
+                samples[index - 1] <= mean && samples[index] > mean {
+                crossings.append(index)
+            }
+        }
+
+        // Use the played key to identify one fundamental period, then use an
+        // actual rising crossing to align the phase. This avoids a harmonic
+        // crossing making bright Poly Mod sounds appear to drift.
+        let bend = pitchWheel * value("pitchBendRange", default: 2)
+        let note = waveformPitchNote
+            + value("transpose")
+            + bend
+            + value("masterTune") / 100
+        let frequency = 440 * pow(2, (note - 69) / 12)
+        let sampleRate = AVAudioSession.sharedInstance().sampleRate
+        let expectedPeriod = max(2, (sampleRate > 0 ? sampleRate : 48_000) / frequency)
+
+        var bestCrossing: Int?
+        var bestScore = Double.greatestFiniteMagnitude
+        if crossings.count >= 2 {
+            for first in crossings.indices {
+                for second in crossings.index(after: first)..<crossings.endIndex {
+                    let interval = Double(crossings[second] - crossings[first])
+                    if interval > expectedPeriod * 1.5 { break }
+                    let periodError = abs(interval - expectedPeriod) / expectedPeriod
+                    let slope = Double(samples[crossings[first]]
+                        - samples[crossings[first] - 1])
+                    let score = periodError - min(0.02, slope * 0.02)
+                    if score < bestScore {
+                        bestScore = score
+                        bestCrossing = crossings[first]
+                    }
+                }
+            }
+        }
+
+        // Noise and very complex signals may not contain a usable
+        // key-period pair. In that case, retain a conventional strong-edge
+        // trigger so the display remains useful.
+        if bestCrossing == nil {
+            bestCrossing = crossings.max {
+                samples[$0] - samples[$0 - 1] < samples[$1] - samples[$1 - 1]
+            }
+        }
+
+        let crossing = bestCrossing ?? preTrigger
+        let start = max(0, min(samples.count - windowSize, crossing - preTrigger))
+        return Array(samples[start..<(start + windowSize)])
     }
 }

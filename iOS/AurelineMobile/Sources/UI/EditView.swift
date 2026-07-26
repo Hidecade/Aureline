@@ -236,7 +236,7 @@ struct EditView: View {
 
             HStack(spacing: 6) {
                 AurelineEditGroup(title: "LFO DEST") {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 1) {
                         switchButton("A FREQ", "lfoDestA")
                         switchButton("B FREQ", "lfoDestB")
                         switchButton("PW A", "lfoDestPWA")
@@ -247,7 +247,7 @@ struct EditView: View {
                 }
 
                 AurelineEditGroup(title: "POLY MOD") {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 1) {
                         AurelineEditKnob(parameter: MobileSynthModel.modulationParameters[5],
                                          value: binding("polyModFilterEnv"))
                         AurelineEditKnob(parameter: MobileSynthModel.modulationParameters[6],
@@ -318,7 +318,7 @@ struct EditView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
-            .frame(width: 145)
+            .frame(width: 135)
         }
         .padding(4)
     }
@@ -426,7 +426,7 @@ struct EditView: View {
 
     private func oscillatorShapeControls(id: String) -> some View {
         VStack(spacing: 2) {
-            HStack(spacing: 2) {
+            HStack(spacing: 1) {
                 waveButton("SAW", id: id, bit: 1)
                 waveButton("TRI", id: id, bit: 2)
                 waveButton("PULSE", id: id, bit: 4)
@@ -507,7 +507,7 @@ struct EditView: View {
             AurelineMacWaveRocker(kind: title, active: mask & bit != 0)
         }
         .buttonStyle(.plain)
-        .frame(width: 36, height: 68)
+        .frame(width: id == "lfoWaveMask" ? 36 : 34, height: 68)
     }
 
     private func octaveParameter(_ id: String) -> AurelineParameter {

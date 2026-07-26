@@ -170,12 +170,12 @@ struct PlayView: View {
 
                         AurelineWaveform(
                             layout: .play,
-                            samplesCombined: synth.synthesizedWaveformSamples,
+                            samplesCombined: synth.scopeSamples,
                             samplesA: synth.synthesizedOscillatorWaveformSamples(
                                 oscillatorA: true),
                             samplesB: synth.synthesizedOscillatorWaveformSamples(
                                 oscillatorA: false),
-                            cyclesCombined: synth.displayedWaveformCycles,
+                            cyclesCombined: 1,
                             cyclesA: synth.displayedWaveformCycles(oscillatorA: true),
                             cyclesB: synth.displayedWaveformCycles(oscillatorA: false))
                             .frame(width: waveformWidth, height: 95)
@@ -915,7 +915,7 @@ struct AurelineWaveform: View {
 
     private var combinedPanel: some View {
         AurelineOscillatorWaveformPanel(
-            title: "OSC A + OSC B + NOISE",
+            title: "FINAL MIX",
             samples: samplesCombined,
             cycles: cyclesCombined)
     }
