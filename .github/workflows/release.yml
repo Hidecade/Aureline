@@ -17,10 +17,8 @@ jobs:
         run: git clone --depth 1 --branch 8.0.14 https://github.com/juce-framework/JUCE.git external/JUCE
       - name: Build macOS installers
         run: ./scripts/build-macos-installers.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-installers
-          path: dist/*.pkg
+      # Public macOS packages are signed, notarized, and uploaded from the
+      # release Mac. Do not replace them with ad-hoc CI packages.
 
   windows:
     runs-on: windows-2022

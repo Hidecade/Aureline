@@ -48,27 +48,39 @@ double Oscillator::render(double frequencyHz, bool sawEnabled, bool triangleEnab
                           bool pulseEnabled, double pulseWidth, bool waveMemoryEnabled,
                           const WaveMemoryData& waveMemory, WaveMemoryCharacter character)
 {
+    return renderPhaseModulated(frequencyHz, sawEnabled, triangleEnabled, pulseEnabled,
+                                pulseWidth, waveMemoryEnabled, waveMemory, character, 0.0);
+}
+
+double Oscillator::renderPhaseModulated(
+    double frequencyHz, bool sawEnabled, bool triangleEnabled,
+    bool pulseEnabled, double pulseWidth, bool waveMemoryEnabled,
+    const WaveMemoryData& waveMemory, WaveMemoryCharacter character,
+    double phaseOffsetCycles)
+{
     const auto frequency = std::clamp(frequencyHz, 0.0, currentSampleRate * 0.45);
     const auto increment = frequency / currentSampleRate;
     const auto width = std::clamp(pulseWidth, 0.02, 0.98);
+    const auto renderPhase = phase + phaseOffsetCycles
+                           - std::floor(phase + phaseOffsetCycles);
     double sample = 0.0;
 
     int waveformCount = 0;
     if (sawEnabled)
     {
-        sample += 2.0 * phase - 1.0 - polyBlep(phase, increment);
+        sample += 2.0 * renderPhase - 1.0 - polyBlep(renderPhase, increment);
         ++waveformCount;
     }
     if (triangleEnabled)
     {
-        sample += 1.0 - 4.0 * std::abs(phase - 0.5);
+        sample += 1.0 - 4.0 * std::abs(renderPhase - 0.5);
         ++waveformCount;
     }
     if (pulseEnabled)
     {
-        auto pulse = phase < width ? 1.0 : -1.0;
-        pulse += polyBlep(phase, increment);
-        auto fallingPhase = phase - width;
+        auto pulse = renderPhase < width ? 1.0 : -1.0;
+        pulse += polyBlep(renderPhase, increment);
+        auto fallingPhase = renderPhase - width;
         if (fallingPhase < 0.0)
             fallingPhase += 1.0;
         pulse -= polyBlep(fallingPhase, increment);
@@ -77,7 +89,7 @@ double Oscillator::render(double frequencyHz, bool sawEnabled, bool triangleEnab
     }
     if (waveMemoryEnabled)
     {
-        const auto tablePosition = phase * static_cast<double>(kWaveMemorySize);
+        const auto tablePosition = renderPhase * static_cast<double>(kWaveMemorySize);
         const auto index = static_cast<std::size_t>(tablePosition) % kWaveMemorySize;
         auto quantized = [](std::uint8_t step, WaveMemoryCharacter mode)
         {

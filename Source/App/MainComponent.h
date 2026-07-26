@@ -2,6 +2,7 @@
 
 #include "Engine/AnalogEngine.h"
 #include "Engine/PerformanceSequencer.h"
+#include "Engine/RealtimeAudioRecorder.h"
 
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_gui_extra/juce_gui_extra.h>
@@ -191,6 +192,9 @@ private:
     void refreshVoiceBankNames();
     void initialiseVoiceBanks();
     void storeCurrentVoice();
+    void startWavRecording();
+    void stopWavRecordingAndChooseFile();
+    void writeWavRecordingToFile(const juce::File&);
     void loadFactoryVoice(std::size_t index, bool useStoredOverride = true);
     void renderAudioBlock(const juce::AudioSourceChannelInfo& info,
                           const juce::MidiBuffer& midi);
@@ -226,6 +230,8 @@ private:
     double envelopePreviewChangedMs = 0.0;
     std::atomic<bool> sequencerResetRequested { false };
     double currentSampleRate = 44100.0;
+    aureline::RealtimeAudioRecorder wavRecorder;
+    std::atomic<bool> wavRecording { false };
 
     juce::Label titleLabel;
     juce::Label subtitleLabel;
@@ -240,6 +246,7 @@ private:
     juce::TextButton initVoiceButton { "INIT" };
     juce::TextButton storeVoiceButton { "STORE" };
     juce::TextButton saveLibraryButton { "SAVE BANK" };
+    juce::TextButton wavRecordButton { "WAV" };
     juce::ValueTree copiedVoiceState;
     juce::String copiedVoiceName;
     juce::String currentVoiceName { "INIT ANALOG" };
@@ -247,6 +254,7 @@ private:
     int selectedVoiceBank = 0;
     bool suppressLastVoicePersistence = false;
     std::unique_ptr<juce::FileChooser> voiceFileChooser;
+    std::unique_ptr<juce::FileChooser> wavFileChooser;
     juce::ComboBox voiceModeBox;
     RockerButton monoModeButton { "MONO" };
     RockerButton unisonModeButton { "UNISON" };

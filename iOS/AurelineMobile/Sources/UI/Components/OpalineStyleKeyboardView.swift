@@ -45,7 +45,7 @@ struct OpalineStyleKeyboardView: View {
                 width: max(1, whiteWidth - 0.9), height: max(1, keyArea.height - 2))
             context.fill(Path(rect), with: .linearGradient(
                 Gradient(colors: held
-                    ? [Color(hexValue: 0xb2efff), Color(hexValue: 0x70cde7)]
+                    ? [Color(hexValue: 0xffffd47a), Color(hexValue: 0xd9992d)]
                     : [Color(hexValue: 0xf4eee1), Color(hexValue: 0xd8cdb7)]),
                 startPoint: CGPoint(x: rect.midX, y: rect.minY), endPoint: CGPoint(x: rect.midX, y: rect.maxY)))
             context.stroke(Path(roundedRect: rect, cornerRadius: 1.7), with: .color(Color(hexValue: 0x5a5143).opacity(0.74)), lineWidth: 1)
@@ -69,7 +69,7 @@ struct OpalineStyleKeyboardView: View {
             context.fill(Path(roundedRect: rect.offsetBy(dx: 0, dy: 3), cornerRadius: 1), with: .color(Color.black.opacity(0.28)))
             context.fill(path, with: .linearGradient(
                 Gradient(colors: held
-                    ? [Color(hexValue: 0x284650), Color(hexValue: 0x0d8aa8)]
+                    ? [Color(hexValue: 0x78551d), Color(hexValue: 0xe9782d)]
                     : [Color(hexValue: 0x20201c), Color(hexValue: 0x050504)]),
                 startPoint: CGPoint(x: rect.midX, y: rect.minY), endPoint: CGPoint(x: rect.midX, y: rect.maxY)))
             let highlight = CGRect(x: rect.minX + 3, y: rect.minY + 3, width: max(1, rect.width - 6), height: rect.height * 0.18)
@@ -97,7 +97,7 @@ struct OpalineStyleKeyboardView: View {
     private func drawCLabel(note: Int, in rect: CGRect, context: inout GraphicsContext, held: Bool) {
         let text = context.resolve(Text("C\(note / 12 - 1)")
             .font(.system(size: min(13, max(8, rect.width * 0.28)), weight: .bold, design: .monospaced))
-            .foregroundColor(held ? Color(hexValue: 0x0b2630).opacity(0.82) : Color(hexValue: 0x2c2922).opacity(0.72)))
+            .foregroundColor(held ? Color(hexValue: 0x3a2408).opacity(0.82) : Color(hexValue: 0x2c2922).opacity(0.72)))
         context.draw(text, at: CGPoint(x: rect.midX, y: rect.maxY - max(14, rect.height * 0.11)), anchor: .center)
     }
 }

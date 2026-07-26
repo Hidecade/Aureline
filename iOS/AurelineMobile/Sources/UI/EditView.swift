@@ -252,7 +252,7 @@ struct EditView: View {
                                          value: binding("polyModFilterEnv"))
                         AurelineEditKnob(parameter: MobileSynthModel.modulationParameters[6],
                                          value: binding("polyModOscB"))
-                        switchButton("PITCH", "polyDestPitch")
+                        switchButton("FREQ A", "polyDestPitch")
                         switchButton("PW A", "polyDestPWA")
                         switchButton("FILTER", "polyDestFilter")
                     }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DSP/Envelope.h"
-#include "DSP/LadderFilter.h"
+#include "DSP/ProphetOtaFilter.h"
 #include "DSP/NoiseGenerator.h"
 #include "DSP/Oscillator.h"
 #include "DSP/ParameterSmoother.h"
@@ -45,7 +45,7 @@ private:
     Oscillator oscillatorB;
     Envelope filterEnvelope;
     Envelope amplifierEnvelope;
-    LadderFilter filter;
+    ProphetOtaFilter filter;
     NoiseGenerator noise;
     ParameterSmoother oscillatorALevelSmoother;
     ParameterSmoother oscillatorBLevelSmoother;

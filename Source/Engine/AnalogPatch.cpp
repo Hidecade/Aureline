@@ -61,12 +61,12 @@ AnalogPatch normalizePatch(const AnalogPatch& source)
     patch.lfoFilterDepthOctaves = clamp(patch.lfoFilterDepthOctaves, 0.0, 8.0);
     patch.lfoPulseWidthDepthA = clamp(patch.lfoPulseWidthDepthA, 0.0, 0.48);
     patch.lfoPulseWidthDepthB = clamp(patch.lfoPulseWidthDepthB, 0.0, 0.48);
-    patch.polyModOscillatorBToPitch = clamp(patch.polyModOscillatorBToPitch, -1.0, 1.0);
-    patch.polyModFilterEnvelopeToPitch = clamp(patch.polyModFilterEnvelopeToPitch, -1.0, 1.0);
-    patch.polyModOscillatorBToPulseWidthA = clamp(patch.polyModOscillatorBToPulseWidthA, -1.0, 1.0);
-    patch.polyModFilterEnvelopeToPulseWidthA = clamp(patch.polyModFilterEnvelopeToPulseWidthA, -1.0, 1.0);
-    patch.polyModOscillatorBToFilter = clamp(patch.polyModOscillatorBToFilter, -1.0, 1.0);
-    patch.polyModFilterEnvelopeToFilter = clamp(patch.polyModFilterEnvelopeToFilter, -1.0, 1.0);
+    patch.polyModOscillatorBToPitch = clamp(patch.polyModOscillatorBToPitch, 0.0, 1.0);
+    patch.polyModFilterEnvelopeToPitch = clamp(patch.polyModFilterEnvelopeToPitch, 0.0, 1.0);
+    patch.polyModOscillatorBToPulseWidthA = clamp(patch.polyModOscillatorBToPulseWidthA, 0.0, 1.0);
+    patch.polyModFilterEnvelopeToPulseWidthA = clamp(patch.polyModFilterEnvelopeToPulseWidthA, 0.0, 1.0);
+    patch.polyModOscillatorBToFilter = clamp(patch.polyModOscillatorBToFilter, 0.0, 1.0);
+    patch.polyModFilterEnvelopeToFilter = clamp(patch.polyModFilterEnvelopeToFilter, 0.0, 1.0);
     patch.glideSeconds = clamp(patch.glideSeconds, 0.0, 5.0);
     patch.masterTuneCents = clamp(patch.masterTuneCents, -100.0, 100.0);
     patch.unisonDetuneCents = clamp(patch.unisonDetuneCents, 0.0, 100.0);
@@ -79,5 +79,20 @@ AnalogPatch normalizePatch(const AnalogPatch& source)
 double midiNoteToFrequency(double midiNote)
 {
     return 440.0 * std::pow(2.0, (midiNote - 69.0) / 12.0);
+}
+
+double polyModFrequencyMultiplier(double signal)
+{
+    const auto x = clamp(signal, -4.0, 4.0);
+
+    // The central range is pitch-neutral for a bipolar waveform. The outer
+    // range then opens progressively for deliberately extreme cross-modulation.
+    if (std::abs(x) <= 1.0)
+        return 2.0 / (1.0 + std::pow(2.0, -2.0 * x));
+
+    if (x > 1.0)
+        return 1.6 * std::pow(2.0, (x - 1.0) * std::log2(10.0) / 3.0);
+
+    return 0.4 * std::pow(2.0, (x + 1.0) * std::log2(6.4) / 3.0);
 }
 } // namespace aureline

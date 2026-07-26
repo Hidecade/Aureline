@@ -13,7 +13,7 @@ constexpr int keyboardNoteCount = 37;
 constexpr int voiceSlotsPerBank = 32;
 constexpr int libraryFormatVersion = 2;
 constexpr std::array<const char*, 4> voiceBankNames {{
-    "ANALOG", "8-BIT", "RETRO", "INIT"
+    "ANALOG 1", "ANALOG 2", "RETRO", "8-BIT"
 }};
 
 int voiceMenuItemId(int bank, int slot)
@@ -135,6 +135,7 @@ juce::String slotVoiceDisplayName(std::size_t index, const juce::String& voiceNa
 bool isReservedLibraryFilename(const juce::File& file)
 {
     return file.getFileName().equalsIgnoreCase("Analog.aurelinelibrary.xml")
+        || file.getFileName().equalsIgnoreCase("Analog2.aurelinelibrary.xml")
         || file.getFileName().equalsIgnoreCase("Retro.aurelinelibrary.xml")
         || file.getFileName().equalsIgnoreCase(
             "8-Bit.aurelinelibrary.xml");
@@ -670,10 +671,11 @@ void AurelineMainComponent::AurelineLookAndFeel::drawButtonBackground(
 
     const bool step = button.getName() == "voiceStepButton";
     const bool store = button.getButtonText() == "STORE";
+    const bool recording = button.getButtonText() == "STOP";
     const auto bounds = button.getLocalBounds().toFloat().reduced(0.5f);
-    const auto top = store ? juce::Colour(themeAmber)
+    const auto top = store || recording ? juce::Colour(themeAmber)
                            : step ? juce::Colour(0xff3a3731) : juce::Colour(themePanelLight);
-    const auto bottom = store ? juce::Colour(0xff6f2412)
+    const auto bottom = store || recording ? juce::Colour(0xff6f2412)
                               : step ? juce::Colour(0xff171614) : juce::Colour(0xff17110d);
     g.setGradientFill({ down ? top.brighter(0.12f) : top, bounds.getX(), bounds.getY(),
                         down ? bottom.brighter(0.08f) : bottom,
@@ -699,12 +701,14 @@ void AurelineMainComponent::AurelineLookAndFeel::drawButtonText(
 
     const bool step = button.getName() == "voiceStepButton";
     const bool store = button.getButtonText() == "STORE";
+    const bool recording = button.getButtonText() == "STOP";
     const bool editWave = button.getButtonText() == "EDIT WAVE";
     const bool saveAll = button.getButtonText() == "SAVE BANK";
     g.setFont(juce::FontOptions(editWave ? 11.0f : saveAll ? 10.0f
                                                       : step ? 14.0f : 9.0f,
                                 juce::Font::bold));
     g.setColour(store && !down ? juce::Colours::black
+                               : recording ? juce::Colours::white
                                : down ? juce::Colours::white
                                       : step ? juce::Colour(themeText)
                                              : juce::Colour(themeAmber));
@@ -1665,6 +1669,11 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     saveLibraryButton.addListener(this);
     saveLibraryButton.setName("voiceActionButton");
     addAndMakeVisible(saveLibraryButton);
+    wavRecordButton.addListener(this);
+    wavRecordButton.setName("voiceActionButton");
+    wavRecordButton.setColour(juce::TextButton::buttonOnColourId,
+                              juce::Colour(themeAmber));
+    addAndMakeVisible(wavRecordButton);
     pasteVoiceButton.setEnabled(false);
     voiceModeBox.addItem("POLY", 1);
     voiceModeBox.addItem("MONO", 2);
@@ -1982,6 +1991,11 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
             "Analog.aurelinelibrary.xml"),
         BinaryData::Analog_aurelinelibrary_xml,
         BinaryData::Analog_aurelinelibrary_xmlSize);
+    installBuiltInVoiceLibrary(
+        aurelineDocumentsDirectory().getChildFile(
+            "Analog2.aurelinelibrary.xml"),
+        BinaryData::Analog2_aurelinelibrary_xml,
+        BinaryData::Analog2_aurelinelibrary_xmlSize);
     installBuiltInVoiceLibrary(
         aurelineDocumentsDirectory().getChildFile(
             "Retro.aurelinelibrary.xml"),
@@ -2471,6 +2485,8 @@ void AurelineMainComponent::renderAudioBlock(
         writeIndex = (writeIndex + 1) % scopeSize;
     }
     scopeWriteIndex.store(writeIndex, std::memory_order_release);
+    if (wavRecording.load(std::memory_order_relaxed))
+        wavRecorder.push(left, right, info.numSamples);
 }
 
 void AurelineMainComponent::releaseResources() { engine.panic(); }
@@ -3233,11 +3249,61 @@ void AurelineMainComponent::initialiseVoiceBanks()
         != static_cast<int>(factoryVoices.size()))
         writeVoiceLibraryToFile(bank1, true, false);
 
-    const std::array<std::tuple<int, const char*, int>, 2> bundled {{
-        { 1, BinaryData::_8Bit_aurelinelibrary_xml,
-          BinaryData::_8Bit_aurelinelibrary_xmlSize },
+    const auto bank2 = activeLibraryFile(1);
+    const auto bank3 = activeLibraryFile(2);
+    const auto bank4 = activeLibraryFile(3);
+    const auto presetLibraryMarker = aurelineApplicationSupportDirectory()
+        .getChildFile(".analog-presets-64-v4");
+    if (!presetLibraryMarker.existsAsFile())
+    {
+        const bool installed =
+            bank1.replaceWithData(BinaryData::Analog_aurelinelibrary_xml,
+                                  BinaryData::Analog_aurelinelibrary_xmlSize)
+            && bank2.replaceWithData(BinaryData::Analog2_aurelinelibrary_xml,
+                                     BinaryData::Analog2_aurelinelibrary_xmlSize);
+        if (installed)
+            presetLibraryMarker.replaceWithText("1");
+    }
+    const auto orderMarker = aurelineApplicationSupportDirectory()
+        .getChildFile(".library-order-analog1-analog2-retro-8bit");
+
+    // Preserve the editable Retro and 8-Bit banks while inserting Analog 2.
+    // The discarded fourth bank was the generated INIT bank.
+    if (!orderMarker.existsAsFile()
+        && readVoiceLibrary(bank2).getNumChildren() == voiceSlotsPerBank
+        && readVoiceLibrary(bank3).getNumChildren() == voiceSlotsPerBank)
+    {
+        const auto bank2Xml = bank2.loadFileAsString();
+        const auto bank3Xml = bank3.loadFileAsString();
+        const auto bank4Xml = bank4.loadFileAsString();
+        const auto bank2Name = readVoiceLibrary(bank2).getProperty("name").toString();
+        const bool bank2WasEightBit = bank2Name.equalsIgnoreCase("8-Bit");
+        const auto& retroXml = bank2WasEightBit ? bank3Xml : bank2Xml;
+        const auto& eightBitXml = bank2WasEightBit ? bank2Xml : bank3Xml;
+
+        const bool migrated =
+            bank2.replaceWithData(BinaryData::Analog2_aurelinelibrary_xml,
+                                  BinaryData::Analog2_aurelinelibrary_xmlSize)
+            && bank3.replaceWithText(retroXml)
+            && bank4.replaceWithText(eightBitXml);
+        if (migrated)
+            orderMarker.replaceWithText("3");
+        else
+        {
+            bank2.replaceWithText(bank2Xml);
+            bank3.replaceWithText(bank3Xml);
+            if (bank4Xml.isNotEmpty())
+                bank4.replaceWithText(bank4Xml);
+        }
+    }
+
+    const std::array<std::tuple<int, const char*, int>, 3> bundled {{
+        { 1, BinaryData::Analog2_aurelinelibrary_xml,
+          BinaryData::Analog2_aurelinelibrary_xmlSize },
         { 2, BinaryData::Retro_aurelinelibrary_xml,
-          BinaryData::Retro_aurelinelibrary_xmlSize }
+          BinaryData::Retro_aurelinelibrary_xmlSize },
+        { 3, BinaryData::_8Bit_aurelinelibrary_xml,
+          BinaryData::_8Bit_aurelinelibrary_xmlSize }
     }};
     for (const auto& [bank, data, size] : bundled)
     {
@@ -3246,31 +3312,8 @@ void AurelineMainComponent::initialiseVoiceBanks()
             != static_cast<int>(factoryVoices.size()))
             file.replaceWithData(data, static_cast<std::size_t>(size));
     }
-
-    const auto bank4 = activeLibraryFile(3);
-    if (readVoiceLibrary(bank4).getNumChildren()
-        != static_cast<int>(factoryVoices.size()))
-    {
-        const auto savedState = capturePluginState().createCopy();
-        const auto savedName = currentVoiceName;
-        resetToInitialVoice();
-        auto initial = capturePluginState().createCopy();
-        juce::ValueTree library("AurelineLibrary");
-        library.setProperty("format", "com.hidecade.aureline.library", nullptr);
-        library.setProperty("version", libraryFormatVersion, nullptr);
-        library.setProperty("voiceCount", voiceSlotsPerBank, nullptr);
-        for (int slot = 0; slot < voiceSlotsPerBank; ++slot)
-        {
-            auto voice = initial.createCopy();
-            voice.setProperty("slot", slot, nullptr);
-            voice.setProperty("voiceName", "INIT ANALOG", nullptr);
-            library.addChild(voice, -1, nullptr);
-        }
-        if (const auto xml = library.createXml(); xml != nullptr)
-            bank4.replaceWithText(xml->toString());
-        restorePluginState(savedState);
-        currentVoiceName = savedName;
-    }
+    if (!orderMarker.existsAsFile())
+        orderMarker.replaceWithText("3");
 }
 
 void AurelineMainComponent::refreshVoiceBankNames()
@@ -3304,22 +3347,26 @@ void AurelineMainComponent::refreshVoiceBankNames()
 
 void AurelineMainComponent::confirmAndLoadVoiceLibrary(const juce::File& file)
 {
-    juce::AlertWindow::showAsync(
-        juce::MessageBoxOptions()
-            .withIconType(juce::MessageBoxIconType::WarningIcon)
-            .withTitle("LOAD LIBRARY TO BANK")
-            .withMessage("Choose the destination bank. Its 32 voices will be "
-                         "overwritten.")
-            .withButton("BANK 1")
-            .withButton("BANK 2")
-            .withButton("BANK 3")
-            .withButton("BANK 4")
-            .withButton("CANCEL"),
-        [safe = juce::Component::SafePointer<AurelineMainComponent>(this), file](int result)
-        {
-            if (safe != nullptr && result >= 1 && result <= 4)
-                safe->loadVoiceLibraryFromFile(file, result - 1);
-        });
+    auto* dialog = new juce::AlertWindow(
+        "LOAD LIBRARY TO BANK",
+        "Choose the destination bank. Its 32 voices will be overwritten.",
+        juce::MessageBoxIconType::WarningIcon,
+        this);
+    dialog->addButton("BANK 1", 1);
+    dialog->addButton("BANK 2", 2);
+    dialog->addButton("BANK 3", 3);
+    dialog->addButton("BANK 4", 4);
+    dialog->addButton("CANCEL", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    dialog->enterModalState(
+        true,
+        juce::ModalCallbackFunction::create(
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this), file]
+            (int result)
+            {
+                if (safe != nullptr && result >= 1 && result <= 4)
+                    safe->loadVoiceLibraryFromFile(file, result - 1);
+            }),
+        true);
 }
 
 void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file,
@@ -3764,6 +3811,107 @@ void AurelineMainComponent::resetToInitialVoice()
     repaint();
 }
 
+void AurelineMainComponent::startWavRecording()
+{
+    if (wavRecording.load(std::memory_order_relaxed))
+        return;
+    wavRecorder.start(currentSampleRate);
+    wavRecording.store(true, std::memory_order_relaxed);
+    wavRecordButton.setButtonText("STOP");
+    wavRecordButton.setToggleState(true, juce::dontSendNotification);
+    statusLabel.setText("WAV recording...", juce::dontSendNotification);
+}
+
+void AurelineMainComponent::stopWavRecordingAndChooseFile()
+{
+    if (!wavRecording.exchange(false, std::memory_order_relaxed))
+        return;
+    wavRecorder.stop();
+    wavRecordButton.setButtonText("WAV");
+    wavRecordButton.setToggleState(false, juce::dontSendNotification);
+
+    if (wavRecorder.recordedFrameCount() == 0)
+    {
+        statusLabel.setText("WAV recording is empty", juce::dontSendNotification);
+        return;
+    }
+
+    const auto musicDirectory = juce::File::getSpecialLocation(
+        juce::File::userMusicDirectory);
+    wavFileChooser = std::make_unique<juce::FileChooser>(
+        "Save WAV recording", musicDirectory.getChildFile("Aureline.wav"),
+        "*.wav");
+    wavFileChooser->launchAsync(
+        juce::FileBrowserComponent::saveMode
+            | juce::FileBrowserComponent::canSelectFiles
+            | juce::FileBrowserComponent::warnAboutOverwriting,
+        [safe = juce::Component::SafePointer<AurelineMainComponent>(this)](
+            const juce::FileChooser& chooser)
+        {
+            if (safe == nullptr)
+                return;
+            auto file = chooser.getResult();
+            if (file == juce::File {})
+            {
+                safe->statusLabel.setText("WAV save cancelled",
+                                          juce::dontSendNotification);
+                return;
+            }
+            if (!file.hasFileExtension("wav"))
+                file = file.withFileExtension("wav");
+            safe->writeWavRecordingToFile(file);
+        });
+}
+
+void AurelineMainComponent::writeWavRecordingToFile(const juce::File& file)
+{
+    const auto sampleRate = wavRecorder.sampleRate();
+    const auto droppedFrames = wavRecorder.droppedFrameCount();
+    auto interleaved = wavRecorder.takeRecordedSamples();
+    const auto frameCount = static_cast<int>(interleaved.size() / 2);
+    if (frameCount <= 0)
+    {
+        statusLabel.setText("WAV recording is empty", juce::dontSendNotification);
+        return;
+    }
+
+    juce::AudioBuffer<float> audio(2, frameCount);
+    auto* left = audio.getWritePointer(0);
+    auto* right = audio.getWritePointer(1);
+    for (int frame = 0; frame < frameCount; ++frame)
+    {
+        left[frame] = interleaved[static_cast<std::size_t>(frame) * 2];
+        right[frame] = interleaved[static_cast<std::size_t>(frame) * 2 + 1];
+    }
+
+    juce::WavAudioFormat wavFormat;
+    std::unique_ptr<juce::OutputStream> output(
+        file.createOutputStream().release());
+    if (output == nullptr)
+    {
+        statusLabel.setText("WAV save failed", juce::dontSendNotification);
+        return;
+    }
+    auto writer = wavFormat.createWriterFor(
+        output, juce::AudioFormatWriterOptions {}
+                    .withSampleRate(sampleRate)
+                    .withNumChannels(2)
+                    .withBitsPerSample(24));
+    if (writer == nullptr
+        || !writer->writeFromAudioSampleBuffer(audio, 0, frameCount))
+    {
+        statusLabel.setText("WAV write failed", juce::dontSendNotification);
+        return;
+    }
+
+    statusLabel.setText(
+        "WAV saved: " + file.getFileName()
+            + (droppedFrames > 0
+                   ? "  |  dropped " + juce::String(droppedFrames) + " frames"
+                   : juce::String {}),
+        juce::dontSendNotification);
+}
+
 void AurelineMainComponent::buttonClicked(juce::Button* button)
 {
     for (std::size_t index = 0; index < waveMemoryButtons.size(); ++index)
@@ -3773,7 +3921,14 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
             return;
         }
 
-    if (button == &previousVoiceButton || button == &nextVoiceButton)
+    if (button == &wavRecordButton)
+    {
+        if (wavRecording.load(std::memory_order_relaxed))
+            stopWavRecordingAndChooseFile();
+        else
+            startWavRecording();
+    }
+    else if (button == &previousVoiceButton || button == &nextVoiceButton)
     {
         const int itemCount = static_cast<int>(factoryVoices.size());
         const int direction = button == &previousVoiceButton ? -1 : 1;
@@ -4457,7 +4612,7 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     const auto voiceMode = parameters.voiceMode.load();
     const juce::String modeText = voiceMode == 1 ? "MONO" : voiceMode == 2 ? "UNI" : "POLY";
     constexpr std::array<const char*, 4> lcdBankNames {{
-        "ANALOG", "8-BIT", "RETRO", "INIT"
+        "ANLG1", "ANLG2", "RETRO", "8-BIT"
     }};
     const auto bankText = "B" + juce::String(selectedVoiceBank + 1) + " "
         + lcdBankNames[static_cast<std::size_t>(
@@ -4620,6 +4775,8 @@ void AurelineMainComponent::resized()
     subtitleLabel.setBounds(subtitleBounds);
     auto libraryButtonArea = header.removeFromRight(112);
     saveLibraryButton.setBounds(libraryButtonArea.reduced(2, 4));
+    auto wavButtonArea = header.removeFromRight(72);
+    wavRecordButton.setBounds(wavButtonArea.reduced(2, 4));
     statusLabel.setBounds(header.withTrimmedBottom(4));
 
     area.removeFromTop(4);

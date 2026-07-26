@@ -47,7 +47,7 @@ constexpr ParameterDefinition definitions[] {
     { "lfoDestFilter", "LFO to Filter", 0, 1, 0, kAudioUnitParameterUnit_Boolean },
     { "polyModFilterEnv", "Poly Mod Filter Envelope", 0, 1, 0, kAudioUnitParameterUnit_Generic },
     { "polyModOscB", "Poly Mod Oscillator B", 0, 1, 0, kAudioUnitParameterUnit_Generic },
-    { "polyDestPitch", "Poly Mod to Pitch", 0, 1, 0, kAudioUnitParameterUnit_Boolean },
+    { "polyDestPitch", "Poly Mod to Oscillator A Frequency", 0, 1, 0, kAudioUnitParameterUnit_Boolean },
     { "polyDestPWA", "Poly Mod to Pulse Width A", 0, 1, 0, kAudioUnitParameterUnit_Boolean },
     { "polyDestFilter", "Poly Mod to Filter", 0, 1, 0, kAudioUnitParameterUnit_Boolean },
     { "spread", "Stereo Spread", 0, 1, 0, kAudioUnitParameterUnit_Generic },

@@ -15,6 +15,10 @@ public:
     double render(double frequencyHz, bool sawEnabled, bool triangleEnabled,
                   bool pulseEnabled, double pulseWidth, bool waveMemoryEnabled,
                   const WaveMemoryData& waveMemory, WaveMemoryCharacter character);
+    double renderPhaseModulated(double frequencyHz, bool sawEnabled, bool triangleEnabled,
+                                bool pulseEnabled, double pulseWidth, bool waveMemoryEnabled,
+                                const WaveMemoryData& waveMemory, WaveMemoryCharacter character,
+                                double phaseOffsetCycles);
     bool wrappedLastSample() const { return didWrap; }
 
 private:

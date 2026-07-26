@@ -1,7 +1,9 @@
 #include "DSP/Oscillator.h"
+#include "DSP/ProphetOtaFilter.h"
 #include "Engine/AnalogEngine.h"
 #include "Engine/FactoryPresets.h"
 #include "Engine/PerformanceSequencer.h"
+#include "Engine/RealtimeAudioRecorder.h"
 
 #include <algorithm>
 #include <array>
@@ -17,10 +19,39 @@ void testPatchNormalization()
     patch.oscillatorA.pulseWidth = 2.0;
     patch.filterCutoffHz = -100.0;
     patch.masterGain = 4.0;
+    patch.polyModOscillatorBToPitch = -1.0;
     const auto normalized = aureline::normalizePatch(patch);
     assert(normalized.oscillatorA.pulseWidth == 0.98);
     assert(normalized.filterCutoffHz == 20.0);
     assert(normalized.masterGain == 1.0);
+    assert(normalized.polyModOscillatorBToPitch == 0.0);
+}
+
+void testPolyModTransferFunctions()
+{
+    assert(std::abs(aureline::polyModOscillatorSource(1.0, 1.0) - 2.0) < 1.0e-12);
+    assert(std::abs(aureline::polyModOscillatorSource(-1.0, 0.5) + 1.0) < 1.0e-12);
+    assert(aureline::polyModFilterEnvelopeSource(1.0, 0.0) == 0.0);
+    assert(std::abs(aureline::polyModFilterEnvelopeSource(1.0, 0.5) - 1.0)
+           < 1.0e-12);
+    assert(std::abs(aureline::polyModFilterEnvelopeSource(1.0, 1.0) - 4.0)
+           < 1.0e-12);
+    assert(std::abs(aureline::polyModFrequencyMultiplier(0.0) - 1.0) < 1.0e-12);
+    assert(std::abs(aureline::polyModFrequencyMultiplier(1.0) - 1.6) < 1.0e-12);
+    assert(std::abs(aureline::polyModFrequencyMultiplier(-1.0) - 0.4) < 1.0e-12);
+    for (const auto signal : { 0.1, 0.25, 0.5, 0.75, 1.0 })
+        assert(std::abs(aureline::polyModFrequencyMultiplier(signal)
+                        + aureline::polyModFrequencyMultiplier(-signal)
+                        - 2.0)
+               < 1.0e-12);
+    assert(std::abs(aureline::polyModFrequencyMultiplier(8.0) - 16.0) < 1.0e-12);
+    assert(std::abs(aureline::polyModFrequencyMultiplier(-8.0) - 0.0625) < 1.0e-12);
+    assert(aureline::polyModOscillatorPhaseOffset(1.0, 0.0) == 0.0);
+    assert(std::abs(aureline::polyModOscillatorPhaseOffset(1.0, 1.0) - 0.65)
+           < 1.0e-12);
+    assert(std::abs(aureline::polyModOscillatorPhaseOffset(-1.0, 0.5) + 0.1625)
+           < 1.0e-12);
+    assert(std::abs(aureline::polyModPulseWidthOffset(1.0) + 0.25) < 1.0e-12);
 }
 
 void testOscillatorIsFinite()
@@ -46,6 +77,54 @@ void testCombinedOscillatorWaveforms()
         peak = std::max(peak, std::abs(value));
     }
     assert(peak > 0.1);
+}
+
+void testProphetOtaFilterResonance()
+{
+    constexpr double sampleRate = 48000.0;
+    aureline::ProphetOtaFilter filter;
+    filter.prepare(sampleRate);
+
+    double normalPeak = 0.0;
+    for (int sample = 0; sample < 48000; ++sample)
+    {
+        const auto impulse = sample == 0 ? 0.5 : 0.0;
+        const auto value = filter.render(impulse, 1000.0, 0.65);
+        assert(std::isfinite(value));
+        normalPeak = std::max(normalPeak, std::abs(value));
+    }
+    assert(normalPeak < 1.0);
+
+    filter.reset();
+    double oscillationEnergy = 0.0;
+    for (int sample = 0; sample < 96000; ++sample)
+    {
+        const auto value = filter.render(0.0, 1000.0, 1.0);
+        assert(std::isfinite(value));
+        if (sample >= 72000)
+            oscillationEnergy += value * value;
+    }
+    const auto oscillationRms = std::sqrt(oscillationEnergy / 24000.0);
+    assert(oscillationRms > 0.01);
+    assert(oscillationRms < 1.0);
+}
+
+void testRealtimeAudioRecorder()
+{
+    aureline::RealtimeAudioRecorder recorder;
+    recorder.start(48000.0);
+    constexpr std::array<float, 4> left { 0.1f, 0.2f, -0.3f, 0.4f };
+    constexpr std::array<float, 4> right { -0.1f, -0.2f, 0.3f, -0.4f };
+    recorder.push(left.data(), right.data(), static_cast<int>(left.size()));
+    recorder.stop();
+    assert(recorder.recordedFrameCount() == left.size());
+    const auto samples = recorder.takeRecordedSamples();
+    assert(samples.size() == left.size() * 2);
+    for (std::size_t frame = 0; frame < left.size(); ++frame)
+    {
+        assert(samples[frame * 2] == left[frame]);
+        assert(samples[frame * 2 + 1] == right[frame]);
+    }
 }
 
 void testEightVoiceLimitAndAudio()
@@ -116,6 +195,42 @@ void testModulationRemainsFinite()
     engine.noteOn(96, 127);
     for (int sample = 0; sample < 96000; ++sample)
         assert(std::isfinite(engine.renderSample()));
+}
+
+void testOscillatorBPolyModIsIndependentOfMixerLevel()
+{
+    constexpr double sampleRate = 48000.0;
+    aureline::AnalogEngine unmodulatedEngine;
+    aureline::AnalogEngine modulatedEngine;
+    unmodulatedEngine.prepare(sampleRate);
+    modulatedEngine.prepare(sampleRate);
+
+    auto patch = unmodulatedEngine.getPatch();
+    patch.oscillatorA.level = 0.8;
+    patch.oscillatorB.level = 0.0;
+    patch.noiseLevel = 0.0;
+    patch.filterCutoffHz = 12000.0;
+    patch.filterResonance = 0.0;
+    patch.polyModOscillatorBToPitch = 0.0;
+    unmodulatedEngine.setPatch(patch);
+
+    patch.polyModOscillatorBToPitch = 1.0;
+    modulatedEngine.setPatch(patch);
+
+    unmodulatedEngine.noteOn(60, 127);
+    modulatedEngine.noteOn(60, 127);
+
+    double accumulatedDifference = 0.0;
+    for (int sample = 0; sample < 4096; ++sample)
+    {
+        const auto unmodulated = unmodulatedEngine.renderSample();
+        const auto modulated = modulatedEngine.renderSample();
+        assert(std::isfinite(unmodulated));
+        assert(std::isfinite(modulated));
+        accumulatedDifference += std::abs(unmodulated - modulated);
+    }
+
+    assert(accumulatedDifference > 0.1);
 }
 
 void testSyncAndPulseWidthModulation()
@@ -255,6 +370,15 @@ void testFactoryPresets()
     const auto& presets = aureline::factoryPresets();
     assert(presets.size() == aureline::kFactoryPresetCount);
     assert(presets.size() == 32);
+    assert(std::abs(presets[0].patch.filterCutoffHz - 3600.0) < 0.0001);
+    assert(std::abs(presets[10].patch.filterResonance - 0.19) < 0.0001);
+    assert(std::abs(presets[25].patch.polyModOscillatorBToFilter - 0.26)
+           < 0.0001);
+    assert(std::abs(presets[26].patch.polyModOscillatorBToPitch - 0.46)
+           < 0.0001);
+    assert(std::abs(presets[26].patch.oscillatorB.level - 0.12) < 0.0001);
+    assert(std::abs(presets[26].patch.filterCutoffHz - 1900.0) < 0.0001);
+    assert(std::abs(presets[26].patch.masterGain - 0.90) < 0.0001);
     for (std::size_t index = 0; index < presets.size(); ++index)
     {
         const auto& preset = presets[index];
@@ -268,26 +392,10 @@ void testFactoryPresets()
             || patch.polyModFilterEnvelopeToFilter != 0.0;
         const bool usesWaveMemory = patch.oscillatorA.waveMemoryEnabled
             || patch.oscillatorB.waveMemoryEnabled;
-        if (index < 20)
-        {
-            assert(!usesPolyMod);
-            assert(!usesWaveMemory);
-        }
-        else if (index < 25)
-        {
-            assert(usesPolyMod);
-            assert(!usesWaveMemory);
-        }
-        else if (index < 35)
-        {
-            assert(!usesPolyMod);
-            assert(usesWaveMemory);
-        }
-        else
-        {
-            assert(!usesPolyMod);
-            assert(usesWaveMemory == (index == 39));
-        }
+        const bool shouldUsePolyMod = index == 25 || index == 26 || index == 28
+                                   || index == 30 || index == 31;
+        assert(usesPolyMod == shouldUsePolyMod);
+        assert(!usesWaveMemory);
         if (index >= 35 && index < 39)
         {
             constexpr std::array<double, 4> expectedWidths {
@@ -316,12 +424,16 @@ void testFactoryPresets()
         engine.prepare(48000.0);
         engine.setPatch(preset.patch);
         engine.noteOn(60, 100);
-        for (int sample = 0; sample < 1024; ++sample)
+        double peak = 0.0;
+        for (int sample = 0; sample < 4096; ++sample)
         {
             const auto output = engine.renderStereoSample();
             assert(std::isfinite(output.left));
             assert(std::isfinite(output.right));
+            peak = std::max({ peak, std::abs(output.left), std::abs(output.right) });
         }
+        assert(peak > 0.0001);
+        assert(peak <= 1.0);
     }
 }
 
@@ -445,11 +557,15 @@ void testWaveMemoryOscillator()
 int main()
 {
     testPatchNormalization();
+    testPolyModTransferFunctions();
     testOscillatorIsFinite();
     testCombinedOscillatorWaveforms();
+    testProphetOtaFilterResonance();
+    testRealtimeAudioRecorder();
     testEightVoiceLimitAndAudio();
     testSustainAndPitchBend();
     testModulationRemainsFinite();
+    testOscillatorBPolyModIsIndependentOfMixerLevel();
     testSyncAndPulseWidthModulation();
     testVoiceModesAndGlide();
     testMonoReturnsToLastHeldNote();

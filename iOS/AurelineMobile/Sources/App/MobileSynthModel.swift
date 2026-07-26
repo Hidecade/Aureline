@@ -40,7 +40,7 @@ final class MobileSynthModel: ObservableObject {
     @Published var externalActiveNotes: [Int: Int] = [:]
     @Published var factoryPresetNames: [String] = []
     @Published var selectedBank = 0
-    static let bankNames = ["ANALOG", "8-BIT", "RETRO", "INIT"]
+    static let bankNames = ["ANALOG 1", "ANALOG 2", "RETRO", "8-BIT"]
     @Published var canPasteVoice = false
     @Published var canPasteWave = false
 
@@ -553,9 +553,38 @@ final class MobileSynthModel: ObservableObject {
                 try? writeLibrary(factoryLibraryVoices(), bank: 0)
             }
         }
+        let previousOrderMigrationKey = "libraryOrderAnalogRetro8BitV2"
+        let orderMigrationKey = "libraryOrderAnalog1Analog2Retro8BitV3"
+        let hadPreviousSecondaryBanks = bankIsValid(1) && bankIsValid(2)
+        if hadPreviousSecondaryBanks
+            && !UserDefaults.standard.bool(forKey: orderMigrationKey),
+           let bank2URL = try? bankLibraryURL(1),
+           let bank3URL = try? bankLibraryURL(2),
+           let bank2Data = try? Data(contentsOf: bank2URL),
+           let bank3Data = try? Data(contentsOf: bank3URL),
+           let analog2Source = Bundle.main.url(
+               forResource: "Analog2", withExtension: "aurelinelibrary.xml"),
+           let analog2 = try? AurelineLibraryCodec.decode(
+               Data(contentsOf: analog2Source)),
+           let bank2Voices = try? AurelineLibraryCodec.decode(bank2Data),
+           let bank3Voices = try? AurelineLibraryCodec.decode(bank3Data) {
+            do {
+                let previousOrderWasMigrated = UserDefaults.standard.bool(
+                    forKey: previousOrderMigrationKey)
+                let retro = previousOrderWasMigrated ? bank2Voices : bank3Voices
+                let eightBit = previousOrderWasMigrated ? bank3Voices : bank2Voices
+                try writeLibrary(analog2, bank: 1)
+                try writeLibrary(retro, bank: 2)
+                try writeLibrary(eightBit, bank: 3)
+                UserDefaults.standard.set(true, forKey: orderMigrationKey)
+            } catch {
+                status = "LIBRARY ORDER MIGRATION FAILED"
+            }
+        }
         for (bank, resource) in [
-            (1, "8-Bit.aurelinelibrary.xml"),
-            (2, "Retro.aurelinelibrary.xml")
+            (1, "Analog2.aurelinelibrary.xml"),
+            (2, "Retro.aurelinelibrary.xml"),
+            (3, "8-Bit.aurelinelibrary.xml")
         ] where !bankIsValid(bank) {
             let parts = resource.split(separator: ".", maxSplits: 1)
             if let source = Bundle.main.url(forResource: String(parts[0]),
@@ -564,8 +593,24 @@ final class MobileSynthModel: ObservableObject {
                 try? writeLibrary(voices, bank: bank)
             }
         }
-        if !bankIsValid(3) {
-            try? writeLibrary(initLibraryVoices(), bank: 3)
+        if !UserDefaults.standard.bool(forKey: orderMigrationKey) {
+            UserDefaults.standard.set(true, forKey: orderMigrationKey)
+        }
+        let analogPresetMigrationKey = "analogPresetLibrary64V4"
+        if !UserDefaults.standard.bool(forKey: analogPresetMigrationKey),
+           let analog1Source = Bundle.main.url(
+               forResource: "Analog", withExtension: "aurelinelibrary.xml"),
+           let analog2Source = Bundle.main.url(
+               forResource: "Analog2", withExtension: "aurelinelibrary.xml"),
+           let analog1 = try? AurelineLibraryCodec.decode(Data(contentsOf: analog1Source)),
+           let analog2 = try? AurelineLibraryCodec.decode(Data(contentsOf: analog2Source)) {
+            do {
+                try writeLibrary(analog1, bank: 0)
+                try writeLibrary(analog2, bank: 1)
+                UserDefaults.standard.set(true, forKey: analogPresetMigrationKey)
+            } catch {
+                status = "ANALOG PRESET MIGRATION FAILED"
+            }
         }
         removeLegacyStoredVoices()
     }
@@ -650,6 +695,7 @@ final class MobileSynthModel: ObservableObject {
         guard let directory = try? userPresetDirectory() else { return }
         for filename in [
             "Analog.aurelinelibrary.xml",
+            "Analog2.aurelinelibrary.xml",
             "Retro.aurelinelibrary.xml",
             "8-Bit.aurelinelibrary.xml"
         ] {

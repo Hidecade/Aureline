@@ -205,42 +205,50 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
     const auto lfoPitchB = lfoValue * patch.lfoPitchDepthBSemitones * lfoPitchAmount;
     const auto pulseWidthB = pulseWidthBSmoother.process(patch.oscillatorB.pulseWidth)
                            + lfoValue * patch.lfoPulseWidthDepthB * lfoModulationAmount;
-    const auto b = oscillatorB.render(oscillatorFrequency(patch.oscillatorB,
-                                                          pitchBendSemitones + lfoPitchB, tuneB),
-                                      patch.oscillatorB.sawEnabled,
-                                      patch.oscillatorB.triangleEnabled,
-                                      patch.oscillatorB.pulseEnabled,
-                                      pulseWidthB,
-                                      patch.oscillatorB.waveMemoryEnabled,
-                                      patch.oscillatorB.waveMemoryData,
-                                      patch.oscillatorB.waveMemoryCharacter)
-                 * oscillatorBLevelSmoother.process(patch.oscillatorB.level);
+    const auto polyModB = oscillatorB.render(
+        oscillatorFrequency(patch.oscillatorB, pitchBendSemitones + lfoPitchB, tuneB),
+        patch.oscillatorB.sawEnabled,
+        patch.oscillatorB.triangleEnabled,
+        patch.oscillatorB.pulseEnabled,
+        pulseWidthB,
+        patch.oscillatorB.waveMemoryEnabled,
+        patch.oscillatorB.waveMemoryData,
+        patch.oscillatorB.waveMemoryCharacter);
+    const auto b = polyModB * oscillatorBLevelSmoother.process(patch.oscillatorB.level);
     if (patch.oscillatorSync && oscillatorB.wrappedLastSample())
         oscillatorA.reset();
-    const auto polyPitch = b * patch.polyModOscillatorBToPitch * 12.0
-                         + envelopeValue * patch.polyModFilterEnvelopeToPitch * 12.0;
-    const auto polyPulseWidthA = b * patch.polyModOscillatorBToPulseWidthA * 0.48
-                               + envelopeValue
-                                   * patch.polyModFilterEnvelopeToPulseWidthA * 0.48;
-    const auto a = oscillatorA.render(oscillatorFrequency(patch.oscillatorA,
-                                                          pitchBendSemitones + lfoPitchA + polyPitch, tuneA),
+    const auto envelopePitchPolyMod = polyModFilterEnvelopeSource(
+        envelopeValue, patch.polyModFilterEnvelopeToPitch);
+    const auto oscillatorBPhaseMod = polyModOscillatorPhaseOffset(
+        polyModB, patch.polyModOscillatorBToPitch);
+    const auto pulseWidthPolyMod = polyModSignal(
+        polyModB, patch.polyModOscillatorBToPulseWidthA,
+        envelopeValue, patch.polyModFilterEnvelopeToPulseWidthA);
+    const auto filterPolyMod = polyModSignal(
+        polyModB, patch.polyModOscillatorBToFilter,
+        envelopeValue, patch.polyModFilterEnvelopeToFilter);
+    const auto oscillatorABaseFrequency = oscillatorFrequency(
+        patch.oscillatorA, pitchBendSemitones + lfoPitchA, tuneA);
+    const auto a = oscillatorA.renderPhaseModulated(
+                                      oscillatorABaseFrequency
+                                          * polyModFrequencyMultiplier(envelopePitchPolyMod),
                                       patch.oscillatorA.sawEnabled,
                                       patch.oscillatorA.triangleEnabled,
                                       patch.oscillatorA.pulseEnabled,
                                       pulseWidthASmoother.process(patch.oscillatorA.pulseWidth)
                                           + lfoValue * patch.lfoPulseWidthDepthA * lfoModulationAmount
-                                          + polyPulseWidthA,
+                                          + polyModPulseWidthOffset(pulseWidthPolyMod),
                                       patch.oscillatorA.waveMemoryEnabled,
                                       patch.oscillatorA.waveMemoryData,
-                                      patch.oscillatorA.waveMemoryCharacter)
+                                      patch.oscillatorA.waveMemoryCharacter,
+                                      oscillatorBPhaseMod)
                  * oscillatorALevelSmoother.process(patch.oscillatorA.level);
     const auto amp = amplifierEnvelope.render(amplifierEnvelopeParameters);
     const auto cutoffOctaves = patch.filterEnvelopeAmount * envelopeValue * 7.0
                              + lfoValue * patch.lfoFilterDepthOctaves * lfoModulationAmount
-                             + b * patch.polyModOscillatorBToFilter * 4.0
-                             + envelopeValue * patch.polyModFilterEnvelopeToFilter * 4.0
                              + ((currentPitchNote - 60.0) / 12.0) * patch.filterKeyboardTracking
-                             + velocityGain * patch.filterVelocityAmount * 4.0;
+                             + velocityGain * patch.filterVelocityAmount * 4.0
+                             + std::clamp(filterPolyMod * 1.5, -4.0, 4.0);
     const auto cutoff = cutoffSmoother.process(patch.filterCutoffHz)
                       * std::pow(2.0, cutoffOctaves);
     const auto vintageCutoff = cutoff * std::pow(2.0,

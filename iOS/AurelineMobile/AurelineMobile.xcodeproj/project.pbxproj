@@ -9,17 +9,16 @@
 /* Begin PBXBuildFile section */
 		068D5D20F6974ED6F947FA61 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 11A918F605875B934D38BD72 /* AudioToolbox.framework */; };
 		0D5E85167F0D8E9A1A544DC6 /* AnalogPatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 99017F679D740DBFB72C5394 /* AnalogPatch.cpp */; };
+		10A94C50B027D32102EDFD2B /* RealtimeAudioRecorder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3A954DCB67166284C20D95B /* RealtimeAudioRecorder.cpp */; };
 		1A6C5D869962649B709BE11A /* PerformanceSequencer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */; };
 		1ACEDD103D4B1AF0F83F9989 /* AudioUnitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB795BE6219E1B2F2AFF878 /* AudioUnitViewController.swift */; };
 		1CB147562E47CA0686B20B5C /* AurelinePresetDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02E6709BFF37C82F433453E3 /* AurelinePresetDocument.swift */; };
 		1D85C05286F0B7A3B6C65C02 /* AurelineLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCC82DA4992AD76C79C5059 /* AurelineLibrary.swift */; };
-		23917BF1401A021E999E7D27 /* 8-Bit.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 9D11DA5A3D3FC822223F4205 /* 8-Bit.aurelinelibrary.xml */; };
-		29149338A73F71C083788D3F /* Analog.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 04E1BAC7BD0F494CAD0637D5 /* Analog.aurelinelibrary.xml */; };
 		2AD0B17E7CC30C9507517298 /* AurelineAUv3Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A28A2CFF4A6137D106022E9A /* AurelineAUv3Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		318216C614F993CE36AA81A2 /* Oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F808B2F272FBFE863F4A761C /* Oscillator.cpp */; };
 		3A3104A67EA04C65231DF4A2 /* AurelineMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E610785DFB0B4ADD2BBD6E /* AurelineMobileApp.swift */; };
 		3A9FA2A944FB84E6DEBFCCBB /* PerformanceSequencer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */; };
-		3BF6DC3246B6FE51004E1C66 /* LadderFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */; };
+		3BD70A6676B45028F8A53A85 /* Analog2.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 7819315D0F3226EC28AC9B52 /* Analog2.aurelinelibrary.xml */; };
 		3E4B10EA9659755DC4C25CCB /* PlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 257F4B46C476B31CCE9EC6B1 /* PlayView.swift */; };
 		418A9E7F4717599D5B08D536 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06CF4C4C996A49A8122ACE3 /* Theme.swift */; };
 		43D491C09C80BFEE212CB7BE /* Envelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0945A87AF3B128D1160F90D6 /* Envelope.cpp */; };
@@ -29,30 +28,34 @@
 		5A98F60FA0EA9FAE99924698 /* NoiseGenerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2287E32BAD9133F32456412B /* NoiseGenerator.cpp */; };
 		5AC17A48ECA8EBB1E9F6329B /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EB7483CDEAA7183EC73CF2 /* AboutView.swift */; };
 		607B0F669B5D4D9B3F681B8E /* AnalogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50177BA2189548FA479B660A /* AnalogEngine.cpp */; };
+		60A52D5A108CCD5CFCBF2833 /* Analog.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 4CA06ADBDBD495E14FCD5FE8 /* Analog.aurelinelibrary.xml */; };
+		644319D94828C2CC882E8673 /* Retro.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = FEF63B40FC23F090A00EB344 /* Retro.aurelinelibrary.xml */; };
 		654B72EB62E3BC884A4DE7C8 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E8C2F8CFD036F218C73B1B4 /* AVFoundation.framework */; };
 		686B26BC901ACA9B57C97DDC /* MobileAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA049031BD1FD7B2D3D5E92 /* MobileAudioEngine.swift */; };
+		6EC29A77982578898A07EF56 /* 8-Bit.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = D26944B648E3F9CE62EAC175 /* 8-Bit.aurelinelibrary.xml */; };
 		74D99C38BBCCBF72EEE9A73F /* AurelineAUAudioUnit.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0642936FD38563EF92D23D7B /* AurelineAUAudioUnit.mm */; };
 		76DC8738814469ECE744E846 /* MobileSynthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EC19FA4D0B52AC86F6626F /* MobileSynthModel.swift */; };
-		7FA1441E01D740678C754A9F /* Retro.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = F85F7E847ABBD2B82D94A837 /* Retro.aurelinelibrary.xml */; };
-		80D29713DD3B040BC3BDD9B9 /* 8-Bit.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 9D11DA5A3D3FC822223F4205 /* 8-Bit.aurelinelibrary.xml */; };
+		7937927CF1C1954D1D6B54C2 /* ProphetOtaFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A324CF77792F05A5B3B230 /* ProphetOtaFilter.cpp */; };
 		81F461D9DB1B3250CF677394 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FA174D5774693351F9C44146 /* PrivacyInfo.xcprivacy */; };
 		8271DADCB2A07EAFE5D64823 /* AnalogVoice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8B7DC9E83AB8DBC038B1BB70 /* AnalogVoice.cpp */; };
+		83446F14832BAC08860C0D09 /* Analog.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 4CA06ADBDBD495E14FCD5FE8 /* Analog.aurelinelibrary.xml */; };
 		840454F93DF5FFB7EA81346E /* AnalogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50177BA2189548FA479B660A /* AnalogEngine.cpp */; };
 		856E9C04DFCE072A9BE8567B /* AurelineMobileEngineBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */; };
 		858658F2BCFE7C7365DA1CA6 /* Envelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0945A87AF3B128D1160F90D6 /* Envelope.cpp */; };
 		8C0678E1D1718A61B4527FE7 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 11A918F605875B934D38BD72 /* AudioToolbox.framework */; };
 		8C09D98F0CAA7DE7C4575C78 /* EditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 707B19AFBE12EDC1C7EB604A /* EditView.swift */; };
-		939B0273D4DE21E228D73216 /* Retro.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = F85F7E847ABBD2B82D94A837 /* Retro.aurelinelibrary.xml */; };
+		96BC86D5E1C7E3143CF88130 /* 8-Bit.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = D26944B648E3F9CE62EAC175 /* 8-Bit.aurelinelibrary.xml */; };
 		96E297E186490E209478378A /* AurelineMobileEngineBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */; };
 		97F7436CC08BE57E04F1827D /* AnalogVoice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8B7DC9E83AB8DBC038B1BB70 /* AnalogVoice.cpp */; };
+		9C550AC04175F8D8D5B54FD2 /* ProphetOtaFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30A324CF77792F05A5B3B230 /* ProphetOtaFilter.cpp */; };
 		A85EDB44DCC519AE909EA403 /* NoiseGenerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2287E32BAD9133F32456412B /* NoiseGenerator.cpp */; };
 		A8D126AAD52B49A3A6109FFA /* MobileKeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9B1FF3FFC9FAF4A75E7B25 /* MobileKeyboardView.swift */; };
+		B0295836898148F6937517B4 /* Retro.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = FEF63B40FC23F090A00EB344 /* Retro.aurelinelibrary.xml */; };
 		B297D05A502ECB5335A7FD49 /* FactoryPresets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7E2103AB2CB666761FA5406D /* FactoryPresets.cpp */; };
 		BC8DD6E219209859D475783C /* Lfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */; };
-		BE08A8004756B969C53C500A /* Analog.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 04E1BAC7BD0F494CAD0637D5 /* Analog.aurelinelibrary.xml */; };
-		C23BE4036BB39BEC864CE07D /* LadderFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */; };
 		C2518F9C8DEAA539FEA8DC3A /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E8C2F8CFD036F218C73B1B4 /* AVFoundation.framework */; };
 		C4973036BE0A760F543C5E7C /* Oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F808B2F272FBFE863F4A761C /* Oscillator.cpp */; };
+		C553400739A65FD7A3886C46 /* RealtimeAudioRecorder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3A954DCB67166284C20D95B /* RealtimeAudioRecorder.cpp */; };
 		CEEE9E0EF9E86BC4A34BFD21 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 35209BED8D170A5CAB127375 /* Assets.xcassets */; };
 		CFC623223C4F5F6DACE6AF92 /* OpalineStyleKeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593641C931B023EADF0035B6 /* OpalineStyleKeyboardView.swift */; };
 		D3B0AC955B733F2CB61FAA5E /* MobileMIDIInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3131E8243E759E4C9A85C4 /* MobileMIDIInput.swift */; };
@@ -60,6 +63,7 @@
 		DE4CE8C4C5056376E4821B1B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 51EBDB47C56EEF4F88A176C2 /* PrivacyInfo.xcprivacy */; };
 		E1075CCBFB46ED8B69230F6A /* CoreAudioKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 904AB98A2E9529C3B155AF10 /* CoreAudioKit.framework */; };
 		E993E8A3EC3449ABD1AE219C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18D02D23AB90752D5310778B /* RootView.swift */; };
+		EBB863126D2C224056B2F6D9 /* Analog2.aurelinelibrary.xml in Resources */ = {isa = PBXBuildFile; fileRef = 7819315D0F3226EC28AC9B52 /* Analog2.aurelinelibrary.xml */; };
 		FC274BEE33E316C7C8E3AA47 /* CoreMIDI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB46AF6E3ECF70B9005BA367 /* CoreMIDI.framework */; };
 /* End PBXBuildFile section */
 
@@ -89,19 +93,20 @@
 
 /* Begin PBXFileReference section */
 		02E6709BFF37C82F433453E3 /* AurelinePresetDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelinePresetDocument.swift; sourceTree = "<group>"; };
-		04E1BAC7BD0F494CAD0637D5 /* Analog.aurelinelibrary.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Analog.aurelinelibrary.xml; sourceTree = "<group>"; };
 		0642936FD38563EF92D23D7B /* AurelineAUAudioUnit.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AurelineAUAudioUnit.mm; sourceTree = "<group>"; };
 		0945A87AF3B128D1160F90D6 /* Envelope.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Envelope.cpp; sourceTree = "<group>"; };
 		11A918F605875B934D38BD72 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		18D02D23AB90752D5310778B /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		190EC36FA38A836F832332C6 /* AurelineMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AurelineMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1B3131E8243E759E4C9A85C4 /* MobileMIDIInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileMIDIInput.swift; sourceTree = "<group>"; };
-		21C4BFC86E5787B6BE5E8343 /* LadderFilter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LadderFilter.h; sourceTree = "<group>"; };
 		2287E32BAD9133F32456412B /* NoiseGenerator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = NoiseGenerator.cpp; sourceTree = "<group>"; };
 		257F4B46C476B31CCE9EC6B1 /* PlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayView.swift; sourceTree = "<group>"; };
 		2B7E2423631AE6F78549B21D /* ParameterKnob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterKnob.swift; sourceTree = "<group>"; };
+		30A324CF77792F05A5B3B230 /* ProphetOtaFilter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ProphetOtaFilter.cpp; sourceTree = "<group>"; };
 		3519EFE48B2108C20D64AB1F /* AurelineAUAudioUnit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AurelineAUAudioUnit.h; sourceTree = "<group>"; };
 		35209BED8D170A5CAB127375 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		39A0F89FBFF039DAAE6386AC /* ProphetOtaFilter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ProphetOtaFilter.h; sourceTree = "<group>"; };
+		4CA06ADBDBD495E14FCD5FE8 /* Analog.aurelinelibrary.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Analog.aurelinelibrary.xml; sourceTree = "<group>"; };
 		4E1760F132C0E6545DF898B4 /* Lfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Lfo.h; sourceTree = "<group>"; };
 		50177BA2189548FA479B660A /* AnalogEngine.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AnalogEngine.cpp; sourceTree = "<group>"; };
 		51EBDB47C56EEF4F88A176C2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -114,6 +119,7 @@
 		6F6A21C256DA1472315CC200 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		707B19AFBE12EDC1C7EB604A /* EditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditView.swift; sourceTree = "<group>"; };
 		70F273537EEBA7AE8C878A8F /* AnalogVoice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalogVoice.h; sourceTree = "<group>"; };
+		7819315D0F3226EC28AC9B52 /* Analog2.aurelinelibrary.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Analog2.aurelinelibrary.xml; sourceTree = "<group>"; };
 		7E2103AB2CB666761FA5406D /* FactoryPresets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FactoryPresets.cpp; sourceTree = "<group>"; };
 		7F9B1FF3FFC9FAF4A75E7B25 /* MobileKeyboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileKeyboardView.swift; sourceTree = "<group>"; };
 		852AAE57AB52D5C48D1BEC8E /* AurelineMobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AurelineMobile-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -121,18 +127,19 @@
 		8EA50609B10EDC0DD61CCD92 /* Oscillator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Oscillator.h; sourceTree = "<group>"; };
 		904AB98A2E9529C3B155AF10 /* CoreAudioKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudioKit.framework; path = System/Library/Frameworks/CoreAudioKit.framework; sourceTree = SDKROOT; };
 		99017F679D740DBFB72C5394 /* AnalogPatch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AnalogPatch.cpp; sourceTree = "<group>"; };
-		9D11DA5A3D3FC822223F4205 /* 8-Bit.aurelinelibrary.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = 8-Bit.aurelinelibrary.xml; sourceTree = "<group>"; };
 		9E8E115C10883B734903D879 /* AurelineAUv3Extension-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AurelineAUv3Extension-Bridging-Header.h"; sourceTree = "<group>"; };
 		A18CF8EDB6ED382264A6D3F9 /* ParameterSmoother.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ParameterSmoother.h; sourceTree = "<group>"; };
 		A28A2CFF4A6137D106022E9A /* AurelineAUv3Extension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AurelineAUv3Extension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3A954DCB67166284C20D95B /* RealtimeAudioRecorder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RealtimeAudioRecorder.cpp; sourceTree = "<group>"; };
 		A6EC19FA4D0B52AC86F6626F /* MobileSynthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileSynthModel.swift; sourceTree = "<group>"; };
 		AFA049031BD1FD7B2D3D5E92 /* MobileAudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAudioEngine.swift; sourceTree = "<group>"; };
 		BF81DCEE85864FFDB47DE22A /* NoiseGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NoiseGenerator.h; sourceTree = "<group>"; };
 		C06CF4C4C996A49A8122ACE3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
-		C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LadderFilter.cpp; sourceTree = "<group>"; };
 		C8CC0C67C4AAFC9E134F277F /* AnalogPatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalogPatch.h; sourceTree = "<group>"; };
 		CC030FC8A5025E54DC66C3E0 /* PerformanceSequencer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PerformanceSequencer.h; sourceTree = "<group>"; };
 		CDCC82DA4992AD76C79C5059 /* AurelineLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelineLibrary.swift; sourceTree = "<group>"; };
+		D26944B648E3F9CE62EAC175 /* 8-Bit.aurelinelibrary.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "8-Bit.aurelinelibrary.xml"; sourceTree = "<group>"; };
+		D27BCA66E762E9CC91256E42 /* RealtimeAudioRecorder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RealtimeAudioRecorder.h; sourceTree = "<group>"; };
 		D864F4C0E90892E2447FF0C3 /* AnalogEngine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalogEngine.h; sourceTree = "<group>"; };
 		E1EB7483CDEAA7183EC73CF2 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		E8E610785DFB0B4ADD2BBD6E /* AurelineMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AurelineMobileApp.swift; sourceTree = "<group>"; };
@@ -142,8 +149,8 @@
 		F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Lfo.cpp; sourceTree = "<group>"; };
 		F67B447570ADA27FDBE23A98 /* AurelineMobileEngineBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AurelineMobileEngineBridge.mm; sourceTree = "<group>"; };
 		F808B2F272FBFE863F4A761C /* Oscillator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Oscillator.cpp; sourceTree = "<group>"; };
-		F85F7E847ABBD2B82D94A837 /* Retro.aurelinelibrary.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Retro.aurelinelibrary.xml; sourceTree = "<group>"; };
 		FA174D5774693351F9C44146 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		FEF63B40FC23F090A00EB344 /* Retro.aurelinelibrary.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Retro.aurelinelibrary.xml; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -183,6 +190,8 @@
 				F236C9CD3872F2B0F906711E /* FactoryPresets.h */,
 				EE387E0E704DBB903C98DBC9 /* PerformanceSequencer.cpp */,
 				CC030FC8A5025E54DC66C3E0 /* PerformanceSequencer.h */,
+				A3A954DCB67166284C20D95B /* RealtimeAudioRecorder.cpp */,
+				D27BCA66E762E9CC91256E42 /* RealtimeAudioRecorder.h */,
 			);
 			name = SharedEngine;
 			path = Engine;
@@ -239,8 +248,6 @@
 			children = (
 				0945A87AF3B128D1160F90D6 /* Envelope.cpp */,
 				53B7342BE9F79D3438867597 /* Envelope.h */,
-				C11DA1D3BF4D0B9C68F0887E /* LadderFilter.cpp */,
-				21C4BFC86E5787B6BE5E8343 /* LadderFilter.h */,
 				F4DB685A481C37C07DA3E1C3 /* Lfo.cpp */,
 				4E1760F132C0E6545DF898B4 /* Lfo.h */,
 				2287E32BAD9133F32456412B /* NoiseGenerator.cpp */,
@@ -248,6 +255,8 @@
 				F808B2F272FBFE863F4A761C /* Oscillator.cpp */,
 				8EA50609B10EDC0DD61CCD92 /* Oscillator.h */,
 				A18CF8EDB6ED382264A6D3F9 /* ParameterSmoother.h */,
+				30A324CF77792F05A5B3B230 /* ProphetOtaFilter.cpp */,
+				39A0F89FBFF039DAAE6386AC /* ProphetOtaFilter.h */,
 			);
 			name = SharedDSP;
 			path = DSP;
@@ -290,9 +299,10 @@
 		A0EB42048CBF9B67DFEDB0BF /* assets */ = {
 			isa = PBXGroup;
 			children = (
-				9D11DA5A3D3FC822223F4205 /* 8-Bit.aurelinelibrary.xml */,
-				04E1BAC7BD0F494CAD0637D5 /* Analog.aurelinelibrary.xml */,
-				F85F7E847ABBD2B82D94A837 /* Retro.aurelinelibrary.xml */,
+				D26944B648E3F9CE62EAC175 /* 8-Bit.aurelinelibrary.xml */,
+				4CA06ADBDBD495E14FCD5FE8 /* Analog.aurelinelibrary.xml */,
+				7819315D0F3226EC28AC9B52 /* Analog2.aurelinelibrary.xml */,
+				FEF63B40FC23F090A00EB344 /* Retro.aurelinelibrary.xml */,
 			);
 			path = assets;
 			sourceTree = "<group>";
@@ -434,11 +444,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				96BC86D5E1C7E3143CF88130 /* 8-Bit.aurelinelibrary.xml in Resources */,
+				83446F14832BAC08860C0D09 /* Analog.aurelinelibrary.xml in Resources */,
+				3BD70A6676B45028F8A53A85 /* Analog2.aurelinelibrary.xml in Resources */,
 				CEEE9E0EF9E86BC4A34BFD21 /* Assets.xcassets in Resources */,
-				80D29713DD3B040BC3BDD9B9 /* 8-Bit.aurelinelibrary.xml in Resources */,
 				DE4CE8C4C5056376E4821B1B /* PrivacyInfo.xcprivacy in Resources */,
-				7FA1441E01D740678C754A9F /* Retro.aurelinelibrary.xml in Resources */,
-				29149338A73F71C083788D3F /* Analog.aurelinelibrary.xml in Resources */,
+				644319D94828C2CC882E8673 /* Retro.aurelinelibrary.xml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -446,10 +457,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				23917BF1401A021E999E7D27 /* 8-Bit.aurelinelibrary.xml in Resources */,
+				6EC29A77982578898A07EF56 /* 8-Bit.aurelinelibrary.xml in Resources */,
+				60A52D5A108CCD5CFCBF2833 /* Analog.aurelinelibrary.xml in Resources */,
+				EBB863126D2C224056B2F6D9 /* Analog2.aurelinelibrary.xml in Resources */,
 				81F461D9DB1B3250CF677394 /* PrivacyInfo.xcprivacy in Resources */,
-				939B0273D4DE21E228D73216 /* Retro.aurelinelibrary.xml in Resources */,
-				BE08A8004756B969C53C500A /* Analog.aurelinelibrary.xml in Resources */,
+				B0295836898148F6937517B4 /* Retro.aurelinelibrary.xml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -468,11 +480,12 @@
 				96E297E186490E209478378A /* AurelineMobileEngineBridge.mm in Sources */,
 				43D491C09C80BFEE212CB7BE /* Envelope.cpp in Sources */,
 				B297D05A502ECB5335A7FD49 /* FactoryPresets.cpp in Sources */,
-				C23BE4036BB39BEC864CE07D /* LadderFilter.cpp in Sources */,
 				445E34A679D0BCF955DB92D6 /* Lfo.cpp in Sources */,
 				A85EDB44DCC519AE909EA403 /* NoiseGenerator.cpp in Sources */,
 				318216C614F993CE36AA81A2 /* Oscillator.cpp in Sources */,
 				3A9FA2A944FB84E6DEBFCCBB /* PerformanceSequencer.cpp in Sources */,
+				7937927CF1C1954D1D6B54C2 /* ProphetOtaFilter.cpp in Sources */,
+				C553400739A65FD7A3886C46 /* RealtimeAudioRecorder.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -491,7 +504,6 @@
 				8C09D98F0CAA7DE7C4575C78 /* EditView.swift in Sources */,
 				858658F2BCFE7C7365DA1CA6 /* Envelope.cpp in Sources */,
 				DCF3573D12BD8D5BC7F3B841 /* FactoryPresets.cpp in Sources */,
-				3BF6DC3246B6FE51004E1C66 /* LadderFilter.cpp in Sources */,
 				BC8DD6E219209859D475783C /* Lfo.cpp in Sources */,
 				686B26BC901ACA9B57C97DDC /* MobileAudioEngine.swift in Sources */,
 				A8D126AAD52B49A3A6109FFA /* MobileKeyboardView.swift in Sources */,
@@ -503,6 +515,8 @@
 				441584A9E97298CE10BFFC5E /* ParameterKnob.swift in Sources */,
 				1A6C5D869962649B709BE11A /* PerformanceSequencer.cpp in Sources */,
 				3E4B10EA9659755DC4C25CCB /* PlayView.swift in Sources */,
+				9C550AC04175F8D8D5B54FD2 /* ProphetOtaFilter.cpp in Sources */,
+				10A94C50B027D32102EDFD2B /* RealtimeAudioRecorder.cpp in Sources */,
 				E993E8A3EC3449ABD1AE219C /* RootView.swift in Sources */,
 				418A9E7F4717599D5B08D536 /* Theme.swift in Sources */,
 			);
@@ -525,7 +539,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8H7SC722UJ;
 				HEADER_SEARCH_PATHS = (
 					../../Source,
@@ -536,7 +550,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile;
 				PRODUCT_NAME = Aureline;
 				SDKROOT = iphoneos;
@@ -672,7 +686,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8H7SC722UJ;
 				HEADER_SEARCH_PATHS = (
 					../../Source,
@@ -683,7 +697,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile;
 				PRODUCT_NAME = Aureline;
 				SDKROOT = iphoneos;
@@ -699,7 +713,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8H7SC722UJ;
 				HEADER_SEARCH_PATHS = (
 					../../Source,
@@ -712,7 +726,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile.auv3;
 				PRODUCT_MODULE_NAME = AurelineAUv3Extension;
 				PRODUCT_NAME = AurelineAUv3Extension;
@@ -729,7 +743,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 8H7SC722UJ;
 				HEADER_SEARCH_PATHS = (
 					../../Source,
@@ -742,7 +756,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hidekikonishi.aureline.mobile.auv3;
 				PRODUCT_MODULE_NAME = AurelineAUv3Extension;
 				PRODUCT_NAME = AurelineAUv3Extension;

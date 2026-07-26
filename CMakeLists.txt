@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Aureline VERSION 1.0.3 LANGUAGES C CXX)
+project(Aureline VERSION 1.0.4 LANGUAGES C CXX)
 
 include(CTest)
 
@@ -17,12 +17,13 @@ endif()
 add_library(aureline_engine STATIC
     Source/DSP/Envelope.cpp
     Source/DSP/Lfo.cpp
-    Source/DSP/LadderFilter.cpp
+    Source/DSP/ProphetOtaFilter.cpp
     Source/DSP/NoiseGenerator.cpp
     Source/DSP/Oscillator.cpp
     Source/Engine/AnalogEngine.cpp
     Source/Engine/FactoryPresets.cpp
     Source/Engine/PerformanceSequencer.cpp
+    Source/Engine/RealtimeAudioRecorder.cpp
     Source/Engine/AnalogVoice.cpp
     Source/Engine/AnalogPatch.cpp
 )
@@ -54,6 +55,7 @@ if(AURELINE_BUILD_STANDALONE OR AURELINE_BUILD_PLUGINS)
             SOURCES
                 assets/aureline-wood-background.png
                 assets/Analog.aurelinelibrary.xml
+                assets/Analog2.aurelinelibrary.xml
                 assets/Retro.aurelinelibrary.xml
                 assets/8-Bit.aurelinelibrary.xml
         )

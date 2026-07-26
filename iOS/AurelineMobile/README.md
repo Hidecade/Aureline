@@ -13,10 +13,11 @@ Aureline Mobile is the iPhone and AUv3 version of Aureline. It shares the C++ sy
 - LOAD and PASTE temporarily apply a sound to the selected numbered voice
 - STORE is the only action that permanently overwrites the selected numbered voice
 - SAVE exports the current sound to an external file without modifying the selected slot
-- Four writable 32-slot banks: Analog, 8-Bit, Retro, and Init
+- Four writable 32-slot banks: Analog 1, Analog 2, Retro, and 8-Bit
 - SAVE BANK exports the selected bank as a Mac-compatible `.aurelinelibrary.xml`
 - LOAD accepts both file types and asks which bank to replace for a library
-- `Analog.aurelinelibrary.xml`, `Retro.aurelinelibrary.xml`, and
+- `Analog.aurelinelibrary.xml`, `Analog2.aurelinelibrary.xml`,
+  `Retro.aurelinelibrary.xml`, and
   `8-Bit.aurelinelibrary.xml` are bundled
   from `assets/` and installed as protected libraries in the Aureline documents
   folder

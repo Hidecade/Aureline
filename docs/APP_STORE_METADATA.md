@@ -2,7 +2,7 @@
 
 ## Version
 
-- Version: `1.0.3`
+- Version: `1.0.4`
 - Build: `4`
 - Primary category: `Music`
 - Secondary category: `Entertainment`

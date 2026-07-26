@@ -9,6 +9,43 @@ constexpr std::size_t kWaveMemorySize = 32;
 constexpr std::size_t kWaveMemoryFactoryCount = 16;
 using WaveMemoryData = std::array<std::uint8_t, kWaveMemorySize>;
 
+constexpr double limitedPolyModAmount(double amount)
+{
+    return amount < 0.0 ? 0.0 : (amount > 1.0 ? 1.0 : amount);
+}
+
+constexpr double polyModOscillatorSource(double oscillatorSample, double amount)
+{
+    return oscillatorSample * 2.0 * limitedPolyModAmount(amount);
+}
+
+constexpr double polyModFilterEnvelopeSource(double envelopeValue, double amount)
+{
+    const auto limited = limitedPolyModAmount(amount);
+    const auto shaped = limited * limited * 4.0;
+    return envelopeValue * shaped;
+}
+
+constexpr double polyModSignal(double oscillatorSample, double oscillatorAmount,
+                               double envelopeValue, double envelopeAmount)
+{
+    return polyModOscillatorSource(oscillatorSample, oscillatorAmount)
+         + polyModFilterEnvelopeSource(envelopeValue, envelopeAmount);
+}
+
+double polyModFrequencyMultiplier(double signal);
+
+constexpr double polyModOscillatorPhaseOffset(double oscillatorSample, double amount)
+{
+    const auto limited = limitedPolyModAmount(amount);
+    return oscillatorSample * 0.65 * limited * limited;
+}
+
+constexpr double polyModPulseWidthOffset(double signal)
+{
+    return -0.25 * signal;
+}
+
 enum class WaveMemoryCharacter
 {
     fiveBit,
