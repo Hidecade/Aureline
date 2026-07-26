@@ -3064,7 +3064,7 @@ void AurelineMainComponent::writeRetroGameLibraryToFile(const juce::File& file)
         "DUNGEON STEP", "TINY DRUM", "CASTLE LEAD", "POWER UP",
         "SECRET DOOR", "NIGHT STAGE", "FINAL CASTLE",
         "PSG RACER", "PSG SKYLINE", "TONE CHANNEL", "NOISE RIDER",
-        "ARCADE START", "SEGA BLUE", "RING PULSE", "GRID RUNNER",
+        "ARCADE START", "BLUE DASH", "RING PULSE", "GRID RUNNER",
         "SPACE PORT", "PSG VICTORY", "WAVE HERO", "CRYSTAL CHANNEL",
         "NEON BASS", "LASER HARBOR", "ORBIT LEAD", "LASER ZAP",
         "SHIP EXPLODE"

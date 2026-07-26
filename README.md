@@ -1,102 +1,135 @@
 # Aureline
 
+[日本語](README_ja.md)
+
 Aureline is an eight-voice analog-modeling synthesizer by Hidecade Instruments.
-It combines two band-limited VCOs per voice with a resonant four-pole low-pass
-filter, two ADSR envelopes, LFO modulation, poly modulation, and unison.
+It combines a direct, classic polysynth workflow with Aureline's own sound
+engine, interface, Wave Memory oscillators, and voice library.
 
-The project is a separate product from Opaline FM. Product-specific engines,
-patches, user interfaces, presets, and plug-in identifiers remain independent.
-Only proven, product-neutral realtime utilities may later move into a shared
-Hidecade Audio Core library.
+Current release: [v1.0.4](https://github.com/Hidecade/Aureline/releases/tag/v1.0.4)
 
-## Current status
+![Aureline desktop synthesizer interface](docs/images/aureline-desktop.png)
 
-The repository contains the first headless DSP milestone:
+## Highlights
 
-- two oscillators per voice;
-- saw, pulse, and triangle waveforms;
-- amplifier and filter ADSR envelopes;
-- resonant four-pole low-pass filter;
-- eight-voice allocation and voice stealing;
-- sustain pedal and configurable pitch bend;
-- LFO, noise, modulation wheel, and per-voice poly modulation;
-- oscillator hard sync and independent pulse-width modulation;
-- poly, mono-legato, and eight-voice unison modes with glide;
-- constant-power stereo voice spread;
-- velocity and keyboard tracking for the filter;
-- CMake-based engine tests.
+- Eight-voice polyphony with Poly, Mono Legato, and Unison modes
+- Two band-limited oscillators per voice plus noise
+- Saw, triangle, pulse, and 32-step Wave Memory waveforms
+- Hard sync, pulse-width modulation, oscillator detune, and low-frequency mode
+- Voice-local Poly Mod from Oscillator B and the filter envelope
+- Poly Mod routing to Oscillator A frequency, pulse width, and filter cutoff
+- Aureline four-stage OTA low-pass filter with resonance and self-oscillation
+- Dedicated filter and amplifier ADSR envelopes
+- Multi-wave LFO with delay, fade, retrigger, and selectable destinations
+- Stereo spread, vintage voice variation, glide, pitch bend, and mod wheel
+- Arpeggiator, chord mode, hold, tempo, direction, gate, and scale root
+- Four writable 32-voice banks: Analog 1, Analog 2, Retro, and 8-Bit
+- Cross-platform voice and bank files
+- 24-bit stereo WAV recording in the macOS and Windows standalone apps
 
-The JUCE Standalone app is built from the same plug-in processor as the VST3
-instrument and macOS Audio Unit. All formats share the same audio/MIDI path and
-1024 x 668 performance UI. All plug-in state is restored with the host project.
+## Formats
 
-Build the three macOS installer packages into `dist/` with:
+| Platform | Formats |
+|---|---|
+| macOS | Standalone, VST3, Audio Unit |
+| Windows | Standalone, VST3 |
+| iPhone | Standalone app, AUv3 Instrument |
+
+The desktop formats use the same JUCE processor, synthesis engine, MIDI path,
+state format, and performance interface. The iPhone app and AUv3 use a native
+SwiftUI interface and Apple audio integration while sharing the C++ engine and
+voice data with the desktop version.
+
+## Synthesis architecture
+
+```text
+Oscillator A ─┐
+Oscillator B ─┼─ Mixer ─ OTA 4-pole LPF ─ VCA ─ Voice Pan ─ Output
+Noise ────────┘
+
+LFO ──────── Oscillator A/B pitch, pulse width, filter cutoff
+Poly Mod ─── Oscillator B + filter envelope
+              └─ Oscillator A frequency / pulse width / filter cutoff
+```
+
+Oscillator B remains available as a Poly Mod source even when its mixer level
+is zero. This supports subtle animation, audio-rate modulation, metallic tones,
+and hard-sync sweeps without requiring Oscillator B in the final mix.
+
+## Wave Memory
+
+Oscillators A and B can mix a 32-step single-cycle Wave Memory waveform with
+their analog waveforms. Sixteen factory wave memories are included, and the
+editor can copy, paste, draw, and store user wave data as part of a voice.
+Wave Memory follows oscillator range and Oscillator B detune; it can also act
+as an audio-rate or low-frequency Poly Mod source.
+
+## Voice library
+
+Aureline provides four writable banks with 32 slots each:
+
+1. Analog 1 — brass, strings/pads, piano/keys, bass, and effects
+2. Analog 2 — leads, Poly Mod/sync, percussion, rhythm, and effects
+3. Retro — compact vintage game and arcade-inspired sounds
+4. 8-Bit — pulse, noise, wavetable, PSG, and expansion-style sounds
+
+The last four slots of every bank are sound effects. STORE overwrites the
+selected slot. SAVE exports the current voice without modifying the bank.
+SAVE BANK exports all 32 slots, and LOAD asks which bank to replace when a
+library is opened.
+
+## File formats
+
+| Data | Extension | Contents |
+|---|---|---|
+| Voice | `.aurelinevoice` | Cross-platform JSON voice including synthesis, performance, and Wave Memory data |
+| Voice bank | `.aurelinelibrary.xml` | Version 2 XML library containing 32 voices |
+| Wave Memory | `.aurelinewave` | Reserved for standalone Wave Memory exchange; import/export is not yet implemented |
+
+Bundled, distributable library sources live in [`assets/`](assets/). Runtime
+copies and user-edited banks are stored in each platform's application-support
+location.
+
+## Build
+
+JUCE 8.0.14 is used for the desktop application and plug-ins. Put JUCE in
+`external/JUCE`, set `AURELINE_JUCE_DIR`, or use the sibling OpalineFM checkout
+during local development.
+
+```sh
+cmake -S . -B build -DAURELINE_BUILD_STANDALONE=ON -DAURELINE_BUILD_PLUGINS=ON
+cmake --build build --config Release
+```
+
+Build the macOS Standalone, VST3, and Audio Unit installer packages into
+`dist/` with:
 
 ```sh
 ./scripts/build-macos-installers.sh
 ```
 
-Set `AURELINE_APPLICATION_SIGN_IDENTITY` and `AURELINE_INSTALLER_SIGN_IDENTITY`
-for distribution signing. Without them, the script creates ad-hoc signed local
-development packages.
+For distribution signing, set `AURELINE_APPLICATION_SIGN_IDENTITY` and
+`AURELINE_INSTALLER_SIGN_IDENTITY`. Without them, the script creates ad-hoc
+signed packages for local testing.
 
-## Voice and Wave file extensions
+Generate and build the iPhone/AUv3 project with:
 
-Aureline reserves the following product-specific file extensions:
+```sh
+cd iOS/AurelineMobile
+xcodegen generate
+xcodebuild \
+  -project AurelineMobile.xcodeproj \
+  -scheme AurelineMobile \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath ../../build/ios-mobile \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
 
-| Data | Extension | Contents | Status |
-|---|---|---|---|
-| Single voice | `.aurelinevoice` | Shared Mac/iPhone JSON containing one voice, including synth parameters, voice mode, and Wave Memory data | Implemented on Mac and iPhone |
-| Wave Memory | `.aurelinewave` | One 32-step Wave Memory waveform, its character, and format version | Reserved; import/export not implemented |
-| Voice bank | `.aurelinelibrary.xml` | 32 voices in a Version 2 XML library or backup | Mac and iPhone |
+Device archives require Apple signing for both the app and AUv3 extension.
 
-The naming follows OpalineFM: `.opalinevoice` and `.opalinelibrary.xml`
-correspond to Aureline's `.aurelinevoice` and `.aurelinelibrary.xml`.
-The Wave Memory format uses the same product-plus-data-type rule:
-`.aurelinewave`.
-
-Mac and iPhone both use `.aurelinevoice` for single-voice files.
-
-LOAD and PASTE temporarily apply their voice data to the currently selected
-numbered voice. They do not modify that slot's saved data. STORE is the only
-operation that overwrites the selected numbered voice; without STORE, selecting
-another voice and returning restores the previously stored override, or the
-factory voice when no override exists. SAVE exports the current sound as an
-external `.aurelinevoice` file without modifying the selected slot.
-
-On Mac and iPhone, SAVE BANK exports the 32 stored slots in the selected bank
-to one `.aurelinelibrary.xml` file. LOAD asks for a destination bank before
-replacing its 32 slots.
-
-Mac and iPhone keep four writable 32-slot banks in Application Support as
-`bank-1` through `bank-4`. They start as Analog, 8-Bit, Retro, and
-Init. Bundled library files can be loaded into any bank to restore its contents.
-
-The Mac version keeps `Analog.aurelinelibrary.xml` in the Aureline documents
-folder as the factory-reset library. Loading it restores all 32 slots after
-confirmation. SAVE BANK refuses to overwrite this reserved file name.
-
-`Retro.aurelinelibrary.xml` is also provided in the same folder. It contains
-32 selected retro-game voices covering early 8-bit pulse/triangle sounds,
-square-wave PSG tones, multi-channel 5-bit wavetable colours, compact 1980s
-arcade-style wave-memory voices, and noise effects. Its built-in file name is
-also protected from SAVE BANK.
-
-`8-Bit.aurelinelibrary.xml` is installed alongside the built-in
-libraries. It contains 32 selected classic digital-synth voices grouped by
-generic synthesis families such as pulse, noise, wavetable, PSG, and expansion
-chip sounds. Its public names do not refer to console, game, or manufacturer
-brands, and its built-in file name is protected from SAVE BANK.
-
-Distributable and editable voice-library source files belong in
-[`assets/`](assets/), matching OpalineFM. Mac embeds them as binary resources,
-and iPhone/AUv3 includes them in the app bundle. Runtime user libraries remain
-in the platform Application Support directory.
-
-Raw `.xml` and `.json` files may be accepted for debugging or compatibility
-imports, but they are not the standard user-facing extensions.
-
-## Build the engine tests
+## Tests
 
 ```sh
 cmake -S . -B build -DBUILD_TESTING=ON
@@ -104,14 +137,6 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-On macOS, launch the standalone build with:
-
-```sh
-open build/Aureline_Plugin_artefacts/Standalone/Aureline.app
-```
-
-During local development, CMake can reuse JUCE from the sibling OpalineFM
-checkout. For independent builds, set `AURELINE_JUCE_DIR` or place JUCE at
-`external/JUCE`.
-
-See [docs/Aureline_Spec_ja.md](docs/Aureline_Spec_ja.md) for the product scope.
+See [the Japanese product specification](docs/Aureline_Spec_ja.md) and
+[the iOS specification](docs/Aureline_iOS_Spec_ja.md) for further technical
+detail.

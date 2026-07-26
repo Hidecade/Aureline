@@ -1,68 +1,132 @@
 # Aureline
 
-Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナログモデリングシンセサイザーです。
+[English](README.md)
 
-Opaline FMとは別製品として開発し、音源、パッチ、UI、プリセット、プラグインIDを分離します。共通ライブラリには、両製品で実装と要件が一致した汎用リアルタイム部品だけを将来抽出します。
+Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナログモデリング
+シンセサイザーです。クラシックなポリシンセの直接的な操作感に、Aureline独自の
+音源エンジン、UI、Wave Memoryオシレーター、音色ライブラリを組み合わせています。
 
-## 現在の実装
+最新リリース：[v1.0.4](https://github.com/Hidecade/Aureline/releases/tag/v1.0.4)
 
-- 1ボイスあたり2基のVCO
-- Saw、Pulse、Triangle波形
-- Filter ADSRおよびAmp ADSR
-- レゾナンス付き4-poleローパスフィルター
-- 8音のボイス割り当てとボイススティール
-- サステインペダルとレンジ設定可能なピッチベンド
-- LFO、ノイズ、モジュレーションホイール、ボイス単位のPoly Mod
-- オシレーターHard SyncとVCO A/B個別のPWM
-- Poly、Mono Legato、8ボイスUnisonとGlide
-- Constant-power方式のステレオVoice Spread
-- Filter VelocityとKeyboard Tracking
-- CMakeによるヘッドレス・エンジンテスト
+![Aurelineデスクトップ版シンセサイザー画面](docs/images/aureline-desktop.png)
 
-JUCE StandaloneはOpaline FMと同様に、VST3／Audio Unitと同じプラグインプロセッサから生成します。全形式で音源処理とMIDI経路、1024×668のUIを共通化しています。
+## 主な機能
 
-VST3およびmacOS Audio Unitも同じ音源・UIを使用するプラグインとしてビルドできます。成果物は `build/Aureline_Plugin_artefacts/VST3/Aureline.vst3` と `build/Aureline_Plugin_artefacts/AU/Aureline.component` に生成されます。
+- 最大8音、Poly／Mono Legato／Unisonモード
+- 1ボイスあたり2基の帯域制限オシレーターとNoise
+- Saw、Triangle、Pulse、32ステップWave Memory波形
+- Hard Sync、PWM、Oscillator B Detune、Low Frequencyモード
+- Oscillator BとFilter Envelopeを音源とするボイス単位のPoly Mod
+- Poly ModをOscillator A Frequency、Pulse Width、Filter Cutoffへ選択的に接続
+- レゾナンスと自己発振に対応するAureline独自の4段OTAローパスフィルター
+- Filter／Amplifier独立ADSR
+- 複数波形、Delay、Fade、Retrigger、接続先選択を備えたLFO
+- Stereo Spread、Vintage Voice Variation、Glide、Pitch Bend、Mod Wheel
+- Arpeggiator、Chord、Hold、Tempo、Direction、Gate、Scale Root
+- 32音色×4つの書換可能バンク：Analog 1、Analog 2、Retro、8-Bit
+- Mac／Windows／iPhone間で交換できる音色・バンクファイル
+- macOS／Windows Standalone版の24-bit Stereo WAV録音
 
-macOS用のStandalone、VST3、Audio Unitインストーラーは次のコマンドで`dist/`へ生成できます。
+## 対応形式
+
+| プラットフォーム | 形式 |
+|---|---|
+| macOS | Standalone、VST3、Audio Unit |
+| Windows | Standalone、VST3 |
+| iPhone | Standalone App、AUv3 Instrument |
+
+デスクトップ版の各形式は、JUCEプラグインプロセッサ、音源エンジン、MIDI経路、
+状態形式、演奏画面を共用します。iPhone AppとAUv3はSwiftUIのモバイル専用UIと
+AppleのAudio機能を使用し、C++音源エンジンと音色データをデスクトップ版と
+共有します。
+
+## 音源構成
+
+```text
+Oscillator A ─┐
+Oscillator B ─┼─ Mixer ─ OTA 4-pole LPF ─ VCA ─ Voice Pan ─ Output
+Noise ────────┘
+
+LFO ──────── Oscillator A/B Pitch、Pulse Width、Filter Cutoff
+Poly Mod ─── Oscillator B + Filter Envelope
+              └─ Oscillator A Frequency / Pulse Width / Filter Cutoff
+```
+
+Oscillator BはMixer Levelが0でもPoly Mod音源として動作します。そのため、
+最終MIXへOscillator Bを出さずに、繊細な動き、オーディオレート変調、
+金属的な音、Hard Sync Sweepを作れます。
+
+## Wave Memory
+
+Oscillator A／Bは、32ステップの単周期Wave Memoryをアナログ波形と同時に
+使用できます。16種類の内蔵Wave Memoryを収録し、エディターではUSER波形の
+描画、Copy、Paste、音色への保存が可能です。Wave MemoryにはOscillator Rangeと
+Oscillator B Detuneが反映され、オーディオレートまたは低周波のPoly Mod音源
+としても使用できます。
+
+## 音色ライブラリ
+
+Aurelineは、各32スロットの書換可能な4バンクを搭載します。
+
+1. Analog 1 — Brass、Strings/Pad、Piano/Keys、Bass、SE
+2. Analog 2 — Lead、Poly Mod/Sync、Percussion、Rhythm、SE
+3. Retro — コンパクトなビンテージゲーム／アーケード風サウンド
+4. 8-Bit — Pulse、Noise、Wavetable、PSG、拡張音源風サウンド
+
+各バンクの最後4スロットは効果音です。STOREは現在選択中のスロットを
+上書きします。SAVEはバンクを変更せず、現在の音色を外部ファイルへ保存します。
+SAVE BANKは32スロットすべてを書き出し、ライブラリをLOADすると置換先バンクを
+選択できます。
+
+## ファイル形式
+
+| データ | 拡張子 | 内容 |
+|---|---|---|
+| 単一音色 | `.aurelinevoice` | 音源、Performance、Wave Memoryを含む共通JSON音色 |
+| 音色バンク | `.aurelinelibrary.xml` | 32音色を収録するVersion 2 XMLライブラリ |
+| Wave Memory | `.aurelinewave` | Wave Memory単体交換用として予約。入出力は未実装 |
+
+配布・編集用ライブラリのソースは[`assets/`](assets/)に置きます。実行時の
+ライブラリとユーザーが編集したバンクは、各プラットフォームのApplication
+Support領域へ保存します。
+
+## ビルド
+
+デスクトップAppとプラグインにはJUCE 8.0.14を使用します。JUCEを
+`external/JUCE`へ配置するか、`AURELINE_JUCE_DIR`を指定します。ローカル開発では
+兄弟フォルダのOpalineFMにあるJUCEも使用できます。
+
+```sh
+cmake -S . -B build -DAURELINE_BUILD_STANDALONE=ON -DAURELINE_BUILD_PLUGINS=ON
+cmake --build build --config Release
+```
+
+macOS用Standalone、VST3、Audio Unitのインストーラーは`dist/`へ生成します。
 
 ```sh
 ./scripts/build-macos-installers.sh
 ```
 
-配布用署名を行う場合は`AURELINE_APPLICATION_SIGN_IDENTITY`と`AURELINE_INSTALLER_SIGN_IDENTITY`を指定します。未指定時はローカル検証用のad-hoc署名パッケージを生成します。
+配布用署名には`AURELINE_APPLICATION_SIGN_IDENTITY`と
+`AURELINE_INSTALLER_SIGN_IDENTITY`を設定します。未指定時はローカル確認用の
+ad-hoc署名パッケージを生成します。
 
-## 音色・WAVEデータの拡張子
+iPhone／AUv3プロジェクトの生成とSimulatorビルド：
 
-Aureline固有データには次の拡張子を使用します。
+```sh
+cd iOS/AurelineMobile
+xcodegen generate
+xcodebuild \
+  -project AurelineMobile.xcodeproj \
+  -scheme AurelineMobile \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath ../../build/ios-mobile \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
 
-| データ | 拡張子 | 内容 | 実装状況 |
-|---|---|---|---|
-| 単一音色データ | `.aurelinevoice` | Mac／iPhone共通JSON。1音色分のシンセパラメータ、Voice Mode、Wave Memoryなど | Mac／iPhoneで実装済み |
-| WAVEデータ | `.aurelinewave` | Wave Memory AまたはBの32ステップ波形、Character、フォーマットバージョン | 形式予約。入出力は未実装 |
-| バンクデータ | `.aurelinelibrary.xml` | 32音色をまとめたXMLライブラリ／バックアップ（形式Version 2） | Mac／iPhone版で実装済み |
-
-命名規則はOpalineFMと共通です。OpalineFMの`.opalinevoice`／`.opalinelibrary.xml`に対応して、Aurelineでは`.aurelinevoice`／`.aurelinelibrary.xml`を使用します。WAVE Memory単体は同じ「製品名＋データ種別」の規則で`.aurelinewave`とします。
-
-Mac／iPhoneとも単一音色には`.aurelinevoice`を使用します。
-
-LOADとPASTEは、読み込んだ音色データを現在選択中の番号へ一時的に反映します。この時点では、その番号の保存データは変更されません。選択中の番号を上書き保存する操作はSTOREだけです。STOREせずに別の音色へ移動してから戻ると、以前STOREした音色、または一度もSTOREしていない場合は工場出荷時の音色へ戻ります。SAVEは選択番号を変更せず、現在の音を外部の`.aurelinevoice`ファイルへ書き出します。
-
-`.xml`および`.json`はデバッグまたは互換インポートに使用できますが、ユーザー向けの標準拡張子には使用しません。
-
-Mac／iPhone版のSAVE BANKは、現在のバンクにある32スロットを1つの`.aurelinelibrary.xml`へ保存します。LOADでライブラリを開くと書込先バンクを選択し、そのバンクの32音色を置き換えます。
-
-Mac／iPhoneとも、32スロット×4バンク（ANALOG、8-BIT、RETRO、INIT）をApplication Support内の`bank-1`〜`bank-4`として保存します。全バンクを書換可能で、元へ戻す場合は付属ライブラリを任意のバンクへLOADします。旧50音色のVersion 1ライブラリは新仕様では読み込みません。
-
-Mac版はAurelineの書類フォルダに出荷状態復元用の`Analog.aurelinelibrary.xml`を用意します。このファイルをLOADして確認すると、選択したバンクを出荷状態へ戻せます。SAVE BANKでは、この予約ファイル名への上書きを拒否します。
-
-同じフォルダに`Retro.aurelinelibrary.xml`も用意します。初期8-bit機風のパルス／三角波、矩形波PSG、波形メモリ、ノイズ効果音から厳選したオリジナル32音色を収録します。この内蔵ファイル名もSAVE BANKでは上書きできません。
-
-同じ場所へ`8-Bit.aurelinelibrary.xml`もインストールします。パルス、ノイズ、ウェーブテーブル、PSG、拡張チップ風の方式別に厳選した、公開用のオリジナル32音色です。ゲーム機、ゲーム作品、メーカーの固有名称は使用していません。この内蔵ファイル名もSAVE BANKでは上書きできません。
-
-配布・編集する音色ライブラリのソースファイルは、OpalineFMと同じく
-[`assets/`](assets/)に置きます。MacではBinaryData、iPhone/AUv3ではアプリの
-Bundle Resourcesへ組み込みます。実行時に使用するユーザーのライブラリは、
-従来どおり各OSのApplication Supportフォルダへ保存します。
+実機ArchiveではApp本体とAUv3 Extensionの両方にApple署名が必要です。
 
 ## テスト
 
@@ -72,12 +136,6 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-macOSでは次のコマンドで起動できます。
-
-```sh
-open build/Aureline_Plugin_artefacts/Standalone/Aureline.app
-```
-
-ローカル開発時は兄弟フォルダのOpalineFMにあるJUCEを再利用できます。独立環境では`AURELINE_JUCE_DIR`を指定するか、`external/JUCE`へJUCEを配置します。
-
-製品仕様は [docs/Aureline_Spec_ja.md](docs/Aureline_Spec_ja.md) を参照してください。
+技術詳細は[製品仕様](docs/Aureline_Spec_ja.md)、
+[iOS仕様](docs/Aureline_iOS_Spec_ja.md)、
+[Wave Memory仕様](docs/Aureline_Wave_Memory_Oscillator_Spec_ja.md)を参照してください。
