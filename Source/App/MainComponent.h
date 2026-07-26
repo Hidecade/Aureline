@@ -126,6 +126,7 @@ private:
         std::atomic<float> release { 0.4f };
         std::atomic<float> lfoRate { 5.0f };
         std::atomic<float> lfoAmount { 0.0f };
+        std::atomic<float> modRange { 0.35f };
         std::atomic<float> lfoDelay { 0.0f };
         std::atomic<float> lfoFade { 0.0f };
         std::atomic<bool> lfoRetrigger { false };
@@ -179,13 +180,16 @@ private:
     void applyParameters();
     void resetToInitialVoice();
     void loadVoiceFromFile(const juce::File&);
+    void promptAndSaveVoice();
     void saveVoiceToFile(const juce::File&);
     void saveVoiceLibraryToFile(const juce::File&);
     void writeVoiceLibraryToFile(const juce::File&, bool factoryOnly,
                                  bool showStatus);
     void writeRetroGameLibraryToFile(const juce::File&);
     void confirmAndLoadVoiceLibrary(const juce::File&);
-    void loadVoiceLibraryFromFile(const juce::File&);
+    void loadVoiceLibraryFromFile(const juce::File&, int bank);
+    void refreshVoiceBankNames();
+    void initialiseVoiceBanks();
     void storeCurrentVoice();
     void loadFactoryVoice(std::size_t index, bool useStoredOverride = true);
     void renderAudioBlock(const juce::AudioSourceChannelInfo& info,
@@ -235,11 +239,12 @@ private:
     juce::TextButton pasteVoiceButton { "PASTE" };
     juce::TextButton initVoiceButton { "INIT" };
     juce::TextButton storeVoiceButton { "STORE" };
-    juce::TextButton saveLibraryButton { "SAVE ALL LIBRARY" };
+    juce::TextButton saveLibraryButton { "SAVE BANK" };
     juce::ValueTree copiedVoiceState;
     juce::String copiedVoiceName;
     juce::String currentVoiceName { "INIT ANALOG" };
     int selectedFactoryVoiceIndex = -1;
+    int selectedVoiceBank = 0;
     bool suppressLastVoicePersistence = false;
     std::unique_ptr<juce::FileChooser> voiceFileChooser;
     juce::ComboBox voiceModeBox;
@@ -311,6 +316,8 @@ private:
     juce::Label lfoDelayLabel;
     juce::Slider lfoFadeKnob;
     juce::Label lfoFadeLabel;
+    juce::Slider modRangeKnob;
+    juce::Label modRangeLabel;
     std::array<juce::Slider, 5> performanceKnobs;
     std::array<juce::Label, 5> performanceLabels;
     std::array<juce::Slider, 3> arpKnobs;

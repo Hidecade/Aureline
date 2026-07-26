@@ -22,6 +22,7 @@ public:
     void retarget(int midiNote, double glideSeconds);
     void release();
     void reset();
+    void synchronizeParameters(const AnalogPatch& patch);
     double render(const AnalogPatch& patch, double pitchBendSemitones,
                   double lfoValue, double modWheel);
     bool isActive() const { return amplifierEnvelope.isActive(); }

@@ -13,7 +13,8 @@ struct PlayView: View {
     @State private var pendingLibraryURL: URL?
     @State private var confirmingLibraryLoad = false
     @State private var exportIsLibrary = false
-    @State private var showingAbout = false
+    @State private var showingSaveName = false
+    @State private var saveVoiceName = ""
     private let visibleWhiteKeys = 15
 
     var body: some View {
@@ -37,7 +38,9 @@ struct PlayView: View {
                 if showingVoicePicker {
                     AurelineVoicePicker(
                         factoryNames: synth.factoryPresetNames,
+                        selectedBank: synth.selectedBank,
                         selectedName: synth.selectedFactoryDisplayName,
+                        onBankSelect: synth.selectBank,
                         onFactorySelect: { index in changeVoice(index); showingVoicePicker = false },
                         onClose: { showingVoicePicker = false }
                     )
@@ -46,16 +49,22 @@ struct PlayView: View {
             .alert("VOICE", isPresented: Binding(get: { voiceError != nil }, set: { if !$0 { voiceError = nil } })) {
                 Button("OK") { voiceError = nil }
             } message: { Text(voiceError ?? "") }
-            .alert("Replace all 50 voices?", isPresented: $confirmingLibraryLoad) {
+            .alert("SAVE VOICE", isPresented: $showingSaveName) {
+                TextField("Voice name", text: $saveVoiceName)
+                Button("CANCEL", role: .cancel) {}
+                Button("SAVE") { prepareVoiceExport(named: saveVoiceName) }
+            } message: {
+                Text("Enter a voice name (up to 16 characters).")
+            }
+            .alert("LOAD LIBRARY TO BANK", isPresented: $confirmingLibraryLoad) {
                 Button("CANCEL", role: .cancel) { pendingLibraryURL = nil }
-                Button("REPLACE ALL", role: .destructive) {
-                    guard let url = pendingLibraryURL else { return }
-                    do { try synth.importLibrary(from: url); resetKeyboard() }
-                    catch { voiceError = error.localizedDescription }
-                    pendingLibraryURL = nil
+                ForEach(0..<4) { bank in
+                    Button("BANK \(bank + 1)  \(MobileSynthModel.bankNames[bank])") {
+                        loadPendingLibrary(into: bank)
+                    }
                 }
             } message: {
-                Text("Loading this library will overwrite every numbered voice. This cannot be undone.")
+                Text("Choose the bank whose 32 voices will be replaced.")
             }
             .sheet(isPresented: $importingVoice) {
                 AurelineDocumentPicker(
@@ -84,13 +93,10 @@ struct PlayView: View {
                         exportingVoice = false
                         if savedURL != nil {
                             synth.status = exportIsLibrary
-                                ? "All 50 voices saved" : "Voice saved"
+                                ? "Current bank saved" : "Voice saved"
                         }
                     }
                 }
-            }
-            .sheet(isPresented: $showingAbout) {
-                AboutView()
             }
     }
 
@@ -115,16 +121,18 @@ struct PlayView: View {
             let lcdWidth = min(CGFloat(252), max(218, contentWidth * 0.62))
             let waveformWidth = max(0, contentWidth - lcdWidth - 6)
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 4) {
+                HStack(spacing: 10) {
                     HStack(spacing: 2) {
                         playModeButton("PLAY", active: true) {}
                         playModeButton("EDIT", active: false) { synth.screen = .edit }
-                        playModeButton("ABOUT", active: false) { showingAbout = true }
                     }
-                    .frame(width: 160)
+                    .frame(width: 98)
                     HStack(spacing: 4) {
                         playVoiceButton("LOAD") { importingVoice = true }
-                        playVoiceButton("SAVE") { prepareVoiceExport() }
+                        playVoiceButton("SAVE") {
+                            saveVoiceName = String(synth.selectedPreset.prefix(16))
+                            showingSaveName = true
+                        }
                         playVoiceButton("COPY") { synth.copyCurrentVoice() }
                         playVoiceButton("PASTE", disabled: !synth.canPasteVoice) { synth.pasteCopiedVoice() }
                         playVoiceButton("INIT") { synth.initializePatch() }
@@ -132,12 +140,14 @@ struct PlayView: View {
                             do { try synth.storeCurrentVoice() }
                             catch { voiceError = error.localizedDescription }
                         }
-                        playVoiceButton("SAVE ALL") { prepareLibraryExport() }
+                        playVoiceButton("SAVE BANK") { prepareLibraryExport() }
                     }
-                    .padding(.leading, 6)
+                    .frame(maxWidth: .infinity)
+                    .padding(.leading, 42)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 28)
+                .offset(y: -2)
 
                 HStack(alignment: .center, spacing: 10) {
                     wheelPanel.frame(width: 140)
@@ -159,10 +169,13 @@ struct PlayView: View {
                         }
 
                         AurelineWaveform(
+                            layout: .play,
+                            samplesCombined: synth.synthesizedWaveformSamples,
                             samplesA: synth.synthesizedOscillatorWaveformSamples(
                                 oscillatorA: true),
                             samplesB: synth.synthesizedOscillatorWaveformSamples(
                                 oscillatorA: false),
+                            cyclesCombined: synth.displayedWaveformCycles,
                             cyclesA: synth.displayedWaveformCycles(oscillatorA: true),
                             cyclesB: synth.displayedWaveformCycles(oscillatorA: false))
                             .frame(width: waveformWidth, height: 95)
@@ -176,8 +189,12 @@ struct PlayView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func prepareVoiceExport() {
+    private func prepareVoiceExport(named name: String) {
         do {
+            let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedName.isEmpty {
+                synth.selectedPreset = String(trimmedName.prefix(16))
+            }
             exportIsLibrary = false
             exportFileURL = try synth.preparePresetExport()
             exportingVoice = true
@@ -194,6 +211,17 @@ struct PlayView: View {
         } catch {
             voiceError = error.localizedDescription
         }
+    }
+
+    private func loadPendingLibrary(into bank: Int) {
+        guard let url = pendingLibraryURL else { return }
+        do {
+            try synth.importLibrary(from: url, intoBank: bank)
+            resetKeyboard()
+        } catch {
+            voiceError = error.localizedDescription
+        }
+        pendingLibraryURL = nil
     }
 
     private var performanceSwitchRow: some View {
@@ -254,13 +282,15 @@ struct PlayView: View {
         }
     }
     private func playModeButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).font(.system(size: 11, weight: .bold)).frame(maxWidth: .infinity, maxHeight: .infinity).background(active ? AurelineTheme.amber : AurelineTheme.panelLight).foregroundStyle(active ? .black : AurelineTheme.text).clipShape(RoundedRectangle(cornerRadius: 3)) }.buttonStyle(.plain)
+        Button(action: action) { Text(title).font(.system(size: 11, weight: .bold)).frame(maxWidth: .infinity, maxHeight: .infinity).background(active ? AurelineTheme.amber : AurelineTheme.panelLight).foregroundStyle(active ? .black : AurelineTheme.text).clipShape(RoundedRectangle(cornerRadius: 3)) }
+            .buttonStyle(.plain)
+            .frame(width: 48, height: 24)
     }
     private func playVoiceButton(_ title: String, store: Bool = false, disabled: Bool = false,
                                  action: @escaping () -> Void) -> some View {
         Button(title, action: action)
             .buttonStyle(AurelinePlayVoiceButtonStyle(store: store))
-            .frame(width: 48, height: 24)
+            .frame(maxWidth: .infinity, minHeight: 24, maxHeight: 24)
             .disabled(disabled)
             .opacity(disabled ? 0.35 : 1)
     }
@@ -405,17 +435,22 @@ struct AurelineDropdown: View {
 
 private struct AurelineVoicePicker: View {
     let factoryNames: [String]
+    let selectedBank: Int
     let selectedName: String?
+    let onBankSelect: (Int) -> Void
     let onFactorySelect: (Int) -> Void
     let onClose: () -> Void
 
     var body: some View {
         AurelineSelectionPicker(
-            title: "SELECT VOICE",
-            sections: [AurelinePickerSection(title: "FACTORY", options: factoryNames)],
+            title: "SELECT VOICE · \(MobileSynthModel.bankNames[selectedBank])",
+            sections: [AurelinePickerSection(title: nil, options: factoryNames)],
             selected: selectedName,
             onSelect: { _, index in onFactorySelect(index) },
-            onClose: onClose
+            onClose: onClose,
+            bankNames: MobileSynthModel.bankNames,
+            selectedBank: selectedBank,
+            onBankSelect: onBankSelect
         )
     }
 }
@@ -431,6 +466,9 @@ struct AurelineSelectionPicker: View {
     let selected: String?
     let onSelect: (Int, Int) -> Void
     let onClose: () -> Void
+    var bankNames: [String] = []
+    var selectedBank = 0
+    var onBankSelect: ((Int) -> Void)?
 
     var body: some View {
         ZStack {
@@ -441,6 +479,16 @@ struct AurelineSelectionPicker: View {
                     Spacer()
                     Button("CLOSE", action: onClose).buttonStyle(.plain)
                 }.foregroundStyle(AurelineTheme.text).padding(.horizontal, 10).frame(height: 28)
+                if !bankNames.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(bankNames.indices, id: \.self) { index in
+                            Button("B\(index + 1)") { onBankSelect?(index) }
+                                .buttonStyle(AurelineBankTabStyle(active: index == selectedBank))
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .frame(height: 25)
+                }
                 ScrollViewReader { proxy in
                     List {
                         ForEach(Array(sections.enumerated()), id: \.offset) { sectionIndex, section in
@@ -491,6 +539,20 @@ struct AurelineSelectionPicker: View {
         .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+    }
+}
+
+private struct AurelineBankTabStyle: ButtonStyle {
+    let active: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .bold, design: .monospaced))
+            .foregroundStyle(active ? Color.black : AurelineTheme.text)
+            .frame(maxWidth: .infinity, minHeight: 28)
+            .background(active ? AurelineTheme.amber : AurelineTheme.panelLight)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
 
@@ -818,17 +880,54 @@ private struct AurelineLCD: View {
 }
 
 struct AurelineWaveform: View {
+    enum Layout {
+        case play
+        case edit
+    }
+    let layout: Layout
+    let samplesCombined: [Float]
     let samplesA: [Float]
     let samplesB: [Float]
+    let cyclesCombined: Double
     let cyclesA: Double
     let cyclesB: Double
     var body: some View {
-        VStack(spacing: 4) {
-            AurelineOscillatorWaveformPanel(
-                title: "OSC A", samples: samplesA, cycles: cyclesA)
-            AurelineOscillatorWaveformPanel(
-                title: "OSC B", samples: samplesB, cycles: cyclesB)
+        Group {
+            if layout == .play {
+                VStack(spacing: 4) {
+                    combinedPanel
+                    HStack(spacing: 4) {
+                        oscillatorAPanel
+                        oscillatorBPanel
+                    }
+                }
+            } else {
+                HStack(spacing: 4) {
+                    VStack(spacing: 4) {
+                        oscillatorAPanel
+                        oscillatorBPanel
+                    }
+                    combinedPanel
+                }
+            }
         }
+    }
+
+    private var combinedPanel: some View {
+        AurelineOscillatorWaveformPanel(
+            title: "OSC A + OSC B + NOISE",
+            samples: samplesCombined,
+            cycles: cyclesCombined)
+    }
+
+    private var oscillatorAPanel: some View {
+        AurelineOscillatorWaveformPanel(
+            title: "OSC A", samples: samplesA, cycles: cyclesA)
+    }
+
+    private var oscillatorBPanel: some View {
+        AurelineOscillatorWaveformPanel(
+            title: "OSC B", samples: samplesB, cycles: cyclesB)
     }
 }
 
@@ -888,13 +987,24 @@ private struct AurelineOscillatorWaveformPanel: View {
             context.stroke(waveformPath(centreStart...centreEnd),
                            with: .color(Color(hexValue: 0xff9a42)),
                            style: StrokeStyle(lineWidth: 1.3))
-            let heading = context.resolve(Text(title)
-                .font(.system(size: 7, weight: .bold))
-                .foregroundColor(Color(hexValue: 0xc7c9c8)))
-            context.draw(heading, at: CGPoint(x: 7, y: 7), anchor: .leading)
         }
         .background(LinearGradient(colors: [Color(hexValue: 0x101719), Color(hexValue: 0x030708)], startPoint: .top, endPoint: .bottom))
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hexValue: 0x51443c), lineWidth: 1.2))
+        .overlay(alignment: .topLeading) {
+            ZStack(alignment: .topLeading) {
+                Color(hexValue: 0x101719)
+                    .frame(height: 3)
+                    .offset(y: -1.5)
+                Text(title)
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundColor(Color(hexValue: 0xc7c9c8))
+                    .padding(.horizontal, 4)
+                    .frame(height: 10)
+                    .offset(y: -5)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .offset(x: 7)
+        }
     }
 }

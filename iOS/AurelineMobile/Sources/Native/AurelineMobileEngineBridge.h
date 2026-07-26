@@ -23,6 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)renderLeft:(float*)left right:(float*)right frames:(int)frames;
 - (void)renderToAudioBufferList:(AudioBufferList*)audioBufferList frames:(int)frames;
 - (NSData*)scopeSnapshotData NS_SWIFT_NAME(scopeSnapshotData());
+- (double)currentLFOValue NS_SWIFT_NAME(currentLFOValue());
 
 @end
 

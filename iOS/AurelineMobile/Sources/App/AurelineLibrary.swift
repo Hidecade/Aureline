@@ -8,6 +8,8 @@ struct AurelineLibraryVoice {
 
 enum AurelineLibraryCodec {
     static let format = "com.hidecade.aureline.library"
+    static let version = 2
+    static let voiceCount = 32
 
     private static let stateToVoice: [String: String] = [
         "oscillatorALevel": "oscALevel", "oscillatorBLevel": "oscBLevel",
@@ -35,7 +37,8 @@ enum AurelineLibraryCodec {
         let delegate = LibraryParserDelegate()
         let parser = XMLParser(data: data)
         parser.delegate = delegate
-        guard parser.parse(), delegate.validRoot, delegate.voices.count == 50 else {
+        guard parser.parse(), delegate.validRoot,
+              delegate.voices.count == voiceCount else {
             throw CocoaError(.fileReadCorruptFile)
         }
         let sorted = delegate.voices.sorted { $0.slot < $1.slot }
@@ -46,11 +49,11 @@ enum AurelineLibraryCodec {
     }
 
     static func encode(_ voices: [AurelineLibraryVoice]) throws -> Data {
-        guard voices.count == 50 else { throw CocoaError(.fileWriteUnknown) }
+        guard voices.count == voiceCount else { throw CocoaError(.fileWriteUnknown) }
         var xml = """
         <?xml version="1.0" encoding="UTF-8"?>
 
-        <AurelineLibrary format="\(format)" version="1" voiceCount="50">
+        <AurelineLibrary format="\(format)" version="\(version)" voiceCount="\(voiceCount)">
 
         """
         for voice in voices.sorted(by: { $0.slot < $1.slot }) {
@@ -89,8 +92,10 @@ enum AurelineLibraryCodec {
                     attributes attributeDict: [String: String] = [:]) {
             if elementName == "AurelineLibrary" {
                 validRoot = attributeDict["format"] == format
-                    && attributeDict["version"] == "1"
-                    && attributeDict["voiceCount"] == "50"
+                    && attributeDict["version"]
+                        == String(AurelineLibraryCodec.version)
+                    && attributeDict["voiceCount"]
+                        == String(AurelineLibraryCodec.voiceCount)
                 return
             }
             guard validRoot, elementName == "AurelineState",

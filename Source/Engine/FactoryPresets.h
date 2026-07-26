@@ -14,7 +14,7 @@ struct FactoryPreset
     AnalogPatch patch;
 };
 
-constexpr std::size_t kFactoryPresetCount = 50;
+constexpr std::size_t kFactoryPresetCount = 32;
 
 const std::array<FactoryPreset, kFactoryPresetCount>& factoryPresets();
 const FactoryPreset& factoryPreset(std::size_t index);

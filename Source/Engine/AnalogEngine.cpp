@@ -182,7 +182,12 @@ void AnalogEngine::setModWheel(double normalized)
 void AnalogEngine::panic()
 {
     for (auto& voice : voices)
+    {
         voice.reset();
+        voice.synchronizeParameters(patch);
+    }
+    masterGainSmoother.reset(patch.masterGain);
+    lfo.reset();
     keyDownNotes.fill(false);
     sustainedNotes.fill(false);
     notePriority.fill(0);

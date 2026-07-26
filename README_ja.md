@@ -39,7 +39,7 @@ Aureline固有データには次の拡張子を使用します。
 |---|---|---|---|
 | 単一音色データ | `.aurelinevoice` | Mac／iPhone共通JSON。1音色分のシンセパラメータ、Voice Mode、Wave Memoryなど | Mac／iPhoneで実装済み |
 | WAVEデータ | `.aurelinewave` | Wave Memory AまたはBの32ステップ波形、Character、フォーマットバージョン | 形式予約。入出力は未実装 |
-| 全音色データ | `.aurelinelibrary.xml` | 番号付き50音色をまとめたXMLライブラリ／バックアップ | Mac版で実装済み |
+| バンクデータ | `.aurelinelibrary.xml` | 32音色をまとめたXMLライブラリ／バックアップ（形式Version 2） | Mac／iPhone版で実装済み |
 
 命名規則はOpalineFMと共通です。OpalineFMの`.opalinevoice`／`.opalinelibrary.xml`に対応して、Aurelineでは`.aurelinevoice`／`.aurelinelibrary.xml`を使用します。WAVE Memory単体は同じ「製品名＋データ種別」の規則で`.aurelinewave`とします。
 
@@ -49,13 +49,20 @@ LOADとPASTEは、読み込んだ音色データを現在選択中の番号へ�
 
 `.xml`および`.json`はデバッグまたは互換インポートに使用できますが、ユーザー向けの標準拡張子には使用しません。
 
-Mac版のSAVE ALL LIBRARYは、50個すべての番号について最後にSTOREされた内容を1つの`.aurelinelibrary.xml`へ保存します。LOADでこのファイルを開くと確認メッセージを表示し、承認後に50音色すべてを置き換えます。
+Mac／iPhone版のSAVE BANKは、現在のバンクにある32スロットを1つの`.aurelinelibrary.xml`へ保存します。LOADでライブラリを開くと書込先バンクを選択し、そのバンクの32音色を置き換えます。
 
-Mac／iPhoneとも、使用中の50スロットはApplication Support内の1つの`active-library.aurelinelibrary.xml`として内部保存します。ライブラリLOADは内容の検証後にこのファイルをアトミック置換します。旧`slot-XX.aurelinevoice`は一度だけ移行して削除するため、Aurelineの書類フォルダに内部スロットファイルが増え続けることはありません。
+Mac／iPhoneとも、32スロット×4バンク（ANALOG、8-BIT、RETRO、INIT）をApplication Support内の`bank-1`〜`bank-4`として保存します。全バンクを書換可能で、元へ戻す場合は付属ライブラリを任意のバンクへLOADします。旧50音色のVersion 1ライブラリは新仕様では読み込みません。
 
-Mac版はAurelineの書類フォルダに出荷状態復元用の`factory.aurelinelibrary.xml`を用意します。このファイルをLOADして確認すると、50スロットすべてを出荷状態へ戻せます。SAVE ALL LIBRARYでは、この予約ファイル名への上書きを拒否します。
+Mac版はAurelineの書類フォルダに出荷状態復元用の`Analog.aurelinelibrary.xml`を用意します。このファイルをLOADして確認すると、選択したバンクを出荷状態へ戻せます。SAVE BANKでは、この予約ファイル名への上書きを拒否します。
 
-同じフォルダに`RetroGame.aurelinelibrary.xml`も用意します。初期8-bit機風のパルス／三角波、矩形波PSG、5-bitウェーブテーブル、80年代アーケード風の波形メモリ、ノイズ効果音を使ったオリジナル50音色を収録します。この内蔵ファイル名もSAVE ALL LIBRARYでは上書きできません。
+同じフォルダに`Retro.aurelinelibrary.xml`も用意します。初期8-bit機風のパルス／三角波、矩形波PSG、波形メモリ、ノイズ効果音から厳選したオリジナル32音色を収録します。この内蔵ファイル名もSAVE BANKでは上書きできません。
+
+同じ場所へ`8-Bit.aurelinelibrary.xml`もインストールします。パルス、ノイズ、ウェーブテーブル、PSG、拡張チップ風の方式別に厳選した、公開用のオリジナル32音色です。ゲーム機、ゲーム作品、メーカーの固有名称は使用していません。この内蔵ファイル名もSAVE BANKでは上書きできません。
+
+配布・編集する音色ライブラリのソースファイルは、OpalineFMと同じく
+[`assets/`](assets/)に置きます。MacではBinaryData、iPhone/AUv3ではアプリの
+Bundle Resourcesへ組み込みます。実行時に使用するユーザーのライブラリは、
+従来どおり各OSのApplication Supportフォルダへ保存します。
 
 ## テスト
 

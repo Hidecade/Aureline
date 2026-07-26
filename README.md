@@ -48,7 +48,7 @@ Aureline reserves the following product-specific file extensions:
 |---|---|---|---|
 | Single voice | `.aurelinevoice` | Shared Mac/iPhone JSON containing one voice, including synth parameters, voice mode, and Wave Memory data | Implemented on Mac and iPhone |
 | Wave Memory | `.aurelinewave` | One 32-step Wave Memory waveform, its character, and format version | Reserved; import/export not implemented |
-| Complete voice library | `.aurelinelibrary.xml` | All 50 numbered voices in one XML library or backup file | Implemented on Mac |
+| Voice bank | `.aurelinelibrary.xml` | 32 voices in a Version 2 XML library or backup | Mac and iPhone |
 
 The naming follows OpalineFM: `.opalinevoice` and `.opalinelibrary.xml`
 correspond to Aureline's `.aurelinevoice` and `.aurelinelibrary.xml`.
@@ -64,25 +64,34 @@ another voice and returning restores the previously stored override, or the
 factory voice when no override exists. SAVE exports the current sound as an
 external `.aurelinevoice` file without modifying the selected slot.
 
-On Mac, SAVE ALL LIBRARY exports the last stored contents of all 50 numbered
-voices to one `.aurelinelibrary.xml` file. Opening that file with LOAD shows a
-confirmation before all 50 numbered voices are replaced.
+On Mac and iPhone, SAVE BANK exports the 32 stored slots in the selected bank
+to one `.aurelinelibrary.xml` file. LOAD asks for a destination bank before
+replacing its 32 slots.
 
-Mac and iPhone keep the active 50-slot library internally as one
-`active-library.aurelinelibrary.xml` file in Application Support. Library import
-is validated and atomically replaces that file. Legacy `slot-XX.aurelinevoice`
-files are migrated once and then removed, so the Aureline Documents folder does
-not fill up with internal slot files.
+Mac and iPhone keep four writable 32-slot banks in Application Support as
+`bank-1` through `bank-4`. They start as Analog, 8-Bit, Retro, and
+Init. Bundled library files can be loaded into any bank to restore its contents.
 
-The Mac version keeps `factory.aurelinelibrary.xml` in the Aureline documents
-folder as the factory-reset library. Loading it restores all 50 slots after
-confirmation. SAVE ALL LIBRARY refuses to overwrite this reserved file name.
+The Mac version keeps `Analog.aurelinelibrary.xml` in the Aureline documents
+folder as the factory-reset library. Loading it restores all 32 slots after
+confirmation. SAVE BANK refuses to overwrite this reserved file name.
 
-`RetroGame.aurelinelibrary.xml` is also provided in the same folder. It contains
-50 original retro-game voices covering early 8-bit pulse/triangle sounds,
+`Retro.aurelinelibrary.xml` is also provided in the same folder. It contains
+32 selected retro-game voices covering early 8-bit pulse/triangle sounds,
 square-wave PSG tones, multi-channel 5-bit wavetable colours, compact 1980s
 arcade-style wave-memory voices, and noise effects. Its built-in file name is
-also protected from SAVE ALL LIBRARY.
+also protected from SAVE BANK.
+
+`8-Bit.aurelinelibrary.xml` is installed alongside the built-in
+libraries. It contains 32 selected classic digital-synth voices grouped by
+generic synthesis families such as pulse, noise, wavetable, PSG, and expansion
+chip sounds. Its public names do not refer to console, game, or manufacturer
+brands, and its built-in file name is protected from SAVE BANK.
+
+Distributable and editable voice-library source files belong in
+[`assets/`](assets/), matching OpalineFM. Mac embeds them as binary resources,
+and iPhone/AUv3 includes them in the app bundle. Runtime user libraries remain
+in the platform Application Support directory.
 
 Raw `.xml` and `.json` files may be accepted for debugging or compatibility
 imports, but they are not the standard user-facing extensions.

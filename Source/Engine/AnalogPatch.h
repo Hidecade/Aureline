@@ -123,6 +123,7 @@ struct AnalogPatch
     int lfoWaveformMask = 2;
     double lfoRateHz = 5.0;
     double lfoInitialAmount = 0.0;
+    double lfoWheelAmount = 0.35;
     double lfoDelaySeconds = 0.0;
     double lfoFadeSeconds = 0.0;
     bool lfoRetrigger = false;

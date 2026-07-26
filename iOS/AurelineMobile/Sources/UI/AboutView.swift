@@ -5,7 +5,7 @@ struct AboutView: View {
 
     private var version: String {
         let short = Bundle.main.object(
-            forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.2"
+            forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.3"
         let build = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleVersion") as? String ?? "3"
         return "\(short) (\(build))"

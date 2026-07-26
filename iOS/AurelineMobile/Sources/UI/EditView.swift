@@ -60,7 +60,7 @@ struct EditView: View {
                         exportingVoice = false
                         if savedURL != nil {
                             synth.status = exportIsLibrary
-                                ? "All 50 voices saved" : "Voice saved"
+                                ? "Current bank saved" : "Voice saved"
                         }
                     }
                 }
@@ -68,16 +68,18 @@ struct EditView: View {
             .alert("VOICE", isPresented: Binding(get: { voiceError != nil }, set: { if !$0 { voiceError = nil } })) {
                 Button("OK") { voiceError = nil }
             } message: { Text(voiceError ?? "") }
-            .alert("Replace all 50 voices?", isPresented: $confirmingLibraryLoad) {
+            .alert("LOAD LIBRARY TO BANK", isPresented: $confirmingLibraryLoad) {
                 Button("CANCEL", role: .cancel) { pendingLibraryURL = nil }
-                Button("REPLACE ALL", role: .destructive) {
-                    guard let url = pendingLibraryURL else { return }
-                    do { try synth.importLibrary(from: url) }
-                    catch { voiceError = error.localizedDescription }
-                    pendingLibraryURL = nil
+                ForEach(0..<4) { bank in
+                    Button("BANK \(bank + 1)  \(MobileSynthModel.bankNames[bank])") {
+                        guard let url = pendingLibraryURL else { return }
+                        do { try synth.importLibrary(from: url, intoBank: bank) }
+                        catch { voiceError = error.localizedDescription }
+                        pendingLibraryURL = nil
+                    }
                 }
             } message: {
-                Text("Loading this library will overwrite every numbered voice. This cannot be undone.")
+                Text("Choose the bank whose 32 voices will be replaced.")
             }
             .fullScreenCover(isPresented: $showingWaveEditor) {
                 AurelineWaveMemoryEditor(oscillatorA: waveEditorOscillatorA)
@@ -126,7 +128,7 @@ struct EditView: View {
             voiceButton("STORE", store: true) {
                 do { try synth.storeCurrentVoice() } catch { voiceError = error.localizedDescription }
             }
-            voiceButton("SAVE ALL") { prepareLibraryExport() }
+            voiceButton("SAVE BANK") { prepareLibraryExport() }
         }.frame(maxWidth: 600, minHeight: 32, maxHeight: 32)
     }
 
@@ -226,7 +228,7 @@ struct EditView: View {
         VStack(spacing: 5) {
             AurelineEditGroup(title: "LFO") {
                 HStack(spacing: 2) {
-                    knobRow(Array(MobileSynthModel.modulationParameters.prefix(4)))
+                    knobRow(Array(MobileSynthModel.modulationParameters.prefix(5)))
                     waveformControls(id: "lfoWaveMask")
                     switchButton("RETRIG", "lfoRetrigger").frame(width: 42)
                 }
@@ -246,9 +248,9 @@ struct EditView: View {
 
                 AurelineEditGroup(title: "POLY MOD") {
                     HStack(spacing: 3) {
-                        AurelineEditKnob(parameter: MobileSynthModel.modulationParameters[4],
-                                         value: binding("polyModFilterEnv"))
                         AurelineEditKnob(parameter: MobileSynthModel.modulationParameters[5],
+                                         value: binding("polyModFilterEnv"))
+                        AurelineEditKnob(parameter: MobileSynthModel.modulationParameters[6],
                                          value: binding("polyModOscB"))
                         switchButton("PITCH", "polyDestPitch")
                         switchButton("PW A", "polyDestPWA")
@@ -1146,7 +1148,7 @@ private struct AurelineEditKnob: View {
             if value < 10 { return String(format: "%.1f", value) }
             return String(format: "%.0f", value)
         }
-        if parameter.id == "lfoAmount" {
+        if parameter.id == "lfoAmount" || parameter.id == "modRange" {
             return String(format: "%.1f", min(1, max(0, value)) * 10)
         }
         if parameter.id == "oscAOctave" || parameter.id == "oscBOctave" {

@@ -120,6 +120,17 @@ void AnalogVoice::reset()
     filter.reset();
 }
 
+void AnalogVoice::synchronizeParameters(const AnalogPatch& patch)
+{
+    oscillatorALevelSmoother.reset(patch.oscillatorA.level);
+    oscillatorBLevelSmoother.reset(patch.oscillatorB.level);
+    pulseWidthASmoother.reset(patch.oscillatorA.pulseWidth);
+    pulseWidthBSmoother.reset(patch.oscillatorB.pulseWidth);
+    noiseLevelSmoother.reset(patch.noiseLevel);
+    cutoffSmoother.reset(patch.filterCutoffHz);
+    resonanceSmoother.reset(patch.filterResonance);
+}
+
 double AnalogVoice::oscillatorFrequency(const OscillatorParams& oscillator,
                                         double pitchBendSemitones,
                                         double vintageTuneCents) const
@@ -156,7 +167,10 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
             ? 1.0 : std::clamp(fadeElapsed / patch.lfoFadeSeconds, 0.0, 1.0);
         automaticLfoAmount = patch.lfoInitialAmount * fadeProgress;
     }
-    const auto lfoModulationAmount = std::clamp(automaticLfoAmount + modWheel, 0.0, 1.0);
+    // MOD AMT follows DELAY/FADE automatically. The wheel adds its own
+    // immediate contribution, scaled by MOD RANGE.
+    const auto lfoModulationAmount = std::clamp(
+        automaticLfoAmount + modWheel * patch.lfoWheelAmount, 0.0, 1.0);
     const auto lfoPitchAmount = lfoModulationAmount * lfoModulationAmount;
 
     driftPhase += 6.283185307179586 * driftRateHz / currentSampleRate;

@@ -23,7 +23,7 @@ enum Parameter : NSUInteger
     cutoff, resonance, filterEnvAmount, filterKeyTrack, filterVelocity,
     filterAttack, filterDecay, filterSustain, filterRelease,
     ampAttack, ampDecay, ampSustain, ampRelease,
-    lfoRate, lfoAmount, lfoDelay, lfoFade, lfoRetrigger, lfoWaveMask,
+    lfoRate, lfoAmount, lfoModRange, lfoDelay, lfoFade, lfoRetrigger, lfoWaveMask,
     lfoDestA, lfoDestB, lfoDestPWA, lfoDestPWB, lfoDestFilter,
     polyModFilterEnv, polyModOscB, polyDestPitch, polyDestPWA, polyDestFilter,
     spread, vintage, masterGain, transpose, glide, glideLegato,
@@ -39,7 +39,7 @@ constexpr std::array<const char*, parameterCount> parameterNames {{
     "cutoff", "resonance", "filterEnvAmount", "filterKeyTrack", "filterVelocity",
     "filterAttack", "filterDecay", "filterSustain", "filterRelease",
     "ampAttack", "ampDecay", "ampSustain", "ampRelease",
-    "lfoRate", "lfoAmount", "lfoDelay", "lfoFade", "lfoRetrigger", "lfoWaveMask",
+    "lfoRate", "lfoAmount", "modRange", "lfoDelay", "lfoFade", "lfoRetrigger", "lfoWaveMask",
     "lfoDestA", "lfoDestB", "lfoDestPWA", "lfoDestPWB", "lfoDestFilter",
     "polyModFilterEnv", "polyModOscB", "polyDestPitch", "polyDestPWA", "polyDestFilter",
     "spread", "vintage", "masterGain", "transpose", "glide", "glideLegato",
@@ -124,6 +124,7 @@ double clamp(double value, double low, double high) { return std::max(low, std::
 - (void)setSustainPedal:(BOOL)down { [self enqueue:{ CommandType::sustain, 0, 0, down ? 1.0 : 0.0 }]; }
 - (void)panic { [self enqueue:{ CommandType::panic, 0, 0, 0.0 }]; }
 - (void)setPitchBendRange:(double)value { [self setParameter:@"pitchBendRange" value:value]; }
+- (double)currentLFOValue { return engine->currentLfoValue(); }
 
 - (void)resetPatch
 {
@@ -137,7 +138,8 @@ double clamp(double value, double low, double high) { return std::max(low, std::
         patch.filterEnvelope.sustainLevel, patch.filterEnvelope.releaseSeconds,
         patch.amplifierEnvelope.attackSeconds, patch.amplifierEnvelope.decaySeconds,
         patch.amplifierEnvelope.sustainLevel, patch.amplifierEnvelope.releaseSeconds,
-        patch.lfoRateHz, patch.lfoInitialAmount, patch.lfoDelaySeconds, patch.lfoFadeSeconds,
+        patch.lfoRateHz, patch.lfoInitialAmount, patch.lfoWheelAmount,
+        patch.lfoDelaySeconds, patch.lfoFadeSeconds,
         patch.lfoRetrigger ? 1.0 : 0.0, static_cast<double>(patch.lfoWaveformMask),
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         patch.stereoSpread, patch.vintageAmount, patch.masterGain, 0.0,
@@ -192,7 +194,8 @@ double clamp(double value, double low, double high) { return std::max(low, std::
         patch.filterEnvelope.sustainLevel, patch.filterEnvelope.releaseSeconds,
         patch.amplifierEnvelope.attackSeconds, patch.amplifierEnvelope.decaySeconds,
         patch.amplifierEnvelope.sustainLevel, patch.amplifierEnvelope.releaseSeconds,
-        patch.lfoRateHz, patch.lfoInitialAmount, patch.lfoDelaySeconds, patch.lfoFadeSeconds,
+        patch.lfoRateHz, patch.lfoInitialAmount, patch.lfoWheelAmount,
+        patch.lfoDelaySeconds, patch.lfoFadeSeconds,
         patch.lfoRetrigger ? 1.0 : 0.0, static_cast<double>(patch.lfoWaveformMask),
         patch.lfoPitchDepthASemitones != 0.0 ? 1.0 : 0.0, patch.lfoPitchDepthBSemitones != 0.0 ? 1.0 : 0.0,
         patch.lfoPulseWidthDepthA != 0.0 ? 1.0 : 0.0, patch.lfoPulseWidthDepthB != 0.0 ? 1.0 : 0.0,
@@ -294,6 +297,10 @@ double clamp(double value, double low, double high) { return std::max(low, std::
 
 - (void)applyPatchSnapshot:(NSDictionary<NSString*, NSNumber*>*)snapshot
 {
+    // Older voice/library files predate MOD RANGE. Give them the standard
+    // musical wheel range instead of inheriting the previous voice.
+    if (![snapshot[@"modRange"] isKindOfClass:NSNumber.class])
+        [self setParameter:@"modRange" value:0.35];
     for (NSString* name in snapshot)
         if (![name hasPrefix:@"waveMemoryStep"] && ![name hasPrefix:@"waveMemoryUser"]
             && [snapshot[name] isKindOfClass:NSNumber.class])
@@ -319,6 +326,7 @@ double clamp(double value, double low, double high) { return std::max(low, std::
     patch.filterEnvelope = { v(filterAttack), v(filterDecay), v(filterSustain), v(filterRelease) };
     patch.amplifierEnvelope = { v(ampAttack), v(ampDecay), v(ampSustain), v(ampRelease) };
     patch.lfoRateHz = v(lfoRate); patch.lfoInitialAmount = v(lfoAmount);
+    patch.lfoWheelAmount = v(lfoModRange);
     patch.lfoDelaySeconds = v(lfoDelay); patch.lfoFadeSeconds = v(lfoFade);
     patch.lfoRetrigger = v(lfoRetrigger) >= 0.5; patch.lfoWaveformMask = static_cast<int>(std::lround(v(lfoWaveMask)));
     // Destination depths are fixed maxima. lfoInitialAmount/mod wheel is applied

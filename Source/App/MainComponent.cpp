@@ -4,11 +4,23 @@
 
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 
 namespace
 {
 constexpr int firstKeyboardNote = 48;
 constexpr int keyboardNoteCount = 37;
+constexpr int voiceSlotsPerBank = 32;
+constexpr int libraryFormatVersion = 2;
+constexpr std::array<const char*, 4> voiceBankNames {{
+    "ANALOG", "8-BIT", "RETRO", "INIT"
+}};
+
+int voiceMenuItemId(int bank, int slot)
+{
+    return juce::jlimit(0, 3, bank) * voiceSlotsPerBank
+        + juce::jlimit(0, voiceSlotsPerBank - 1, slot) + 1;
+}
 constexpr int pcKeyboardTranspose = 12;
 // Modern vintage palette: graphite chassis, warm control surfaces,
 // aged brass secondary type, ivory labels, and restrained burnt-orange accents.
@@ -56,23 +68,45 @@ juce::File legacyStoredVoiceFile(std::size_t slot)
         + ".aurelinevoice");
 }
 
-juce::File activeLibraryFile()
+juce::File activeLibraryFile(int bank)
+{
+    return aurelineApplicationSupportDirectory().getChildFile(
+        "bank-" + juce::String(juce::jlimit(0, 3, bank) + 1)
+        + ".aurelinelibrary.xml");
+}
+
+juce::File legacyActiveLibraryFile()
 {
     return aurelineApplicationSupportDirectory().getChildFile(
         "active-library.aurelinelibrary.xml");
 }
 
-juce::ValueTree readActiveLibrary()
+juce::File lastSelectedBankFile()
 {
-    const auto xml = juce::XmlDocument::parse(activeLibraryFile());
+    return aurelineApplicationSupportDirectory().getChildFile(
+        ".last-selected-bank");
+}
+
+void installBuiltInVoiceLibrary(const juce::File& file,
+                                const char* data,
+                                const int dataSize)
+{
+    if (data != nullptr && dataSize > 0)
+        file.replaceWithData(data, static_cast<std::size_t>(dataSize));
+}
+
+juce::ValueTree readVoiceLibrary(const juce::File& file)
+{
+    const auto xml = juce::XmlDocument::parse(file);
     const auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
                                         : juce::ValueTree {};
     if (!library.isValid()
         || library.getType().toString() != "AurelineLibrary"
         || library.getProperty("format").toString()
                != "com.hidecade.aureline.library"
-        || static_cast<int>(library.getProperty("version")) != 1
-        || library.getNumChildren() != 50)
+        || static_cast<int>(library.getProperty("version"))
+               != libraryFormatVersion
+        || library.getNumChildren() != voiceSlotsPerBank)
         return {};
     for (int index = 0; index < library.getNumChildren(); ++index)
         if (static_cast<int>(
@@ -89,7 +123,7 @@ juce::String voiceNameWithoutSlotPrefix(juce::String name)
         && juce::CharacterFunctions::isDigit(name[1])
         && juce::CharacterFunctions::isWhitespace(name[2]))
         name = name.substring(3).trimStart();
-    return name;
+    return name.substring(0, juce::jmin(16, name.length()));
 }
 
 juce::String slotVoiceDisplayName(std::size_t index, const juce::String& voiceName)
@@ -100,8 +134,10 @@ juce::String slotVoiceDisplayName(std::size_t index, const juce::String& voiceNa
 
 bool isReservedLibraryFilename(const juce::File& file)
 {
-    return file.getFileName().equalsIgnoreCase("factory.aurelinelibrary.xml")
-        || file.getFileName().equalsIgnoreCase("RetroGame.aurelinelibrary.xml");
+    return file.getFileName().equalsIgnoreCase("Analog.aurelinelibrary.xml")
+        || file.getFileName().equalsIgnoreCase("Retro.aurelinelibrary.xml")
+        || file.getFileName().equalsIgnoreCase(
+            "8-Bit.aurelinelibrary.xml");
 }
 
 juce::String jsonVoiceKeyForStateKey(const juce::String& key)
@@ -664,7 +700,7 @@ void AurelineMainComponent::AurelineLookAndFeel::drawButtonText(
     const bool step = button.getName() == "voiceStepButton";
     const bool store = button.getButtonText() == "STORE";
     const bool editWave = button.getButtonText() == "EDIT WAVE";
-    const bool saveAll = button.getButtonText() == "SAVE ALL LIBRARY";
+    const bool saveAll = button.getButtonText() == "SAVE BANK";
     g.setFont(juce::FontOptions(editWave ? 11.0f : saveAll ? 10.0f
                                                       : step ? 14.0f : 9.0f,
                                 juce::Font::bold));
@@ -1606,11 +1642,6 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     statusLabel.setJustificationType(juce::Justification::bottomRight);
     addAndMakeVisible(statusLabel);
 
-    presetBox.addItem("INIT ANALOG", 1);
-    for (std::size_t index = 0; index < factoryVoices.size(); ++index)
-        presetBox.addItem(slotVoiceDisplayName(index, factoryVoices[index].name),
-                          static_cast<int>(index) + 2);
-    presetBox.setSelectedId(1);
     presetBox.setName("voiceSelector");
     presetBox.setColour(juce::ComboBox::textColourId, juce::Colour(themeAmber));
     presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(themeBackground));
@@ -1767,7 +1798,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
 
     const std::array<const char*, 23> names { "VCO A", "VCO B", "DETUNE", "PW A", "PW B",
         "NOISE", "CUTOFF", "RESONANCE", "FILTER ENV", "KEY TRACK", "ATTACK", "DECAY",
-        "SUSTAIN", "RELEASE", "LFO RATE", "INITIAL AMT", "FILTER ENV", "OSC B", "VOLUME",
+        "SUSTAIN", "RELEASE", "LFO RATE", "MOD AMT", "FILTER ENV", "OSC B", "VOLUME",
         "ATTACK", "DECAY", "SUSTAIN", "RELEASE" };
     const std::array<double, 23> mins { 0, 0, -100, 0.02, 0.02, 0, 20, 0, -1, 0,
         0.001, 0.001, 0, 0.001, 0.01, 0, 0, 0, 0, 0.001, 0.001, 0, 0.001 };
@@ -1811,6 +1842,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     scaleKnob.updateText();
     configureKnob(lfoDelayKnob, lfoDelayLabel, "LFO DELAY", 0.0, 10.0, 0.0, 0.5);
     configureKnob(lfoFadeKnob, lfoFadeLabel, "LFO FADE", 0.0, 10.0, 0.0, 0.5);
+    configureKnob(modRangeKnob, modRangeLabel, "MOD RANGE", 0.0, 1.0, 0.35);
     const std::array<const char*, 5> performanceNames {
         "RANGE", "UNI DETUNE", "MASTER", "GLIDE", "VELOCITY"
     };
@@ -1876,6 +1908,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     for (const auto index : zeroToTenKnobIndices)
         useZeroToTenDisplay(knobs[index], index == 15);
     for (auto* slider : { &spreadKnob, &vintageKnob, &lfoDelayKnob, &lfoFadeKnob,
+                          &modRangeKnob,
                           &performanceKnobs[3], &performanceKnobs[4], &arpKnobs[2] })
         useZeroToTenDisplay(*slider);
 
@@ -1920,12 +1953,12 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     pcKeyboardHeldNotes.fill(false);
     for (auto& sample : scopeSamples)
         sample.store(0.0f);
-    if (readActiveLibrary().getNumChildren()
-        != static_cast<int>(factoryVoices.size()))
-    {
-        writeVoiceLibraryToFile(activeLibraryFile(), false, false);
-    }
-    if (readActiveLibrary().getNumChildren()
+    initialiseVoiceBanks();
+    if (lastSelectedBankFile().existsAsFile())
+        selectedVoiceBank = juce::jlimit(
+            0, 3, lastSelectedBankFile().loadFileAsString().trim().getIntValue());
+    refreshVoiceBankNames();
+    if (readVoiceLibrary(activeLibraryFile(selectedVoiceBank)).getNumChildren()
         == static_cast<int>(factoryVoices.size()))
     {
         for (std::size_t index = 0; index < factoryVoices.size(); ++index)
@@ -1944,13 +1977,21 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     startupVoiceIndex = juce::jlimit(
         0, static_cast<int>(factoryVoices.size()) - 1, startupVoiceIndex);
     loadFactoryVoice(static_cast<std::size_t>(startupVoiceIndex));
-    writeVoiceLibraryToFile(
+    installBuiltInVoiceLibrary(
         aurelineDocumentsDirectory().getChildFile(
-            "factory.aurelinelibrary.xml"),
-        true, false);
-    writeRetroGameLibraryToFile(
+            "Analog.aurelinelibrary.xml"),
+        BinaryData::Analog_aurelinelibrary_xml,
+        BinaryData::Analog_aurelinelibrary_xmlSize);
+    installBuiltInVoiceLibrary(
         aurelineDocumentsDirectory().getChildFile(
-            "RetroGame.aurelinelibrary.xml"));
+            "Retro.aurelinelibrary.xml"),
+        BinaryData::Retro_aurelinelibrary_xml,
+        BinaryData::Retro_aurelinelibrary_xmlSize);
+    installBuiltInVoiceLibrary(
+        aurelineDocumentsDirectory().getChildFile(
+            "8-Bit.aurelinelibrary.xml"),
+        BinaryData::_8Bit_aurelinelibrary_xml,
+        BinaryData::_8Bit_aurelinelibrary_xmlSize);
     startTimerHz(30);
     setSize(1024, 668);
     setWantsKeyboardFocus(true);
@@ -2072,6 +2113,7 @@ void AurelineMainComponent::applyParameters()
     const auto lfoAmount = parameters.lfoAmount.load();
     patch.lfoWaveformMask = parameters.lfoWaveformMask.load();
     patch.lfoInitialAmount = lfoAmount;
+    patch.lfoWheelAmount = parameters.modRange.load();
     patch.lfoDelaySeconds = parameters.lfoDelay.load();
     patch.lfoFadeSeconds = parameters.lfoFade.load();
     patch.lfoRetrigger = parameters.lfoRetrigger.load();
@@ -2547,7 +2589,7 @@ juce::ValueTree AurelineMainComponent::capturePluginState() const
     SAVE_FLOAT(filterKeyboardTracking); SAVE_FLOAT(filterAttack); SAVE_FLOAT(filterDecay);
     SAVE_FLOAT(filterSustain); SAVE_FLOAT(filterRelease); SAVE_FLOAT(attack);
     SAVE_FLOAT(decay); SAVE_FLOAT(sustain); SAVE_FLOAT(release); SAVE_FLOAT(lfoRate);
-    SAVE_FLOAT(lfoAmount); SAVE_FLOAT(lfoDelay); SAVE_FLOAT(lfoFade);
+    SAVE_FLOAT(lfoAmount); SAVE_FLOAT(modRange); SAVE_FLOAT(lfoDelay); SAVE_FLOAT(lfoFade);
     SAVE_FLOAT(polyModFilterEnvelope); SAVE_FLOAT(polyModOscillatorB); SAVE_FLOAT(spread);
     SAVE_FLOAT(vintage); SAVE_FLOAT(tempoBpm); SAVE_FLOAT(master); SAVE_FLOAT(transpose);
     SAVE_FLOAT(pitchBendRange); SAVE_FLOAT(glide); SAVE_FLOAT(masterTune);
@@ -2606,7 +2648,12 @@ void AurelineMainComponent::restorePluginState(const juce::ValueTree& state)
     LOAD_FLOAT(filterKeyboardTracking); LOAD_FLOAT(filterAttack); LOAD_FLOAT(filterDecay);
     LOAD_FLOAT(filterSustain); LOAD_FLOAT(filterRelease); LOAD_FLOAT(attack);
     LOAD_FLOAT(decay); LOAD_FLOAT(sustain); LOAD_FLOAT(release); LOAD_FLOAT(lfoRate);
-    LOAD_FLOAT(lfoAmount); LOAD_FLOAT(lfoDelay); LOAD_FLOAT(lfoFade);
+    LOAD_FLOAT(lfoAmount);
+    if (state.hasProperty("modRange"))
+        LOAD_FLOAT(modRange);
+    else
+        parameters.modRange.store(0.35f);
+    LOAD_FLOAT(lfoDelay); LOAD_FLOAT(lfoFade);
     LOAD_FLOAT(polyModFilterEnvelope); LOAD_FLOAT(polyModOscillatorB); LOAD_FLOAT(spread);
     LOAD_FLOAT(vintage); LOAD_FLOAT(tempoBpm); LOAD_FLOAT(master); LOAD_FLOAT(transpose);
     LOAD_FLOAT(pitchBendRange); LOAD_FLOAT(glide); LOAD_FLOAT(masterTune);
@@ -2679,6 +2726,7 @@ void AurelineMainComponent::syncControlsFromParameters()
     scaleKnob.setValue(parameters.scaleRoot.load(), juce::dontSendNotification);
     lfoDelayKnob.setValue(parameters.lfoDelay.load(), juce::dontSendNotification);
     lfoFadeKnob.setValue(parameters.lfoFade.load(), juce::dontSendNotification);
+    modRangeKnob.setValue(parameters.modRange.load(), juce::dontSendNotification);
     const std::array<float, 5> performanceValues {
         parameters.pitchBendRange.load(), parameters.unisonDetune.load(),
         parameters.masterTune.load(), parameters.glide.load(), parameters.filterVelocity.load()
@@ -2750,6 +2798,7 @@ void AurelineMainComponent::sliderValueChanged(juce::Slider* slider)
     else if (slider == &arpKnobs[2]) parameters.arpGate.store(value);
     else if (slider == &lfoDelayKnob) parameters.lfoDelay.store(value);
     else if (slider == &lfoFadeKnob) parameters.lfoFade.store(value);
+    else if (slider == &modRangeKnob) parameters.modRange.store(value);
     else if (slider == &transposeFader) parameters.transpose.store(value);
     else if (slider == &oscillatorARangeKnob) parameters.oscillatorAOctave.store(value);
     else if (slider == &oscillatorBRangeKnob) parameters.oscillatorBOctave.store(value);
@@ -2824,7 +2873,11 @@ void AurelineMainComponent::comboBoxChanged(juce::ComboBox* box)
 {
     if (box == &presetBox)
     {
-        const int selectedIndex = presetBox.getSelectedId() - 2;
+        const int encoded = presetBox.getSelectedId() - 1;
+        const int selectedBank = encoded / voiceSlotsPerBank;
+        const int selectedIndex = encoded % voiceSlotsPerBank;
+        selectedVoiceBank = juce::jlimit(0, 3, selectedBank);
+        lastSelectedBankFile().replaceWithText(juce::String(selectedVoiceBank));
         if (selectedIndex >= 0 && selectedIndex < static_cast<int>(factoryVoices.size()))
             loadFactoryVoice(static_cast<std::size_t>(selectedIndex));
         else
@@ -2875,6 +2928,60 @@ void AurelineMainComponent::saveVoiceToFile(const juce::File& requestedFile)
         statusLabel.setText("Voice save failed", juce::dontSendNotification);
 }
 
+void AurelineMainComponent::promptAndSaveVoice()
+{
+    auto* dialog = new juce::AlertWindow(
+        "Save voice", "Enter a voice name (up to 16 characters).",
+        juce::MessageBoxIconType::NoIcon);
+    dialog->addTextEditor("voiceName", currentVoiceName.substring(0, 16),
+                          "Voice name");
+    if (auto* editor = dialog->getTextEditor("voiceName"))
+    {
+        editor->setInputRestrictions(16);
+        editor->selectAll();
+    }
+    dialog->addButton("Cancel", 0,
+                      juce::KeyPress(juce::KeyPress::escapeKey));
+    dialog->addButton("Save", 1,
+                      juce::KeyPress(juce::KeyPress::returnKey));
+    dialog->enterModalState(
+        true,
+        juce::ModalCallbackFunction::create(
+            [safe = juce::Component::SafePointer<AurelineMainComponent>(this),
+             dialogSafe = juce::Component::SafePointer<juce::AlertWindow>(dialog)]
+            (int result)
+            {
+                if (result != 1 || safe == nullptr || dialogSafe == nullptr)
+                    return;
+                auto voiceName = voiceNameWithoutSlotPrefix(
+                    dialogSafe->getTextEditorContents("voiceName"));
+                if (voiceName.isEmpty())
+                    voiceName = safe->currentVoiceName;
+                safe->currentVoiceName = voiceName;
+                auto fileName = voiceName
+                    .retainCharacters(
+                        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ ")
+                    .trim();
+                if (fileName.isEmpty())
+                    fileName = "AurelineVoice";
+                safe->voiceFileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Aureline voice",
+                    aurelineDocumentsDirectory().getChildFile(
+                        fileName + ".aurelinevoice"),
+                    "*.aurelinevoice");
+                safe->voiceFileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode
+                        | juce::FileBrowserComponent::canSelectFiles,
+                    [safe](const juce::FileChooser& chooser)
+                    {
+                        if (safe != nullptr && chooser.getResult() != juce::File {})
+                            safe->saveVoiceToFile(chooser.getResult());
+                    });
+                safe->repaint();
+            }),
+        true);
+}
+
 void AurelineMainComponent::saveVoiceLibraryToFile(const juce::File& requestedFile)
 {
     const auto file = requestedFile.getFullPathName().endsWithIgnoreCase(
@@ -2908,7 +3015,7 @@ void AurelineMainComponent::writeVoiceLibraryToFile(
 
     juce::ValueTree library("AurelineLibrary");
     library.setProperty("format", "com.hidecade.aureline.library", nullptr);
-    library.setProperty("version", 1, nullptr);
+    library.setProperty("version", libraryFormatVersion, nullptr);
     library.setProperty("voiceCount", static_cast<int>(factoryVoices.size()), nullptr);
     for (std::size_t index = 0; index < factoryVoices.size(); ++index)
     {
@@ -2927,29 +3034,24 @@ void AurelineMainComponent::writeVoiceLibraryToFile(
     const auto xml = library.createXml();
     const bool saved = xml != nullptr && file.replaceWithText(xml->toString());
     if (showStatus)
-        statusLabel.setText(saved ? "All 50 voices saved: " + file.getFileName()
+        statusLabel.setText(saved ? "Bank " + juce::String(selectedVoiceBank + 1)
+                                      + " saved: " + file.getFileName()
                                   : "Voice library save failed",
                             juce::dontSendNotification);
 }
 
 void AurelineMainComponent::writeRetroGameLibraryToFile(const juce::File& file)
 {
-    static constexpr std::array<const char*, 50> names {{
+    static constexpr std::array<const char*, voiceSlotsPerBank> names {{
         "8BIT HERO", "8BIT QUEST", "PIXEL PLUCK", "BLOCKY BASS",
         "TRIANGLE CAVE", "COIN SPARK", "BOSS WARNING", "CHIP FANFARE",
         "DUNGEON STEP", "TINY DRUM", "CASTLE LEAD", "POWER UP",
         "SECRET DOOR", "NIGHT STAGE", "FINAL CASTLE",
         "PSG RACER", "PSG SKYLINE", "TONE CHANNEL", "NOISE RIDER",
         "ARCADE START", "SEGA BLUE", "RING PULSE", "GRID RUNNER",
-        "SPACE PORT", "PSG VICTORY",
-        "WAVE HERO", "TURBO WAVE", "CRYSTAL CHANNEL", "NEON BASS",
-        "SIX VOICE PAD", "LASER HARBOR", "DIGITAL STEEL", "ORBIT LEAD",
-        "WAVE RUNNER", "SUNSET CHIP",
-        "MAZE CHOMP", "STAR SWARM", "HAPPY HOP", "FRUIT BONUS",
-        "ALIEN MARCH", "DOT RUNNER", "GALAXY DIVE", "TOY PARADE",
-        "ARCADE SIREN", "HIGH SCORE",
-        "LASER ZAP", "NOISE BURST", "SHIP EXPLODE", "WARP FALL",
-        "GAME OVER"
+        "SPACE PORT", "PSG VICTORY", "WAVE HERO", "CRYSTAL CHANNEL",
+        "NEON BASS", "LASER HARBOR", "ORBIT LEAD", "LASER ZAP",
+        "SHIP EXPLODE"
     }};
 
     const auto currentState = capturePluginState().createCopy();
@@ -2961,8 +3063,8 @@ void AurelineMainComponent::writeRetroGameLibraryToFile(const juce::File& file)
 
     juce::ValueTree library("AurelineLibrary");
     library.setProperty("format", "com.hidecade.aureline.library", nullptr);
-    library.setProperty("version", 1, nullptr);
-    library.setProperty("voiceCount", 50, nullptr);
+    library.setProperty("version", libraryFormatVersion, nullptr);
+    library.setProperty("voiceCount", voiceSlotsPerBank, nullptr);
 
     for (std::size_t index = 0; index < names.size(); ++index)
     {
@@ -3121,24 +3223,107 @@ void AurelineMainComponent::writeRetroGameLibraryToFile(const juce::File& file)
         file.replaceWithText(xml->toString());
 }
 
+void AurelineMainComponent::initialiseVoiceBanks()
+{
+    const auto legacy = legacyActiveLibraryFile();
+    const auto bank1 = activeLibraryFile(0);
+    if (!bank1.existsAsFile() && legacy.existsAsFile())
+        legacy.copyFileTo(bank1);
+    if (readVoiceLibrary(bank1).getNumChildren()
+        != static_cast<int>(factoryVoices.size()))
+        writeVoiceLibraryToFile(bank1, true, false);
+
+    const std::array<std::tuple<int, const char*, int>, 2> bundled {{
+        { 1, BinaryData::_8Bit_aurelinelibrary_xml,
+          BinaryData::_8Bit_aurelinelibrary_xmlSize },
+        { 2, BinaryData::Retro_aurelinelibrary_xml,
+          BinaryData::Retro_aurelinelibrary_xmlSize }
+    }};
+    for (const auto& [bank, data, size] : bundled)
+    {
+        const auto file = activeLibraryFile(bank);
+        if (readVoiceLibrary(file).getNumChildren()
+            != static_cast<int>(factoryVoices.size()))
+            file.replaceWithData(data, static_cast<std::size_t>(size));
+    }
+
+    const auto bank4 = activeLibraryFile(3);
+    if (readVoiceLibrary(bank4).getNumChildren()
+        != static_cast<int>(factoryVoices.size()))
+    {
+        const auto savedState = capturePluginState().createCopy();
+        const auto savedName = currentVoiceName;
+        resetToInitialVoice();
+        auto initial = capturePluginState().createCopy();
+        juce::ValueTree library("AurelineLibrary");
+        library.setProperty("format", "com.hidecade.aureline.library", nullptr);
+        library.setProperty("version", libraryFormatVersion, nullptr);
+        library.setProperty("voiceCount", voiceSlotsPerBank, nullptr);
+        for (int slot = 0; slot < voiceSlotsPerBank; ++slot)
+        {
+            auto voice = initial.createCopy();
+            voice.setProperty("slot", slot, nullptr);
+            voice.setProperty("voiceName", "INIT ANALOG", nullptr);
+            library.addChild(voice, -1, nullptr);
+        }
+        if (const auto xml = library.createXml(); xml != nullptr)
+            bank4.replaceWithText(xml->toString());
+        restorePluginState(savedState);
+        currentVoiceName = savedName;
+    }
+}
+
+void AurelineMainComponent::refreshVoiceBankNames()
+{
+    auto* root = presetBox.getRootMenu();
+    if (root == nullptr)
+        return;
+    root->clear();
+    for (int bank = 0; bank < 4; ++bank)
+    {
+        juce::PopupMenu voices;
+        const auto library = readVoiceLibrary(activeLibraryFile(bank));
+        for (std::size_t index = 0; index < factoryVoices.size(); ++index)
+        {
+            auto name = juce::String(factoryVoices[index].name);
+            if (library.getNumChildren() == static_cast<int>(factoryVoices.size()))
+                name = library.getChild(static_cast<int>(index))
+                           .getProperty("voiceName", name).toString();
+            voices.addItem(voiceMenuItemId(bank, static_cast<int>(index)),
+                           slotVoiceDisplayName(index, name));
+        }
+        root->addSubMenu("BANK " + juce::String(bank + 1) + "  "
+                             + voiceBankNames[static_cast<std::size_t>(bank)],
+                         voices);
+    }
+    if (selectedFactoryVoiceIndex >= 0)
+        presetBox.setSelectedId(
+            voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
+            juce::dontSendNotification);
+}
+
 void AurelineMainComponent::confirmAndLoadVoiceLibrary(const juce::File& file)
 {
     juce::AlertWindow::showAsync(
         juce::MessageBoxOptions()
             .withIconType(juce::MessageBoxIconType::WarningIcon)
-            .withTitle("Replace all 50 voices?")
-            .withMessage("Loading this library will overwrite every numbered voice. "
-                         "This cannot be undone.")
-            .withButton("REPLACE ALL")
+            .withTitle("LOAD LIBRARY TO BANK")
+            .withMessage("Choose the destination bank. Its 32 voices will be "
+                         "overwritten.")
+            .withButton("BANK 1")
+            .withButton("BANK 2")
+            .withButton("BANK 3")
+            .withButton("BANK 4")
             .withButton("CANCEL"),
         [safe = juce::Component::SafePointer<AurelineMainComponent>(this), file](int result)
         {
-            if (safe != nullptr && result == 1)
-                safe->loadVoiceLibraryFromFile(file);
+            if (safe != nullptr && result >= 1 && result <= 4)
+                safe->loadVoiceLibraryFromFile(file, result - 1);
         });
 }
 
-void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file)
+void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file,
+                                                      int bank)
 {
     const auto xml = juce::XmlDocument::parse(file);
     const auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
@@ -3146,7 +3331,8 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file)
     if (!library.isValid()
         || library.getType().toString() != "AurelineLibrary"
         || library.getProperty("format").toString() != "com.hidecade.aureline.library"
-        || static_cast<int>(library.getProperty("version")) != 1
+        || static_cast<int>(library.getProperty("version"))
+               != libraryFormatVersion
         || library.getNumChildren() != static_cast<int>(factoryVoices.size()))
     {
         statusLabel.setText("Voice library load failed: invalid file",
@@ -3181,7 +3367,7 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file)
 
     const auto normalizedXml = library.createXml();
     if (normalizedXml == nullptr
-        || !activeLibraryFile().replaceWithText(normalizedXml->toString()))
+        || !activeLibraryFile(bank).replaceWithText(normalizedXml->toString()))
     {
         statusLabel.setText("Voice library load failed; previous library restored",
                             juce::dontSendNotification);
@@ -3196,15 +3382,15 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file)
             .deleteFile();
     }
 
-    for (std::size_t index = 0; index < loadedVoiceNames.size(); ++index)
-        presetBox.changeItemText(static_cast<int>(index) + 2,
-                                 slotVoiceDisplayName(index,
-                                                      loadedVoiceNames[index]));
+    selectedVoiceBank = juce::jlimit(0, 3, bank);
+    lastSelectedBankFile().replaceWithText(juce::String(selectedVoiceBank));
+    refreshVoiceBankNames();
 
     if (selectedFactoryVoiceIndex >= 0
         && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
         loadFactoryVoice(static_cast<std::size_t>(selectedFactoryVoiceIndex));
-    statusLabel.setText("All 50 voices replaced from: " + file.getFileName(),
+    statusLabel.setText("Bank " + juce::String(selectedVoiceBank + 1)
+                            + " replaced from: " + file.getFileName(),
                         juce::dontSendNotification);
 }
 
@@ -3231,11 +3417,13 @@ void AurelineMainComponent::loadVoiceFromFile(const juce::File& file)
     if (selectedFactoryVoiceIndex >= 0
         && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
     {
-        presetBox.changeItemText(selectedFactoryVoiceIndex + 2,
+        presetBox.changeItemText(
+            voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                                  slotVoiceDisplayName(
                                      static_cast<std::size_t>(selectedFactoryVoiceIndex),
                                      selectedVoiceName));
-        presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+        presetBox.setSelectedId(
+            voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                                 juce::dontSendNotification);
     }
     currentVoiceName = selectedVoiceName;
@@ -3258,7 +3446,7 @@ void AurelineMainComponent::storeCurrentVoice()
     if (voiceName.isEmpty())
         voiceName = slotName;
     currentVoiceName = voiceName;
-    auto library = readActiveLibrary();
+    auto library = readVoiceLibrary(activeLibraryFile(selectedVoiceBank));
     if (library.getNumChildren() != static_cast<int>(factoryVoices.size()))
     {
         statusLabel.setText("Voice store failed: active library is invalid",
@@ -3272,16 +3460,17 @@ void AurelineMainComponent::storeCurrentVoice()
     library.addChild(voice, selectedFactoryVoiceIndex, nullptr);
     const auto xml = library.createXml();
     if (xml == nullptr
-        || !activeLibraryFile().replaceWithText(xml->toString()))
+        || !activeLibraryFile(selectedVoiceBank).replaceWithText(xml->toString()))
     {
         statusLabel.setText("Voice store failed", juce::dontSendNotification);
         return;
     }
     presetBox.changeItemText(
-        selectedFactoryVoiceIndex + 2,
+        voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
         slotVoiceDisplayName(static_cast<std::size_t>(selectedFactoryVoiceIndex),
                              voiceName));
-    presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+    presetBox.setSelectedId(
+        voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                             juce::dontSendNotification);
     statusLabel.setText("Voice stored in slot "
                             + juce::String(selectedFactoryVoiceIndex + 1)
@@ -3322,12 +3511,15 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index,
     selectedFactoryVoiceIndex = static_cast<int>(index);
     if (!suppressLastVoicePersistence)
         lastSelectedVoiceFile().replaceWithText(juce::String(index));
-    presetBox.changeItemText(static_cast<int>(index) + 2,
+    presetBox.changeItemText(
+        voiceMenuItemId(selectedVoiceBank, static_cast<int>(index)),
                              slotVoiceDisplayName(index, factoryVoices[index].name));
     currentVoiceName = voiceNameWithoutSlotPrefix(factoryVoices[index].name);
-    presetBox.setSelectedId(static_cast<int>(index) + 2,
+    presetBox.setSelectedId(
+        voiceMenuItemId(selectedVoiceBank, static_cast<int>(index)),
                             juce::dontSendNotification);
-    const auto activeLibrary = readActiveLibrary();
+    const auto activeLibrary =
+        readVoiceLibrary(activeLibraryFile(selectedVoiceBank));
     const auto activeVoice = activeLibrary.getNumChildren()
             == static_cast<int>(factoryVoices.size())
         ? activeLibrary.getChild(static_cast<int>(index))
@@ -3349,16 +3541,18 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index,
         currentVoiceName = voiceNameWithoutSlotPrefix(
             activeVoice.getProperty("voiceName").toString());
         presetBox.changeItemText(
-            static_cast<int>(index) + 2,
+            voiceMenuItemId(selectedVoiceBank, static_cast<int>(index)),
             slotVoiceDisplayName(index, currentVoiceName));
-        presetBox.setSelectedId(static_cast<int>(index) + 2,
+        presetBox.setSelectedId(
+            voiceMenuItemId(selectedVoiceBank, static_cast<int>(index)),
                                 juce::dontSendNotification);
         return;
     }
     if (useStoredOverride && overrideFile.existsAsFile())
     {
         loadVoiceFromFile(overrideFile);
-        presetBox.setSelectedId(static_cast<int>(index) + 2,
+        presetBox.setSelectedId(
+            voiceMenuItemId(selectedVoiceBank, static_cast<int>(index)),
                                 juce::dontSendNotification);
         return;
     }
@@ -3388,7 +3582,7 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index,
     parameters.waveMemoryIndexB.store(patch.oscillatorB.waveMemoryIndex);
     userWaveMemory[0] = patch.oscillatorA.waveMemoryData;
     userWaveMemory[1] = patch.oscillatorB.waveMemoryData;
-    userWaveMemoryActive = { false, false };
+    userWaveMemoryActive = { index == 39, false };
     parameters.waveMemoryCharacterA.store(static_cast<int>(patch.oscillatorA.waveMemoryCharacter));
     parameters.waveMemoryCharacterB.store(static_cast<int>(patch.oscillatorB.waveMemoryCharacter));
     waveMemoryBoxes[0].setSelectedId(patch.oscillatorA.waveMemoryIndex + 1,
@@ -3470,7 +3664,9 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index,
     parameters.voiceMode.store(voiceMode);
     voiceModeBox.setSelectedId(voiceMode + 1, juce::dontSendNotification);
 
-    presetBox.setSelectedId(static_cast<int>(index) + 2, juce::dontSendNotification);
+    presetBox.setSelectedId(
+        voiceMenuItemId(selectedVoiceBank, static_cast<int>(index)),
+        juce::dontSendNotification);
     applyParameters();
     repaint();
 }
@@ -3497,6 +3693,7 @@ void AurelineMainComponent::resetToInitialVoice()
     scaleKnob.setValue(0.0, juce::sendNotificationSync);
     lfoDelayKnob.setValue(0.0, juce::sendNotificationSync);
     lfoFadeKnob.setValue(0.0, juce::sendNotificationSync);
+    modRangeKnob.setValue(0.35, juce::sendNotificationSync);
     constexpr std::array<double, 5> initialPerformanceValues { 2.0, 14.0, 0.0, 0.0, 0.0 };
     for (std::size_t index = 0; index < performanceKnobs.size(); ++index)
         performanceKnobs[index].setValue(initialPerformanceValues[index],
@@ -3563,7 +3760,6 @@ void AurelineMainComponent::resetToInitialVoice()
         parameters.lfoDestinations[index].store(false);
     }
 
-    presetBox.setSelectedId(1, juce::dontSendNotification);
     applyParameters();
     repaint();
 }
@@ -3579,14 +3775,11 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
 
     if (button == &previousVoiceButton || button == &nextVoiceButton)
     {
-        const int itemCount = presetBox.getNumItems();
-        if (itemCount > 0)
-        {
-            const int direction = button == &previousVoiceButton ? -1 : 1;
-            const int current = juce::jmax(0, presetBox.getSelectedItemIndex());
-            presetBox.setSelectedItemIndex((current + direction + itemCount) % itemCount,
-                                           juce::sendNotificationSync);
-        }
+        const int itemCount = static_cast<int>(factoryVoices.size());
+        const int direction = button == &previousVoiceButton ? -1 : 1;
+        const int current = juce::jmax(0, selectedFactoryVoiceIndex);
+        loadFactoryVoice(static_cast<std::size_t>(
+            (current + direction + itemCount) % itemCount));
     }
     else if (button == &loadVoiceButton)
     {
@@ -3609,13 +3802,7 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
     }
     else if (button == &saveVoiceButton)
     {
-        auto name = currentVoiceName.retainCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ ").trim();
-        if (name.isEmpty()) name = "AurelineVoice";
-        voiceFileChooser = std::make_unique<juce::FileChooser>("Save Aureline voice",
-            aurelineDocumentsDirectory().getChildFile(name + ".aurelinevoice"), "*.aurelinevoice");
-        voiceFileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-            [safe = juce::Component::SafePointer<AurelineMainComponent>(this)](const juce::FileChooser& chooser)
-            { if (safe != nullptr && chooser.getResult() != juce::File {}) safe->saveVoiceToFile(chooser.getResult()); });
+        promptAndSaveVoice();
     }
     else if (button == &copyVoiceButton)
     {
@@ -3633,11 +3820,12 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
             && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
         {
             presetBox.changeItemText(
-                selectedFactoryVoiceIndex + 2,
+                voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                 slotVoiceDisplayName(
                     static_cast<std::size_t>(selectedFactoryVoiceIndex),
                     destinationName));
-            presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+            presetBox.setSelectedId(
+                voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                                     juce::dontSendNotification);
         }
         statusLabel.setText("Voice pasted temporarily into: " + destinationName,
@@ -3648,9 +3836,10 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
     else if (button == &saveLibraryButton)
     {
         voiceFileChooser = std::make_unique<juce::FileChooser>(
-            "Save all Aureline voices",
+            "Save current Aureline bank",
             aurelineDocumentsDirectory().getChildFile(
-                "Aureline Library.aurelinelibrary.xml"),
+                "Aureline Bank " + juce::String(selectedVoiceBank + 1)
+                    + ".aurelinelibrary.xml"),
             "*.xml");
         voiceFileChooser->launchAsync(
             juce::FileBrowserComponent::saveMode
@@ -3670,9 +3859,11 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
             && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
         {
             const auto slot = static_cast<std::size_t>(selectedFactoryVoiceIndex);
-            presetBox.changeItemText(selectedFactoryVoiceIndex + 2,
+            presetBox.changeItemText(
+                voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                                      slotVoiceDisplayName(slot, currentVoiceName));
-            presetBox.setSelectedId(selectedFactoryVoiceIndex + 2,
+            presetBox.setSelectedId(
+                voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                                     juce::dontSendNotification);
             const auto destinationName = currentVoiceName;
             statusLabel.setText("Voice initialized temporarily in: " + destinationName,
@@ -3926,15 +4117,21 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     auto filterEnvelopeDisplay = scope;
     auto amplifierDisplay = filterEnvelopeDisplay;
     auto waveformPanelArea = scope;
-    auto waveformAPanel = waveformPanelArea.removeFromTop(
-        juce::jmax(1.0f, waveformPanelArea.getHeight() * 0.5f - 2.0f));
-    waveformPanelArea.removeFromTop(4.0f);
+    constexpr float waveformRowGap = 4.0f;
+    auto waveformCombinedPanel = waveformPanelArea.removeFromTop(
+        juce::jmax(1.0f,
+                   (waveformPanelArea.getHeight() - waveformRowGap) * 0.5f));
+    waveformPanelArea.removeFromTop(waveformRowGap);
+    auto waveformAPanel = waveformPanelArea.removeFromLeft(
+        juce::jmax(1.0f, waveformPanelArea.getWidth() * 0.5f - 2.0f));
+    waveformPanelArea.removeFromLeft(4.0f);
     auto waveformBPanel = waveformPanelArea;
     g.setGradientFill({ juce::Colour(0xff28170d), lcd.getX(), lcd.getY(),
                         juce::Colour(0xff0b0704), lcd.getX(), lcd.getBottom(), false });
     g.fillRoundedRectangle(lcd, 4.0f);
     g.setColour(juce::Colour(0xff594235));
     g.drawRoundedRectangle(lcd, 4.0f, 1.0f);
+    drawDisplayFrame(waveformCombinedPanel, {});
     drawDisplayFrame(waveformAPanel, {});
     drawDisplayFrame(waveformBPanel, {});
     drawControlFrame(mixerDisplay, "MIXER");
@@ -3964,6 +4161,7 @@ void AurelineMainComponent::paint(juce::Graphics& g)
 
     constexpr std::size_t shapeSize = 256;
     std::array<std::array<float, shapeSize>, 2> oscillatorShapes {};
+    std::array<float, shapeSize> combinedShape {};
     const auto renderWaveMemory = [this](double phase, int memoryIndex, int character,
                                          bool oscillatorA)
     {
@@ -3999,13 +4197,6 @@ void AurelineMainComponent::paint(juce::Graphics& g)
                                           : parameters.oscillatorBLevel.load();
         const auto level = std::isfinite(rawLevel)
             ? juce::jlimit(0.0f, 1.0f, rawLevel) : 0.0f;
-        const auto rawOctave = oscillatorA ? parameters.oscillatorAOctave.load()
-                                           : parameters.oscillatorBOctave.load();
-        const auto octave = std::isfinite(rawOctave)
-            ? juce::jlimit(-5.0f, 5.0f, rawOctave) : 0.0f;
-        const auto rawFineCents = oscillatorA ? 0.0f : parameters.oscillatorBFine.load();
-        const auto fineCents = std::isfinite(rawFineCents)
-            ? juce::jlimit(-1200.0f, 1200.0f, rawFineCents) : 0.0f;
         const auto rawPulseWidth = oscillatorA ? parameters.pulseWidthA.load()
                                                : parameters.pulseWidthB.load();
         const auto pulseWidth = std::isfinite(rawPulseWidth)
@@ -4018,13 +4209,9 @@ void AurelineMainComponent::paint(juce::Graphics& g)
             + ((mask & 4) != 0) + ((mask & 8) != 0);
         if (enabledCount == 0 || level <= 0.0f)
             return;
-        const auto frequencyRatio = std::pow(2.0,
-            static_cast<double>(octave) + static_cast<double>(fineCents) / 1200.0);
         for (std::size_t index = 0; index < shapeSize; ++index)
         {
-            auto phase = std::fmod(static_cast<double>(index) / shapeSize * frequencyRatio, 1.0);
-            if (phase < 0.0)
-                phase += 1.0;
+            const auto phase = static_cast<double>(index) / shapeSize;
             double sample = 0.0;
             if ((mask & 1) != 0) sample += phase * 2.0 - 1.0;
             if ((mask & 2) != 0) sample += 1.0 - 4.0 * std::abs(phase - 0.5);
@@ -4047,33 +4234,111 @@ void AurelineMainComponent::paint(juce::Graphics& g)
                                   sample * waveformOutputLevel);
         }
     }
+    const auto rawNoiseLevel = parameters.noiseLevel.load();
+    const auto noiseLevel = std::isfinite(rawNoiseLevel)
+        ? juce::jlimit(0.0f, 1.0f, rawNoiseLevel) : 0.0f;
+    const auto oscillatorAIsAudible = parameters.waveformMaskA.load() != 0
+        && parameters.oscillatorALevel.load() > 0.0f;
+    const auto oscillatorBIsAudible = parameters.waveformMaskB.load() != 0
+        && parameters.oscillatorBLevel.load() > 0.0f;
+    const bool combinedUsesOscillatorA = oscillatorAIsAudible || !oscillatorBIsAudible;
+    const auto rawAnchorOctave = combinedUsesOscillatorA
+        ? parameters.oscillatorAOctave.load() : parameters.oscillatorBOctave.load();
+    const auto rawAnchorFine = combinedUsesOscillatorA
+        ? 0.0f : parameters.oscillatorBFine.load();
+    const auto anchorOctave = std::isfinite(rawAnchorOctave) ? rawAnchorOctave : 0.0f;
+    const auto anchorFine = std::isfinite(rawAnchorFine) ? rawAnchorFine : 0.0f;
+    const auto anchorRatio = std::pow(
+        2.0, static_cast<double>(anchorOctave)
+            + static_cast<double>(anchorFine) / 1200.0);
+    for (std::size_t index = 0; index < shapeSize; ++index)
+    {
+        const auto phase = static_cast<double>(index) / shapeSize;
+        const auto rawOctaveA = parameters.oscillatorAOctave.load();
+        const auto rawOctaveB = parameters.oscillatorBOctave.load();
+        const auto rawFineB = parameters.oscillatorBFine.load();
+        const auto octaveA = std::isfinite(rawOctaveA) ? rawOctaveA : 0.0f;
+        const auto octaveB = std::isfinite(rawOctaveB) ? rawOctaveB : 0.0f;
+        const auto fineB = std::isfinite(rawFineB) ? rawFineB : 0.0f;
+        const auto ratioA = std::pow(2.0, static_cast<double>(octaveA));
+        const auto ratioB = std::pow(
+            2.0, static_cast<double>(octaveB)
+                + static_cast<double>(fineB) / 1200.0);
+        const auto safeAnchorRatio = std::max(anchorRatio, 0.000001);
+        const auto indexA = static_cast<std::size_t>(
+            std::fmod(phase * ratioA / safeAnchorRatio, 1.0) * shapeSize) % shapeSize;
+        const auto indexB = static_cast<std::size_t>(
+            std::fmod(phase * ratioB / safeAnchorRatio, 1.0) * shapeSize) % shapeSize;
+        // Stable pseudo-noise keeps the display stationary while representing
+        // the digital noise source in the mixed waveform.
+        auto state = static_cast<std::uint32_t>(index + 1u) * 747796405u + 2891336453u;
+        state = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+        state = (state >> 22u) ^ state;
+        const auto noise = static_cast<float>(state & 0xffffu) / 32767.5f - 1.0f;
+        combinedShape[index] = juce::jlimit(
+            -1.0f, 1.0f,
+            oscillatorShapes[0][indexA] + oscillatorShapes[1][indexB]
+                + noise * noiseLevel * waveformOutputLevel);
+    }
 
     const auto rawBend = parameters.pitchBend.load() * parameters.pitchBendRange.load();
     const auto bend = std::isfinite(rawBend) ? juce::jlimit(-48.0f, 48.0f, rawBend) : 0.0f;
-    const auto rawLfoAmount = parameters.lfoAmount.load() + parameters.modWheel.load();
+    const auto rawLfoAmount = parameters.lfoAmount.load()
+        + parameters.modWheel.load() * parameters.modRange.load();
     const auto lfoAmount = std::isfinite(rawLfoAmount)
         ? juce::jlimit(0.0f, 1.0f, rawLfoAmount) : 0.0f;
     const auto rawLfoValue = engine.currentLfoValue();
     const auto lfoValue = std::isfinite(rawLfoValue)
         ? juce::jlimit(-1.0, 1.0, rawLfoValue) : 0.0;
     const bool isSilent = waveformOutputLevel <= 0.001f;
+    auto combinedArea = waveformCombinedPanel.reduced(4.0f, 3.0f);
     auto oscillatorAArea = waveformAPanel.reduced(4.0f, 3.0f);
     auto oscillatorBArea = waveformBPanel.reduced(4.0f, 3.0f);
     const auto drawOscillatorWave = [&](const std::array<float, shapeSize>& shape,
                                         juce::Rectangle<float> waveArea,
-                                        bool oscillatorA)
+                                        bool oscillatorA,
+                                        bool includeOscillatorTuning)
     {
         waveArea = waveArea.reduced(0.0f, 1.0f);
-        const auto destination = oscillatorA ? 0 : 1;
-        const auto vibratoSemitones = parameters.lfoDestinations[
-            static_cast<std::size_t>(destination)].load()
-            ? lfoValue * static_cast<double>(lfoAmount * lfoAmount) * 12.0 : 0.0;
+        const auto lfoDepth = lfoValue
+            * static_cast<double>(lfoAmount * lfoAmount) * 12.0;
+        double vibratoSemitones = 0.0;
+        if (includeOscillatorTuning)
+        {
+            const auto destination = oscillatorA ? 0 : 1;
+            if (parameters.lfoDestinations[
+                    static_cast<std::size_t>(destination)].load())
+                vibratoSemitones = lfoDepth;
+        }
+        else
+        {
+            const auto levelA = juce::jmax(0.0f, parameters.oscillatorALevel.load());
+            const auto levelB = juce::jmax(0.0f, parameters.oscillatorBLevel.load());
+            const auto totalLevel = levelA + levelB;
+            if (totalLevel > 0.0f)
+            {
+                const auto modulatedLevel =
+                    (parameters.lfoDestinations[0].load() ? levelA : 0.0f)
+                    + (parameters.lfoDestinations[1].load() ? levelB : 0.0f);
+                vibratoSemitones = lfoDepth
+                    * static_cast<double>(modulatedLevel / totalLevel);
+            }
+        }
         const auto rawNote = static_cast<double>(
             waveformPitchNote.load(std::memory_order_relaxed))
             + static_cast<double>(bend) + vibratoSemitones;
         const auto note = std::isfinite(rawNote)
             ? juce::jlimit(0.0, 127.0, rawNote) : 60.0;
-        const auto rawCycles = 2.0 * std::pow(2.0, (note - 60.0) / 12.0);
+        const auto rawOctave = oscillatorA ? parameters.oscillatorAOctave.load()
+                                           : parameters.oscillatorBOctave.load();
+        const auto octave = includeOscillatorTuning && std::isfinite(rawOctave)
+            ? juce::jlimit(-5.0, 5.0, static_cast<double>(rawOctave)) : 0.0;
+        const auto rawFine = oscillatorA ? 0.0f : parameters.oscillatorBFine.load();
+        const auto fine = includeOscillatorTuning && std::isfinite(rawFine)
+            ? juce::jlimit(-1200.0, 1200.0, static_cast<double>(rawFine)) / 1200.0
+            : 0.0;
+        const auto rawCycles = 2.0 * std::pow(
+            2.0, (note - 60.0) / 12.0 + octave + fine);
         const auto cycles = std::isfinite(rawCycles)
             ? juce::jlimit(0.5, 8.0, rawCycles) : 2.0;
         const auto startPhase = 0.5 - cycles * 0.5;
@@ -4146,14 +4411,33 @@ void AurelineMainComponent::paint(juce::Graphics& g)
             g.strokePath(centreWave, juce::PathStrokeType(1.3f));
         }
     };
-    drawOscillatorWave(oscillatorShapes[0], oscillatorAArea, true);
-    drawOscillatorWave(oscillatorShapes[1], oscillatorBArea, false);
-    g.setColour(juce::Colour(themeText));
-    g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
-    g.drawText("OSC A", waveformAPanel.removeFromTop(16.0f).reduced(7.0f, 0.0f),
-               juce::Justification::centredLeft, false);
-    g.drawText("OSC B", waveformBPanel.removeFromTop(16.0f).reduced(7.0f, 0.0f),
-               juce::Justification::centredLeft, false);
+    drawOscillatorWave(combinedShape, combinedArea, combinedUsesOscillatorA, true);
+    drawOscillatorWave(oscillatorShapes[0], oscillatorAArea, true, true);
+    drawOscillatorWave(oscillatorShapes[1], oscillatorBArea, false, true);
+    const auto waveformLabelFont = juce::Font(
+        juce::FontOptions(9.0f, juce::Font::bold));
+    const auto drawWaveformLabel = [&g, &waveformLabelFont](
+        juce::Rectangle<float> panel, const juce::String& text)
+    {
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(waveformLabelFont, text, 0.0f, 0.0f);
+        const auto textWidth = glyphs.getBoundingBox(
+            0, glyphs.getNumGlyphs(), true).getWidth();
+        const auto label = juce::Rectangle<float>(
+            panel.getX() + 10.0f, panel.getY() - 7.0f,
+            textWidth + 8.0f, 14.0f);
+        const auto borderMask = juce::Rectangle<float>(
+            label.getX(), panel.getY() - 1.5f, label.getWidth(), 3.0f);
+        g.setColour(juce::Colour(themeControlSurface).brighter(0.04f));
+        g.fillRect(borderMask);
+        g.setColour(juce::Colour(themeText));
+        g.setFont(waveformLabelFont);
+        g.drawText(text, label.reduced(4.0f, 0.0f),
+                   juce::Justification::centredLeft, false);
+    };
+    drawWaveformLabel(waveformCombinedPanel, "OSC A + OSC B + NOISE");
+    drawWaveformLabel(waveformAPanel, "OSC A");
+    drawWaveformLabel(waveformBPanel, "OSC B");
 
     const auto innerLcd = lcd.reduced(6.0f, 3.0f);
     constexpr int columnsPerChar = 5;
@@ -4172,8 +4456,13 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     const auto onDot = juce::Colour(0xffffa04a);
     const auto voiceMode = parameters.voiceMode.load();
     const juce::String modeText = voiceMode == 1 ? "MONO" : voiceMode == 2 ? "UNI" : "POLY";
-    const auto tempoText = juce::String(juce::roundToInt(parameters.tempoBpm.load()));
-    const auto playLine = (modeText + " TEMPO" + tempoText)
+    constexpr std::array<const char*, 4> lcdBankNames {{
+        "ANALOG", "8-BIT", "RETRO", "INIT"
+    }};
+    const auto bankText = "B" + juce::String(selectedVoiceBank + 1) + " "
+        + lcdBankNames[static_cast<std::size_t>(
+            juce::jlimit(0, 3, selectedVoiceBank))];
+    const auto playLine = (modeText + " " + bankText)
                               .substring(0, characterCount).paddedRight(' ', characterCount);
     auto voiceLine = currentVoiceName.toUpperCase();
     if (voiceLine.isEmpty())
@@ -4399,7 +4688,7 @@ void AurelineMainComponent::resized()
                         unifiedRowHeight * 3 + unifiedRowGap * 2 + controlRowsInsets)
                    .reduced(4).withTrimmedTop(2);
     auto leftControls = top.removeFromLeft(70).reduced(4, 2);
-    const int leftControlRowHeight = leftControls.getHeight() / 3;
+    const int leftControlRowHeight = leftControls.getHeight() / 4;
     auto layoutNumberedKnobRow = [](juce::Rectangle<int> row,
                                     juce::Label& label, juce::Slider& knob,
                                     const juce::String& styleName)
@@ -4409,13 +4698,17 @@ void AurelineMainComponent::resized()
         knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
         knob.setName(styleName);
         knob.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-        knob.setBounds(row.withSizeKeepingCentre(62, 82));
+        knob.setBounds(row.withSizeKeepingCentre(
+            58, juce::jmin(66, row.getHeight())));
     };
     layoutNumberedKnobRow(leftControls.removeFromTop(leftControlRowHeight),
                           knobLabels[18], knobs[18], "numberedKnob");
     layoutNumberedKnobRow(leftControls.removeFromTop(leftControlRowHeight),
                           vintageLabel, vintageKnob, "numberedKnob");
-    layoutNumberedKnobRow(leftControls, tempoLabel, tempoKnob, "tempoNumberedKnob");
+    layoutNumberedKnobRow(leftControls.removeFromTop(leftControlRowHeight),
+                          tempoLabel, tempoKnob, "tempoNumberedKnob");
+    layoutNumberedKnobRow(leftControls, performanceLabels[2],
+                          performanceKnobs[2], "numberedKnob");
 
     top.removeFromLeft(2);
     auto patch = top.removeFromLeft(244).reduced(8, 0);
@@ -4637,18 +4930,30 @@ void AurelineMainComponent::resized()
     modLabel.setBounds(modArea.removeFromBottom(16));
     modWheel.setBounds(modArea.reduced(5, 0));
     auto performanceControls = performance.removeFromLeft(100).translated(0, 3);
-    for (std::size_t index = 0; index < performanceKnobs.size() - 1; ++index)
+    struct KeyboardPerformanceControl
     {
-        const int row = static_cast<int>(index) / 2;
-        const int column = static_cast<int>(index) % 2;
+        juce::Slider* knob;
+        juce::Label* label;
+    };
+    const std::array<KeyboardPerformanceControl, 4> keyboardPerformanceControls {{
+        { &performanceKnobs[0], &performanceLabels[0] },
+        { &performanceKnobs[1], &performanceLabels[1] },
+        { &modRangeKnob, &modRangeLabel },
+        { &performanceKnobs[3], &performanceLabels[3] }
+    }};
+    for (std::size_t position = 0; position < keyboardPerformanceControls.size(); ++position)
+    {
+        const int row = static_cast<int>(position) / 2;
+        const int column = static_cast<int>(position) % 2;
         auto cell = juce::Rectangle<int>(performanceControls.getX() + column * 50,
                                          performanceControls.getY() + row * 68,
                                          50, 68).reduced(2, 0);
         const int verticalOffset = row == 0 ? -3 : -6;
-        performanceLabels[index].setBounds(cell.removeFromTop(10)
-                                               .translated(0, row == 0 ? 0 : -3));
-        performanceKnobs[index].setBounds(cell.withSizeKeepingCentre(48, 52)
-                                              .translated(0, verticalOffset));
+        auto& control = keyboardPerformanceControls[position];
+        control.label->setBounds(cell.removeFromTop(10)
+                                     .translated(0, row == 0 ? 0 : -3));
+        control.knob->setBounds(cell.withSizeKeepingCentre(48, 52)
+                                    .translated(0, verticalOffset));
     }
     auto performanceButtonGrid = performance.removeFromLeft(72).reduced(2, 1);
     constexpr int performanceButtonWidth = 32;

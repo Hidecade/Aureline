@@ -98,10 +98,13 @@ struct RootView: View {
                 .frame(width: leftWidth)
 
                 AurelineWaveform(
+                    layout: .edit,
+                    samplesCombined: synth.synthesizedWaveformSamples,
                     samplesA: synth.synthesizedOscillatorWaveformSamples(
                         oscillatorA: true),
                     samplesB: synth.synthesizedOscillatorWaveformSamples(
                         oscillatorA: false),
+                    cyclesCombined: synth.displayedWaveformCycles,
                     cyclesA: synth.displayedWaveformCycles(oscillatorA: true),
                     cyclesB: synth.displayedWaveformCycles(oscillatorA: false))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

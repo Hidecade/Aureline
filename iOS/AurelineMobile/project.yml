@@ -20,6 +20,12 @@ targets:
         name: SharedEngine
       - path: ../../Source/DSP
         name: SharedDSP
+      - path: ../../assets/Analog.aurelinelibrary.xml
+        buildPhase: resources
+      - path: ../../assets/Retro.aurelinelibrary.xml
+        buildPhase: resources
+      - path: ../../assets/8-Bit.aurelinelibrary.xml
+        buildPhase: resources
     dependencies:
       - target: AurelineAUv3Extension
         embed: true
@@ -31,8 +37,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.hidekikonishi.aureline.mobile
         PRODUCT_NAME: Aureline
         INFOPLIST_KEY_CFBundleDisplayName: Aureline
-        MARKETING_VERSION: "1.0.2"
-        CURRENT_PROJECT_VERSION: 3
+        MARKETING_VERSION: "1.0.3"
+        CURRENT_PROJECT_VERSION: 4
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MACCATALYST: false
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
@@ -98,6 +104,12 @@ targets:
         name: SharedEngine
       - path: ../../Source/DSP
         name: SharedDSP
+      - path: ../../assets/Analog.aurelinelibrary.xml
+        buildPhase: resources
+      - path: ../../assets/Retro.aurelinelibrary.xml
+        buildPhase: resources
+      - path: ../../assets/8-Bit.aurelinelibrary.xml
+        buildPhase: resources
     dependencies:
       - sdk: AudioToolbox.framework
       - sdk: AVFoundation.framework
@@ -108,8 +120,8 @@ targets:
         PRODUCT_NAME: AurelineAUv3Extension
         PRODUCT_MODULE_NAME: AurelineAUv3Extension
         INFOPLIST_KEY_CFBundleDisplayName: Aureline
-        MARKETING_VERSION: "1.0.2"
-        CURRENT_PROJECT_VERSION: 3
+        MARKETING_VERSION: "1.0.3"
+        CURRENT_PROJECT_VERSION: 4
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MACCATALYST: false
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false

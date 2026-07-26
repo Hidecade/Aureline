@@ -36,8 +36,11 @@ final class MobileSynthModel: ObservableObject {
     @Published var waveformPitchNote = 60.0
     @Published var scopeSamples: [Float] = Array(repeating: 0, count: 128)
     @Published var waveformOutputLevel = 0.0
+    @Published var waveformLFOValue = 0.0
     @Published var externalActiveNotes: [Int: Int] = [:]
     @Published var factoryPresetNames: [String] = []
+    @Published var selectedBank = 0
+    static let bankNames = ["ANALOG", "8-BIT", "RETRO", "INIT"]
     @Published var canPasteVoice = false
     @Published var canPasteWave = false
 
@@ -51,17 +54,19 @@ final class MobileSynthModel: ObservableObject {
     private var selectedFactoryPresetIndex: Int?
     private var factorySlotKeys: [String] = []
     private let lastVoiceDefaultsKey = "Aureline.lastSelectedVoiceSlot"
+    private let lastBankDefaultsKey = "Aureline.lastSelectedVoiceBank"
 
     private func voiceNameWithoutSlotPrefix(_ name: String) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 3 else { return trimmed }
         let characters = Array(trimmed)
-        if characters[0].isNumber, characters[1].isNumber,
+        var result = trimmed
+        if characters.count >= 3,
+           characters[0].isNumber, characters[1].isNumber,
            characters[2].isWhitespace {
-            return String(characters.dropFirst(3))
+            result = String(characters.dropFirst(3))
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return trimmed
+        return String(result.prefix(16))
     }
 
     var selectedFactoryDisplayName: String? {
@@ -95,7 +100,8 @@ final class MobileSynthModel: ObservableObject {
     ]
     static let modulationParameters = [
         AurelineParameter(id: "lfoRate", name: "LFO RATE", range: 0.01...30, defaultValue: 5, logarithmic: true),
-        AurelineParameter(id: "lfoAmount", name: "INITIAL AMT", range: 0...1, defaultValue: 0, logarithmic: false),
+        AurelineParameter(id: "lfoAmount", name: "MOD AMT", range: 0...1, defaultValue: 0, logarithmic: false),
+        AurelineParameter(id: "modRange", name: "MOD RANGE", range: 0...1, defaultValue: 0.35, logarithmic: false),
         AurelineParameter(id: "lfoDelay", name: "LFO DELAY", range: 0...10, defaultValue: 0, logarithmic: false),
         AurelineParameter(id: "lfoFade", name: "LFO FADE", range: 0...10, defaultValue: 0, logarithmic: false),
         AurelineParameter(id: "polyModFilterEnv", name: "POLY F ENV", range: 0...1, defaultValue: 0, logarithmic: false),
@@ -120,15 +126,13 @@ final class MobileSynthModel: ObservableObject {
         values = bridge.patchSnapshot() as? [String: Double] ?? [:]
         factoryPresetNames = bridge.factoryPresetNames()
         factorySlotKeys = factoryPresetNames
-        ensureActiveLibrary()
-        if let active = try? readActiveLibrary() {
-            for voice in active where factoryPresetNames.indices.contains(voice.slot) {
-                factoryPresetNames[voice.slot] = slotDisplayName(
-                    voice.slot, voiceNameWithoutSlotPrefix(voice.name))
-            }
-        }
-        createBuiltInLibraries()
-        let lastSlot = min(49, max(0, UserDefaults.standard.object(
+        installBuiltInLibraries()
+        ensureBankLibraries()
+        selectedBank = min(3, max(0, UserDefaults.standard.integer(
+            forKey: lastBankDefaultsKey)))
+        refreshCurrentBankNames()
+        let lastSlot = min(AurelineLibraryCodec.voiceCount - 1,
+                           max(0, UserDefaults.standard.object(
             forKey: lastVoiceDefaultsKey) == nil
             ? 0 : UserDefaults.standard.integer(forKey: lastVoiceDefaultsKey)))
         loadFactoryPreset(lastSlot)
@@ -162,17 +166,43 @@ final class MobileSynthModel: ObservableObject {
 
     var displayedWaveformCycles: Double {
         let bend = pitchWheel * value("pitchBendRange", default: 2)
-        let cycles = 2 * pow(2, (waveformPitchNote + bend - 60) / 12)
+        let lfo = displayedLFOPitchSemitones(oscillatorA: nil)
+        let oscillatorAIsAudible = value("waveformMaskA") != 0
+            && value("oscALevel") > 0
+        let oscillatorBIsAudible = value("waveformMaskB") != 0
+            && value("oscBLevel") > 0
+        let useOscillatorA = oscillatorAIsAudible || !oscillatorBIsAudible
+        let octave = value(useOscillatorA ? "oscAOctave" : "oscBOctave")
+        let fine = useOscillatorA ? 0 : value("oscBFine") / 1200
+        let cycles = 2 * pow(2, (waveformPitchNote + bend + lfo - 60) / 12
+                             + octave + fine)
         return max(0.5, min(8, cycles))
     }
 
     func displayedWaveformCycles(oscillatorA: Bool) -> Double {
         let bend = pitchWheel * value("pitchBendRange", default: 2)
+        let lfo = displayedLFOPitchSemitones(oscillatorA: oscillatorA)
         let octave = value(oscillatorA ? "oscAOctave" : "oscBOctave")
         let fine = oscillatorA ? 0 : value("oscBFine") / 1200
-        let cycles = 2 * pow(2, (waveformPitchNote + bend - 60) / 12
+        let cycles = 2 * pow(2, (waveformPitchNote + bend + lfo - 60) / 12
                              + octave + fine)
         return max(0.5, min(8, cycles))
+    }
+
+    private func displayedLFOPitchSemitones(oscillatorA: Bool?) -> Double {
+        let amount = max(0, min(1, value("lfoAmount")
+                                + modWheel * value("modRange", default: 0.35)))
+        let depth = waveformLFOValue * amount * amount * 12
+        if let oscillatorA {
+            return value(oscillatorA ? "lfoDestA" : "lfoDestB") >= 0.5
+                ? depth : 0
+        }
+        let levelA = max(0, value("oscALevel"))
+        let levelB = max(0, value("oscBLevel"))
+        let weightA = value("lfoDestA") >= 0.5 ? levelA : 0
+        let weightB = value("lfoDestB") >= 0.5 ? levelB : 0
+        let totalLevel = levelA + levelB
+        return totalLevel > 0 ? depth * (weightA + weightB) / totalLevel : 0
     }
 
     func initializePatch() {
@@ -195,6 +225,14 @@ final class MobileSynthModel: ObservableObject {
     var synthesizedWaveformSamples: [Float] {
         let sampleCount = 128
         var result = Array(repeating: 0.0, count: sampleCount)
+        let oscillatorAIsAudible = value("waveformMaskA") != 0
+            && value("oscALevel") > 0
+        let oscillatorBIsAudible = value("waveformMaskB") != 0
+            && value("oscBLevel") > 0
+        let useOscillatorA = oscillatorAIsAudible || !oscillatorBIsAudible
+        let anchorOctave = value(useOscillatorA ? "oscAOctave" : "oscBOctave")
+        let anchorFine = useOscillatorA ? 0 : value("oscBFine")
+        let anchorRatio = max(0.000_001, pow(2, anchorOctave + anchorFine / 1200))
         for oscillatorA in [true, false] {
             let mask = Int(value(oscillatorA ? "waveformMaskA" : "waveformMaskB").rounded())
             let level = value(oscillatorA ? "oscALevel" : "oscBLevel")
@@ -208,7 +246,7 @@ final class MobileSynthModel: ObservableObject {
             let enabledCount = [1, 2, 4, 8].reduce(0) { $0 + (mask & $1 == 0 ? 0 : 1) }
             guard enabledCount > 0, level > 0 else { continue }
 
-            let frequencyRatio = pow(2, octave + fineCents / 1200)
+            let frequencyRatio = pow(2, octave + fineCents / 1200) / anchorRatio
             for index in 0..<sampleCount {
                 let phase = (Double(index) / Double(sampleCount) * frequencyRatio)
                     .truncatingRemainder(dividingBy: 1)
@@ -222,6 +260,16 @@ final class MobileSynthModel: ObservableObject {
                                                        character: character)
                 }
                 result[index] += level * sample / sqrt(Double(enabledCount))
+            }
+        }
+        let noiseLevel = max(0, min(1, value("noiseLevel")))
+        if noiseLevel > 0 {
+            for index in 0..<sampleCount {
+                var state = UInt32(index + 1) &* 747_796_405 &+ 2_891_336_453
+                state = ((state >> ((state >> 28) + 4)) ^ state) &* 277_803_737
+                state = (state >> 22) ^ state
+                let noise = Double(state & 0xffff) / 32_767.5 - 1
+                result[index] += noise * noiseLevel
             }
         }
 
@@ -348,6 +396,14 @@ final class MobileSynthModel: ObservableObject {
         status = "Voice stored in slot \(index + 1): \(storedName)"
     }
 
+    func selectBank(_ bank: Int) {
+        let target = min(3, max(0, bank))
+        guard target != selectedBank else { return }
+        selectedBank = target
+        UserDefaults.standard.set(target, forKey: lastBankDefaultsKey)
+        refreshCurrentBankNames()
+    }
+
     func loadFactoryPreset(_ index: Int) {
         let slotName = factorySlotKeys.indices.contains(index)
             ? factorySlotKeys[index] : "Factory"
@@ -421,25 +477,21 @@ final class MobileSynthModel: ObservableObject {
         try FileManager.default.createDirectory(at: directory,
                                                 withIntermediateDirectories: true)
         let url = directory.appendingPathComponent(
-            "Aureline Library.aurelinelibrary.xml")
+            "Aureline Bank \(selectedBank + 1).aurelinelibrary.xml")
         try AurelineLibraryCodec.encode(voices).write(to: url, options: .atomic)
         return url
     }
 
-    func importLibrary(from url: URL) throws {
+    func importLibrary(from url: URL, intoBank bank: Int) throws {
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
         let voices = try AurelineLibraryCodec.decode(Data(contentsOf: url))
-        try writeActiveLibrary(voices)
-        removeLegacyStoredVoices()
-        for voice in voices {
-            factoryPresetNames[voice.slot] = slotDisplayName(
-                voice.slot, voiceNameWithoutSlotPrefix(voice.name))
-        }
-        if let selectedFactoryPresetIndex {
-            loadFactoryPreset(selectedFactoryPresetIndex)
-        }
-        status = "All 50 voices replaced from: \(url.lastPathComponent)"
+        let target = min(3, max(0, bank))
+        try writeLibrary(voices, bank: target)
+        selectBank(target)
+        refreshCurrentBankNames()
+        if let selectedFactoryPresetIndex { loadFactoryPreset(selectedFactoryPresetIndex) }
+        status = "BANK \(target + 1) replaced from: \(url.lastPathComponent)"
     }
 
     func applyPreset(_ preset: AurelineVoiceFile) throws {
@@ -467,48 +519,74 @@ final class MobileSynthModel: ObservableObject {
         return directory
     }
 
-    private func activeLibraryURL() throws -> URL {
+    private func bankLibraryURL(_ bank: Int) throws -> URL {
         try applicationSupportDirectory().appendingPathComponent(
-            "active-library.aurelinelibrary.xml")
+            "bank-\(min(3, max(0, bank)) + 1).aurelinelibrary.xml")
     }
 
     private func readActiveLibrary() throws -> [AurelineLibraryVoice] {
-        try AurelineLibraryCodec.decode(Data(contentsOf: activeLibraryURL()))
+        try AurelineLibraryCodec.decode(Data(contentsOf: bankLibraryURL(selectedBank)))
     }
 
     private func writeActiveLibrary(_ voices: [AurelineLibraryVoice]) throws {
-        try AurelineLibraryCodec.encode(voices).write(
-            to: activeLibraryURL(), options: .atomic)
+        try writeLibrary(voices, bank: selectedBank)
     }
 
-    private func ensureActiveLibrary() {
-        if (try? readActiveLibrary()) != nil {
-            removeLegacyStoredVoices()
-            return
+    private func writeLibrary(_ voices: [AurelineLibraryVoice], bank: Int) throws {
+        try AurelineLibraryCodec.encode(voices).write(
+            to: bankLibraryURL(bank), options: .atomic)
+    }
+
+    private func ensureBankLibraries() {
+        let legacyURL = try? applicationSupportDirectory().appendingPathComponent(
+            "active-library.aurelinelibrary.xml")
+        let bankIsValid: (Int) -> Bool = { bank in
+            guard let url = try? self.bankLibraryURL(bank),
+                  let data = try? Data(contentsOf: url) else { return false }
+            return (try? AurelineLibraryCodec.decode(data)) != nil
         }
-        var voices = factoryLibraryVoices()
-        guard let documents = try? userPresetDirectory() else { return }
-        let decoder = JSONDecoder()
-        for index in factorySlotKeys.indices {
-            let candidates = [
-                documents.appendingPathComponent(
-                    String(format: "slot-%02d.aurelinevoice", index + 1)),
-                documents.appendingPathComponent(
-                    safeFilename(factorySlotKeys[index]))
-                    .appendingPathExtension("aurelinevoice")
-            ]
-            guard let legacy = candidates.first(where: {
-                      FileManager.default.fileExists(atPath: $0.path)
-                  }),
-                  let data = try? Data(contentsOf: legacy),
-                  let voice = try? decoder.decode(AurelineVoiceFile.self, from: data)
-            else { continue }
-            voices[index] = AurelineLibraryVoice(
-                slot: index, name: voiceNameWithoutSlotPrefix(voice.name),
-                patch: voice.patch)
+        if !bankIsValid(0) {
+            if let legacyURL, let legacy = try? AurelineLibraryCodec.decode(
+                Data(contentsOf: legacyURL)) {
+                try? writeLibrary(legacy, bank: 0)
+            } else {
+                try? writeLibrary(factoryLibraryVoices(), bank: 0)
+            }
         }
-        guard (try? writeActiveLibrary(voices)) != nil else { return }
+        for (bank, resource) in [
+            (1, "8-Bit.aurelinelibrary.xml"),
+            (2, "Retro.aurelinelibrary.xml")
+        ] where !bankIsValid(bank) {
+            let parts = resource.split(separator: ".", maxSplits: 1)
+            if let source = Bundle.main.url(forResource: String(parts[0]),
+                                            withExtension: String(parts[1])),
+               let voices = try? AurelineLibraryCodec.decode(Data(contentsOf: source)) {
+                try? writeLibrary(voices, bank: bank)
+            }
+        }
+        if !bankIsValid(3) {
+            try? writeLibrary(initLibraryVoices(), bank: 3)
+        }
         removeLegacyStoredVoices()
+    }
+
+    private func initLibraryVoices() -> [AurelineLibraryVoice] {
+        let savedValues = values
+        bridge.resetPatch()
+        let patch = bridge.patchSnapshot() as? [String: Double] ?? [:]
+        bridge.applyPatchSnapshot(savedValues.mapValues(NSNumber.init(value:)))
+        values = savedValues
+        return (0..<AurelineLibraryCodec.voiceCount).map {
+            AurelineLibraryVoice(slot: $0, name: "INIT ANALOG", patch: patch)
+        }
+    }
+
+    private func refreshCurrentBankNames() {
+        guard let voices = try? readActiveLibrary() else { return }
+        factorySlotKeys = voices.sorted { $0.slot < $1.slot }.map(\.name)
+        factoryPresetNames = voices.sorted { $0.slot < $1.slot }.map {
+            slotDisplayName($0.slot, $0.name)
+        }
     }
 
     private func removeLegacyStoredVoices() {
@@ -568,17 +646,22 @@ final class MobileSynthModel: ObservableObject {
         return factory
     }
 
-    private func createBuiltInLibraries() {
+    private func installBuiltInLibraries() {
         guard let directory = try? userPresetDirectory() else { return }
-        let factory = factoryLibraryVoices()
-        if let data = try? AurelineLibraryCodec.encode(factory) {
-            try? data.write(to: directory.appendingPathComponent(
-                "factory.aurelinelibrary.xml"), options: .atomic)
-        }
-        let retro = retroGameLibraryVoices(from: factory)
-        if let data = try? AurelineLibraryCodec.encode(retro) {
-            try? data.write(to: directory.appendingPathComponent(
-                "RetroGame.aurelinelibrary.xml"), options: .atomic)
+        for filename in [
+            "Analog.aurelinelibrary.xml",
+            "Retro.aurelinelibrary.xml",
+            "8-Bit.aurelinelibrary.xml"
+        ] {
+            let parts = filename.split(separator: ".", maxSplits: 1)
+            guard parts.count == 2,
+                  let source = Bundle.main.url(
+                    forResource: String(parts[0]),
+                    withExtension: String(parts[1])),
+                  let data = try? Data(contentsOf: source) else { continue }
+            try? data.write(
+                to: directory.appendingPathComponent(filename),
+                options: .atomic)
         }
     }
 
@@ -672,6 +755,7 @@ final class MobileSynthModel: ObservableObject {
     private func startScopeTimer() {
         scopeTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 20.0, repeats: true) { [weak self] _ in
             guard let self else { return }
+            self.waveformLFOValue = self.bridge.currentLFOValue()
             let samples: [Float] = self.bridge.scopeSnapshotData().withUnsafeBytes { bytes in
                 Array(bytes.bindMemory(to: Float.self))
             }

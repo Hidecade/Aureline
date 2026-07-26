@@ -2,8 +2,8 @@
 
 ## Version
 
-- Version: `1.0.2`
-- Build: `3`
+- Version: `1.0.3`
+- Build: `4`
 - Primary category: `Music`
 - Secondary category: `Entertainment`
 - Copyright: `2026 Hideki Konishi / Hidecade Instruments`

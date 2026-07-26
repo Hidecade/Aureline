@@ -52,6 +52,7 @@ AnalogPatch normalizePatch(const AnalogPatch& source)
     patch.noiseLevel = clamp(patch.noiseLevel, 0.0, 1.0);
     patch.lfoRateHz = clamp(patch.lfoRateHz, 0.01, 30.0);
     patch.lfoInitialAmount = clamp(patch.lfoInitialAmount, 0.0, 1.0);
+    patch.lfoWheelAmount = clamp(patch.lfoWheelAmount, 0.0, 1.0);
     patch.lfoDelaySeconds = clamp(patch.lfoDelaySeconds, 0.0, 10.0);
     patch.lfoFadeSeconds = clamp(patch.lfoFadeSeconds, 0.0, 10.0);
     patch.lfoWaveformMask = std::clamp(patch.lfoWaveformMask, 0, 31);

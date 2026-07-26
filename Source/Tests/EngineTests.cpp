@@ -254,7 +254,7 @@ void testFactoryPresets()
 {
     const auto& presets = aureline::factoryPresets();
     assert(presets.size() == aureline::kFactoryPresetCount);
-    assert(presets.size() == 50);
+    assert(presets.size() == 32);
     for (std::size_t index = 0; index < presets.size(); ++index)
     {
         const auto& preset = presets[index];
@@ -286,7 +286,7 @@ void testFactoryPresets()
         else
         {
             assert(!usesPolyMod);
-            assert(!usesWaveMemory);
+            assert(usesWaveMemory == (index == 39));
         }
         if (index >= 35 && index < 39)
         {
@@ -295,6 +295,22 @@ void testFactoryPresets()
             };
             assert(std::abs(patch.oscillatorA.pulseWidth
                             - expectedWidths[index - 35]) < 0.0001);
+        }
+        if (index == 39)
+        {
+            constexpr aureline::WaveMemoryData expectedTriangle {{
+                31, 29, 27, 25, 23, 21, 19, 17,
+                15, 13, 11, 9, 7, 5, 3, 1,
+                1, 3, 5, 7, 9, 11, 13, 15,
+                17, 19, 21, 23, 25, 27, 29, 31
+            }};
+            assert(patch.oscillatorA.waveMemoryEnabled);
+            assert(patch.oscillatorA.waveMemoryCharacter
+                   == aureline::WaveMemoryCharacter::fourBit);
+            assert(patch.oscillatorA.waveMemoryData == expectedTriangle);
+            assert(std::abs(patch.filterCutoffHz - 5200.0) < 0.0001);
+            assert(std::abs(patch.amplifierEnvelope.sustainLevel - 0.9)
+                   < 0.0001);
         }
         aureline::AnalogEngine engine;
         engine.prepare(48000.0);
@@ -340,6 +356,52 @@ void testPerformanceSequencer()
     assert(peak > 0.001);
     sequencer.panic(engine);
     assert(engine.activeVoiceCount() == 0);
+}
+
+void testPatchChangeStartsFromNewParameters()
+{
+    constexpr double sampleRate = 48000.0;
+    aureline::AnalogEngine changedEngine;
+    aureline::AnalogEngine freshEngine;
+    changedEngine.prepare(sampleRate);
+    freshEngine.prepare(sampleRate);
+
+    auto oldPatch = changedEngine.getPatch();
+    oldPatch.oscillatorA.level = 0.02;
+    oldPatch.oscillatorB.level = 0.95;
+    oldPatch.oscillatorA.pulseWidth = 0.12;
+    oldPatch.noiseLevel = 0.7;
+    oldPatch.filterCutoffHz = 120.0;
+    oldPatch.filterResonance = 0.9;
+    oldPatch.masterGain = 0.1;
+    changedEngine.setPatch(oldPatch);
+    changedEngine.noteOn(48, 127);
+    for (int sample = 0; sample < 4096; ++sample)
+        changedEngine.renderStereoSample();
+
+    auto newPatch = freshEngine.getPatch();
+    newPatch.oscillatorA.level = 0.82;
+    newPatch.oscillatorB.level = 0.0;
+    newPatch.oscillatorA.pulseWidth = 0.68;
+    newPatch.noiseLevel = 0.0;
+    newPatch.filterCutoffHz = 9200.0;
+    newPatch.filterResonance = 0.12;
+    newPatch.masterGain = 0.78;
+
+    changedEngine.setPatch(newPatch);
+    changedEngine.panic();
+    freshEngine.setPatch(newPatch);
+    freshEngine.panic();
+    changedEngine.noteOn(60, 127);
+    freshEngine.noteOn(60, 127);
+
+    for (int sample = 0; sample < 512; ++sample)
+    {
+        const auto changed = changedEngine.renderStereoSample();
+        const auto fresh = freshEngine.renderStereoSample();
+        assert(std::abs(changed.left - fresh.left) < 1.0e-12);
+        assert(std::abs(changed.right - fresh.right) < 1.0e-12);
+    }
 }
 
 void testWaveMemoryOscillator()
@@ -395,6 +457,7 @@ int main()
     testRapidParameterChangesRemainFinite();
     testFactoryPresets();
     testPerformanceSequencer();
+    testPatchChangeStartsFromNewParameters();
     testWaveMemoryOscillator();
     std::cout << "Aureline engine tests passed\n";
     return 0;
