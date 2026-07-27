@@ -755,6 +755,10 @@ private struct AurelineWaveMemoryEditor: View {
     @State private var showingCharacterPicker = false
     @State private var auditioning = false
     @State private var auditionRestoreValues: [String: Double]?
+    @State private var selectedStep = 0
+    @State private var importingWave = false
+    @State private var exportingWave = false
+    @State private var waveFileError: String?
 
     private var indexID: String { oscillatorA ? "waveMemoryIndexA" : "waveMemoryIndexB" }
     private var characterID: String { oscillatorA ? "waveMemoryCharacterA" : "waveMemoryCharacterB" }
@@ -778,6 +782,32 @@ private struct AurelineWaveMemoryEditor: View {
                     .background(Color(hexValue: 0x070908))
                     .overlay(RoundedRectangle(cornerRadius: 5)
                         .stroke(Color(hexValue: 0x6d7170), lineWidth: 1))
+
+                HStack(spacing: 5) {
+                    Text("STEP")
+                    Text("\(selectedStep + 1)")
+                        .frame(width: 38, height: 26)
+                        .foregroundStyle(Color.white)
+                        .background(Color(hexValue: 0x090b0a))
+                        .overlay(Rectangle().stroke(
+                            Color(hexValue: 0x56534b), lineWidth: 1))
+                    waveStepButton("<") {
+                        selectedStep = max(0, selectedStep - 1)
+                    }
+                    waveStepButton(">") {
+                        selectedStep = min(31, selectedStep + 1)
+                    }
+                    Spacer()
+                    Text("VALUE")
+                    Text("\(steps[selectedStep])")
+                        .frame(width: 38, height: 26)
+                        .foregroundStyle(Color.white)
+                        .background(Color(hexValue: 0x090b0a))
+                        .overlay(Rectangle().stroke(
+                            Color(hexValue: 0x56534b), lineWidth: 1))
+                }
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(Color(hexValue: 0xaeb2b0))
 
                 HStack {
                     Text("32 STEPS · \(characterNames[character])")
@@ -808,14 +838,22 @@ private struct AurelineWaveMemoryEditor: View {
 
                 Spacer()
                 auditionButton
-                editorButton("COPY") { synth.copyWaveMemory(oscillatorA: oscillatorA) }
-                editorButton("PASTE", disabled: !synth.canPasteWave) {
-                    synth.pasteWaveMemory(oscillatorA: oscillatorA)
-                    reloadSteps()
+                HStack(spacing: 6) {
+                    editorButton("COPY") {
+                        synth.copyWaveMemory(oscillatorA: oscillatorA)
+                    }
+                    editorButton("PASTE", disabled: !synth.canPasteWave) {
+                        synth.pasteWaveMemory(oscillatorA: oscillatorA)
+                        reloadSteps()
+                    }
                 }
-                editorButton("INIT") {
-                    synth.selectWaveMemory(0, oscillatorA: oscillatorA)
-                    reloadSteps()
+                HStack(spacing: 4) {
+                    editorButton("INIT") {
+                        synth.selectWaveMemory(0, oscillatorA: oscillatorA)
+                        reloadSteps()
+                    }
+                    editorButton("LOAD") { importingWave = true }
+                    editorButton("SAVE") { exportingWave = true }
                 }
                 Spacer()
                 editorButton("CLOSE", accent: true) { dismiss() }
@@ -830,6 +868,41 @@ private struct AurelineWaveMemoryEditor: View {
             reloadSteps()
         }
         .onDisappear(perform: stopAudition)
+        .fileExporter(
+            isPresented: $exportingWave,
+            document: AurelineWaveDocument(steps: steps, character: character),
+            contentType: .aurelineWave,
+            defaultFilename: oscillatorA ? "Wave A" : "Wave B"
+        ) { result in
+            if case let .failure(error) = result {
+                waveFileError = error.localizedDescription
+            }
+        }
+        .fileImporter(isPresented: $importingWave,
+                      allowedContentTypes: [.aurelineWave, .xml]) { result in
+            do {
+                let url = try result.get()
+                let accessed = url.startAccessingSecurityScopedResource()
+                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+                let document = try AurelineWaveDocument(data: Data(contentsOf: url))
+                steps = document.steps
+                synth.set(characterID, Double(document.character))
+                for (index, value) in document.steps.enumerated() {
+                    synth.setWaveMemoryStep(
+                        oscillatorA: oscillatorA, index: index, value: value)
+                }
+                selectedStep = max(0, min(31, selectedStep))
+            } catch {
+                waveFileError = error.localizedDescription
+            }
+        }
+        .alert("WAVE FILE", isPresented: Binding(
+            get: { waveFileError != nil },
+            set: { if !$0 { waveFileError = nil } })) {
+                Button("OK", role: .cancel) { waveFileError = nil }
+            } message: {
+                Text(waveFileError ?? "")
+            }
         .overlay {
             if showingMemoryPicker {
                 AurelineSelectionPicker(
@@ -884,6 +957,14 @@ private struct AurelineWaveMemoryEditor: View {
                         context.stroke(line, with: .color(.white.opacity(level == 2 ? 0.16 : 0.07)),
                                        lineWidth: 0.5)
                     }
+                    let selected = CGRect(
+                        x: CGFloat(selectedStep) * columnWidth, y: 0,
+                        width: columnWidth, height: size.height)
+                    context.fill(Path(selected),
+                                 with: .color(AurelineTheme.amber.opacity(0.14)))
+                    context.stroke(Path(selected),
+                                   with: .color(AurelineTheme.amber.opacity(0.9)),
+                                   lineWidth: 1)
                     for index in 0..<32 {
                         let x = CGFloat(index) * columnWidth
                         let normalized = CGFloat(steps[index]) / 31
@@ -917,6 +998,7 @@ private struct AurelineWaveMemoryEditor: View {
         let value = character == 1
             ? Int((Double(fourBitValue) * 31 / 15).rounded())
             : raw
+        selectedStep = step
 
         if let previousStep = lastDrawnStep, let previousValue = lastDrawnValue,
            previousStep != step {
@@ -962,6 +1044,18 @@ private struct AurelineWaveMemoryEditor: View {
             .opacity(disabled ? 0.35 : 1)
     }
 
+    private func waveStepButton(_ title: String,
+                                action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .font(.system(size: 12, weight: .black))
+            .foregroundStyle(AurelineTheme.amber)
+            .frame(width: 22, height: 28)
+            .background(Color(hexValue: 0x252a2c))
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .overlay(RoundedRectangle(cornerRadius: 3)
+                .stroke(Color(hexValue: 0x050606), lineWidth: 1))
+    }
+
     private var auditionButton: some View {
         Text("AUDITION C4")
             .font(.system(size: 11, weight: .black))
@@ -1000,6 +1094,7 @@ private struct AurelineWaveMemoryEditor: View {
     private func stopAudition() {
         if auditioning {
             synth.noteOffAbsolute(60)
+            synth.panic()
             auditioning = false
         }
         if let auditionRestoreValues {

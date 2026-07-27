@@ -201,6 +201,7 @@ private:
     void openWaveMemoryEditor(std::size_t oscillator);
     void syncPcKeyboardNotes();
     void syncControlsFromParameters();
+    void refreshDeviceStatus();
     void timerCallback() override;
 
     AurelineLookAndFeel lookAndFeel;
@@ -218,6 +219,7 @@ private:
     juce::MidiMessageCollector midiCollector;
     std::vector<juce::String> connectedMidiInputIds;
     bool ownsStandaloneAudio = true;
+    juce::String lastDeviceStatus;
     std::array<std::atomic<bool>, 128> heldNotes {};
     std::array<bool, 128> pcKeyboardHeldNotes {};
     static constexpr std::size_t scopeSize = 2048;

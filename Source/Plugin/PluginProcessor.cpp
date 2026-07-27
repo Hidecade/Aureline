@@ -10,8 +10,7 @@ public:
           interface(ownerProcessor.interfaceComponent())
     {
         addAndMakeVisible(interface);
-        setResizable(true, true);
-        setResizeLimits(820, 535, 1536, 1002);
+        setResizable(false, false);
         setSize(1024, 668);
     }
 

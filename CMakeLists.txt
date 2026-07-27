@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Aureline VERSION 1.0.4 LANGUAGES C CXX)
+project(Aureline VERSION 1.0.5 LANGUAGES C CXX)
 
 include(CTest)
 

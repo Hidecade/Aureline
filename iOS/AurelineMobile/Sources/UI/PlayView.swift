@@ -932,6 +932,7 @@ struct AurelineWaveform: View {
 }
 
 private struct AurelineOscillatorWaveformPanel: View {
+    private static let displayGain: Float = 2
     let title: String
     let samples: [Float]
     let cycles: Double
@@ -954,7 +955,8 @@ private struct AurelineOscillatorWaveformPanel: View {
                                           Int(wrappedPhase * Double(samples.count)))
                     let x = scope.minX + scope.width
                         * CGFloat(point) / CGFloat(pointCount)
-                    let sample = CGFloat(max(-1, min(1, samples[sourceIndex])))
+                    let sample = CGFloat(max(
+                        -1, min(1, samples[sourceIndex] * Self.displayGain)))
                     let y = scope.midY - sample * scope.height * 0.47
                     if point == range.lowerBound {
                         path.move(to: CGPoint(x: x, y: y))
