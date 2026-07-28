@@ -6,7 +6,7 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 シンセサイザーです。クラシックなポリシンセの直接的な操作感に、Aureline独自の
 音源エンジン、UI、Wave Memoryオシレーター、音色ライブラリを組み合わせています。
 
-最新リリース：[v1.0.5](https://github.com/Hidecade/Aureline/releases/tag/v1.0.5)
+最新リリース：[v1.0.6](https://github.com/Hidecade/Aureline/releases/tag/v1.0.6)
 
 ![Aurelineデスクトップ版シンセサイザー画面](docs/images/aureline-desktop.png)
 
