@@ -5,8 +5,8 @@ app and does not affect runtime behavior.
 
 ## Version
 
-- Version: `1.0.8`
-- Build: `9`
+- Version: `1.0.9`
+- Build: `10`
 - Primary category: `Music`
 - Secondary category: `Entertainment`
 - Copyright: `2026 Hideki Konishi / Hidecade Instruments`
@@ -55,11 +55,9 @@ Aurelineは、クラシックなアナログシンセの操作感とWave Memory�
 
 ### What’s New
 
-・Analog 1、Analog 2、Retro、8-Bitの全128音色を調整
-・Wave Editの操作性とWave Memoryの保存／読み込みを改善
-・POLY MODを含むFINAL MIX波形表示を改善
-・短いAttackで連打した際のクリックを低減
-・画面レイアウトとMIDI／Audio状態表示を調整
+・ライブラリ読込時にバンク名を反映
+・TR-808に着想を得た32音色ライブラリを追加
+・打楽器向けのPoly Mod、ノイズ、金属波形音色を追加
 
 ## English localization
 
@@ -100,11 +98,9 @@ synth,instrument,MIDI,AUv3,analog,waveform,music,keyboard,LFO,polyphonic
 
 ### What’s New
 
-• Refined all 128 sounds in the Analog 1, Analog 2, Retro, and 8-Bit banks
-• Improved Wave Edit controls and Wave Memory import/export
-• Improved the FINAL MIX waveform display, including POLY MOD
-• Reduced clicks when rapidly retriggering sounds with short attacks
-• Refined the layout and MIDI/Audio status display
+• Added bank names that follow imported voice libraries
+• Added a 32-voice library inspired by classic TR-808 percussion
+• Added percussion voices using Poly Mod, noise, and metallic waveforms
 
 ## App Review information
 
@@ -166,8 +162,8 @@ Recommended sequence:
 - Keywords: maximum 100 bytes, comma-separated.
 - Screenshots: 1–10 per device size and localization.
 - Privacy Policy URL is required for iOS.
-- Select the uploaded build whose `CFBundleShortVersionString` is `1.0.8` and
-  whose `CFBundleVersion` is `9`.
+- Select the uploaded build whose `CFBundleShortVersionString` is `1.0.9` and
+  whose `CFBundleVersion` is `10`.
 
 Before submission, recheck these values against the processed build shown in
 App Store Connect. This document is a submission worksheet; changing it does

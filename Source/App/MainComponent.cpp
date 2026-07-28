@@ -16,7 +16,7 @@ constexpr int firstKeyboardNote = 48;
 constexpr int keyboardNoteCount = 37;
 constexpr int voiceSlotsPerBank = 32;
 constexpr int libraryFormatVersion = 2;
-constexpr std::array<const char*, 4> voiceBankNames {{
+constexpr std::array<const char*, 4> defaultVoiceBankNames {{
     "ANALOG 1", "ANALOG 2", "RETRO", "8-BIT"
 }};
 
@@ -137,8 +137,8 @@ void installBuiltInVoiceLibrary(const juce::File& file,
 juce::ValueTree readVoiceLibrary(const juce::File& file)
 {
     const auto xml = juce::XmlDocument::parse(file);
-    const auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
-                                        : juce::ValueTree {};
+    auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
+                                  : juce::ValueTree {};
     if (!library.isValid()
         || library.getType().toString() != "AurelineLibrary"
         || library.getProperty("format").toString()
@@ -152,6 +152,15 @@ juce::ValueTree readVoiceLibrary(const juce::File& file)
                 library.getChild(index).getProperty("slot", -1)) != index)
             return {};
     return library;
+}
+
+juce::String voiceBankDisplayName(const juce::ValueTree& library, int bank)
+{
+    auto name = library.getProperty("name").toString().trim();
+    if (name.isEmpty())
+        name = defaultVoiceBankNames[static_cast<std::size_t>(
+            juce::jlimit(0, 3, bank))];
+    return name.toUpperCase().substring(0, 16);
 }
 
 juce::String voiceNameWithoutSlotPrefix(juce::String name)
@@ -3315,6 +3324,11 @@ void AurelineMainComponent::writeVoiceLibraryToFile(
     library.setProperty("format", "com.hidecade.aureline.library", nullptr);
     library.setProperty("version", libraryFormatVersion, nullptr);
     library.setProperty("voiceCount", static_cast<int>(factoryVoices.size()), nullptr);
+    library.setProperty(
+        "name",
+        voiceBankDisplayName(readVoiceLibrary(activeLibraryFile(selectedVoiceBank)),
+                             selectedVoiceBank),
+        nullptr);
     for (std::size_t index = 0; index < factoryVoices.size(); ++index)
     {
         loadFactoryVoice(index, !factoryOnly);
@@ -3363,6 +3377,7 @@ void AurelineMainComponent::writeRetroGameLibraryToFile(const juce::File& file)
     library.setProperty("format", "com.hidecade.aureline.library", nullptr);
     library.setProperty("version", libraryFormatVersion, nullptr);
     library.setProperty("voiceCount", voiceSlotsPerBank, nullptr);
+    library.setProperty("name", "8-BIT", nullptr);
 
     for (std::size_t index = 0; index < names.size(); ++index)
     {
@@ -3618,7 +3633,7 @@ void AurelineMainComponent::refreshVoiceBankNames()
                            slotVoiceDisplayName(index, name));
         }
         root->addSubMenu("BANK " + juce::String(bank + 1) + "  "
-                             + voiceBankNames[static_cast<std::size_t>(bank)],
+                             + voiceBankDisplayName(library, bank),
                          voices);
     }
     if (selectedFactoryVoiceIndex >= 0)
@@ -3634,10 +3649,12 @@ void AurelineMainComponent::confirmAndLoadVoiceLibrary(const juce::File& file)
         "Choose the destination bank. Its 32 voices will be overwritten.",
         juce::MessageBoxIconType::WarningIcon,
         this);
-    dialog->addButton("BANK 1", 1);
-    dialog->addButton("BANK 2", 2);
-    dialog->addButton("BANK 3", 3);
-    dialog->addButton("BANK 4", 4);
+    for (int bank = 0; bank < 4; ++bank)
+        dialog->addButton(
+            "BANK " + juce::String(bank + 1) + "  "
+                + voiceBankDisplayName(readVoiceLibrary(activeLibraryFile(bank)),
+                                       bank),
+            bank + 1);
     dialog->addButton("CANCEL", 0, juce::KeyPress(juce::KeyPress::escapeKey));
     dialog->enterModalState(
         true,
@@ -3655,8 +3672,8 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file,
                                                       int bank)
 {
     const auto xml = juce::XmlDocument::parse(file);
-    const auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
-                                        : juce::ValueTree {};
+    auto library = xml != nullptr ? juce::ValueTree::fromXml(*xml)
+                                  : juce::ValueTree {};
     if (!library.isValid()
         || library.getType().toString() != "AurelineLibrary"
         || library.getProperty("format").toString() != "com.hidecade.aureline.library"
@@ -3693,6 +3710,17 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file,
         library.getChild(index).setProperty("voiceName", voiceName, nullptr);
         loadedVoiceNames.push_back(voiceName);
     }
+
+    auto importedBankName = library.getProperty("name").toString().trim();
+    if (importedBankName.isEmpty())
+    {
+        importedBankName = file.getFileNameWithoutExtension();
+        if (importedBankName.endsWithIgnoreCase(".aurelinelibrary"))
+            importedBankName = importedBankName.dropLastCharacters(
+                juce::String(".aurelinelibrary").length());
+    }
+    library.setProperty(
+        "name", importedBankName.toUpperCase().substring(0, 16), nullptr);
 
     const auto normalizedXml = library.createXml();
     if (normalizedXml == nullptr
@@ -5112,12 +5140,11 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     const auto onDot = juce::Colour(0xffffa04a);
     const auto voiceMode = parameters.voiceMode.load();
     const juce::String modeText = voiceMode == 1 ? "MONO" : voiceMode == 2 ? "UNI" : "POLY";
-    constexpr std::array<const char*, 4> lcdBankNames {{
-        "ANLG1", "ANLG2", "RETRO", "8-BIT"
-    }};
+    const auto currentBankName = voiceBankDisplayName(
+        readVoiceLibrary(activeLibraryFile(selectedVoiceBank)),
+        selectedVoiceBank);
     const auto bankText = "B" + juce::String(selectedVoiceBank + 1) + " "
-        + lcdBankNames[static_cast<std::size_t>(
-            juce::jlimit(0, 3, selectedVoiceBank))];
+        + currentBankName.substring(0, 9);
     const auto playLine = (modeText + " " + bankText)
                               .substring(0, characterCount).paddedRight(' ', characterCount);
     auto voiceLine = currentVoiceName.toUpperCase();

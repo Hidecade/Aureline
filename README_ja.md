@@ -6,7 +6,7 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 シンセサイザーです。クラシックなポリシンセの直接的な操作感に、Aureline独自の
 音源エンジン、UI、Wave Memoryオシレーター、音色ライブラリを組み合わせています。
 
-最新リリース：[v1.0.8](https://github.com/Hidecade/Aureline/releases/tag/v1.0.8)
+最新リリース：[v1.0.9](https://github.com/Hidecade/Aureline/releases/tag/v1.0.9)
 
 ![Aurelineデスクトップ版シンセサイザー画面](docs/images/aureline-desktop.png)
 
@@ -79,6 +79,10 @@ Aurelineは、各32スロットの書換可能な4バンクを搭載します。
 上書きします。SAVEはバンクを変更せず、現在の音色を外部ファイルへ保存します。
 SAVE BANKは32スロットすべてを書き出し、ライブラリをLOADすると置換先バンクを
 選択できます。
+
+追加ライブラリの[TR-808 Inspired](assets/TR-808.aurelinelibrary.xml)には、
+Aurelineで新規作成した打楽器／リズム音色を32音色収録しています。収録音色と
+合成方法は[音色説明](assets/TR-808_音色説明.md)を参照してください。
 
 ## ファイル形式
 

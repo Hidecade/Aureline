@@ -39,8 +39,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.hidekikonishi.aureline.mobile
         PRODUCT_NAME: Aureline
         INFOPLIST_KEY_CFBundleDisplayName: Aureline
-        MARKETING_VERSION: "1.0.8"
-        CURRENT_PROJECT_VERSION: 9
+        MARKETING_VERSION: "1.0.9"
+        CURRENT_PROJECT_VERSION: 10
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MACCATALYST: false
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
@@ -124,8 +124,8 @@ targets:
         PRODUCT_NAME: AurelineAUv3Extension
         PRODUCT_MODULE_NAME: AurelineAUv3Extension
         INFOPLIST_KEY_CFBundleDisplayName: Aureline
-        MARKETING_VERSION: "1.0.8"
-        CURRENT_PROJECT_VERSION: 9
+        MARKETING_VERSION: "1.0.9"
+        CURRENT_PROJECT_VERSION: 10
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MACCATALYST: false
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false

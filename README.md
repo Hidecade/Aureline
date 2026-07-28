@@ -6,7 +6,7 @@ Aureline is an eight-voice analog-modeling synthesizer by Hidecade Instruments.
 It combines a direct, classic polysynth workflow with Aureline's own sound
 engine, interface, Wave Memory oscillators, and voice library.
 
-Current release: [v1.0.8](https://github.com/Hidecade/Aureline/releases/tag/v1.0.8)
+Current release: [v1.0.9](https://github.com/Hidecade/Aureline/releases/tag/v1.0.9)
 
 ![Aureline desktop synthesizer interface](docs/images/aureline-desktop.png)
 
@@ -79,6 +79,11 @@ The last four slots of every bank are sound effects. STORE overwrites the
 selected slot. SAVE exports the current voice without modifying the bank.
 SAVE BANK exports all 32 slots, and LOAD asks which bank to replace when a
 library is opened.
+
+The optional [TR-808 Inspired library](assets/TR-808.aurelinelibrary.xml)
+contains 32 original Aureline percussion and rhythm voices. See the
+[voice guide](assets/TR-808_音色説明.md) for its contents and synthesis
+approach.
 
 ## File formats
 

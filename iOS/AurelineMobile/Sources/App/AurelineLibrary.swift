@@ -6,6 +6,11 @@ struct AurelineLibraryVoice {
     let patch: [String: Double]
 }
 
+struct AurelineDecodedLibrary {
+    let name: String?
+    let voices: [AurelineLibraryVoice]
+}
+
 enum AurelineLibraryCodec {
     static let format = "com.hidecade.aureline.library"
     static let version = 2
@@ -34,6 +39,10 @@ enum AurelineLibraryCodec {
         uniqueKeysWithValues: stateToVoice.map { ($1, $0) })
 
     static func decode(_ data: Data) throws -> [AurelineLibraryVoice] {
+        try decodeLibrary(data).voices
+    }
+
+    static func decodeLibrary(_ data: Data) throws -> AurelineDecodedLibrary {
         let delegate = LibraryParserDelegate()
         let parser = XMLParser(data: data)
         parser.delegate = delegate
@@ -45,15 +54,19 @@ enum AurelineLibraryCodec {
         guard sorted.enumerated().allSatisfy({ $0.offset == $0.element.slot }) else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        return sorted
+        return AurelineDecodedLibrary(name: delegate.libraryName, voices: sorted)
     }
 
-    static func encode(_ voices: [AurelineLibraryVoice]) throws -> Data {
+    static func encode(_ voices: [AurelineLibraryVoice],
+                       name: String? = nil) throws -> Data {
         guard voices.count == voiceCount else { throw CocoaError(.fileWriteUnknown) }
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let encodedName = trimmedName?.isEmpty == false
+            ? " name=\"\(escaped(String(trimmedName!.prefix(16))))\"" : ""
         var xml = """
         <?xml version="1.0" encoding="UTF-8"?>
 
-        <AurelineLibrary format="\(format)" version="\(version)" voiceCount="\(voiceCount)">
+        <AurelineLibrary format="\(format)" version="\(version)" voiceCount="\(voiceCount)"\(encodedName)>
 
         """
         for voice in voices.sorted(by: { $0.slot < $1.slot }) {
@@ -85,6 +98,7 @@ enum AurelineLibraryCodec {
 
     private final class LibraryParserDelegate: NSObject, XMLParserDelegate {
         var validRoot = false
+        var libraryName: String?
         var voices: [AurelineLibraryVoice] = []
 
         func parser(_ parser: XMLParser, didStartElement elementName: String,
@@ -96,6 +110,10 @@ enum AurelineLibraryCodec {
                         == String(AurelineLibraryCodec.version)
                     && attributeDict["voiceCount"]
                         == String(AurelineLibraryCodec.voiceCount)
+                let name = attributeDict["name"]?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                libraryName = name?.isEmpty == false
+                    ? String(name!.prefix(16)) : nil
                 return
             }
             guard validRoot, elementName == "AurelineState",

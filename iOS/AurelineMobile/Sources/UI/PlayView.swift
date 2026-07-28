@@ -38,6 +38,7 @@ struct PlayView: View {
                 if showingVoicePicker {
                     AurelineVoicePicker(
                         factoryNames: synth.factoryPresetNames,
+                        bankNames: synth.bankNames,
                         selectedBank: synth.selectedBank,
                         selectedName: synth.selectedFactoryDisplayName,
                         onBankSelect: synth.selectBank,
@@ -59,7 +60,7 @@ struct PlayView: View {
             .alert("LOAD LIBRARY TO BANK", isPresented: $confirmingLibraryLoad) {
                 Button("CANCEL", role: .cancel) { pendingLibraryURL = nil }
                 ForEach(0..<4) { bank in
-                    Button("BANK \(bank + 1)  \(MobileSynthModel.bankNames[bank])") {
+                    Button("BANK \(bank + 1)  \(synth.bankNames[bank])") {
                         loadPendingLibrary(into: bank)
                     }
                 }
@@ -435,6 +436,7 @@ struct AurelineDropdown: View {
 
 private struct AurelineVoicePicker: View {
     let factoryNames: [String]
+    let bankNames: [String]
     let selectedBank: Int
     let selectedName: String?
     let onBankSelect: (Int) -> Void
@@ -443,12 +445,12 @@ private struct AurelineVoicePicker: View {
 
     var body: some View {
         AurelineSelectionPicker(
-            title: "SELECT VOICE · \(MobileSynthModel.bankNames[selectedBank])",
+            title: "SELECT VOICE · \(bankNames[selectedBank])",
             sections: [AurelinePickerSection(title: nil, options: factoryNames)],
             selected: selectedName,
             onSelect: { _, index in onFactorySelect(index) },
             onClose: onClose,
-            bankNames: MobileSynthModel.bankNames,
+            bankNames: bankNames,
             selectedBank: selectedBank,
             onBankSelect: onBankSelect
         )

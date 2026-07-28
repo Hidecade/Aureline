@@ -1,6 +1,6 @@
 # Aureline 取扱説明書
 
-- 対象バージョン：1.0.8
+- 対象バージョン：1.0.9
 - ブランド：Hidecade Instruments
 - 対応環境：macOS、Windows、iPhone / AUv3
 
@@ -30,9 +30,9 @@ Aurelineは、2基のオシレーター、ノイズ、4段OTAローパスフィ�
 
 使用する形式のインストーラーを実行します。
 
-- `Aureline-Standalone-1.0.8-macOS.pkg`
-- `Aureline-VST3-1.0.8-macOS.pkg`
-- `Aureline-AU-1.0.8-macOS.pkg`
+- `Aureline-Standalone-1.0.9-macOS.pkg`
+- `Aureline-VST3-1.0.9-macOS.pkg`
+- `Aureline-AU-1.0.9-macOS.pkg`
 
 インストーラーはApple公証済みです。インストール後、DAWを再起動して
 プラグインを再スキャンしてください。
@@ -113,6 +113,10 @@ Wave Memory波形が1ファイルに保存されます。
 `LOAD`で`.aurelinelibrary.xml`を選ぶと、読み込み先バンクを選択する画面が
 表示されます。選択したバンクの32音色は置き換えられるため、必要なら先に
 `SAVE BANK`でバックアップしてください。
+
+ライブラリにバンク名が保存されている場合、読み込み先バンクの表示名もその名前へ
+変わります。バンク名は最大16文字で、デスクトップ版とiPhone版のBANK選択画面に
+反映されます。名前を持たない旧形式のライブラリではファイル名を使用します。
 
 ## 7. Oscillator A
 

@@ -40,7 +40,8 @@ final class MobileSynthModel: ObservableObject {
     @Published var externalActiveNotes: [Int: Int] = [:]
     @Published var factoryPresetNames: [String] = []
     @Published var selectedBank = 0
-    static let bankNames = ["ANALOG 1", "ANALOG 2", "RETRO", "8-BIT"]
+    static let defaultBankNames = ["ANALOG 1", "ANALOG 2", "RETRO", "8-BIT"]
+    @Published var bankNames = MobileSynthModel.defaultBankNames
     @Published var canPasteVoice = false
     @Published var canPasteWave = false
 
@@ -128,6 +129,7 @@ final class MobileSynthModel: ObservableObject {
         factorySlotKeys = factoryPresetNames
         installBuiltInLibraries()
         ensureBankLibraries()
+        refreshBankNames()
         selectedBank = min(3, max(0, UserDefaults.standard.integer(
             forKey: lastBankDefaultsKey)))
         refreshCurrentBankNames()
@@ -478,16 +480,21 @@ final class MobileSynthModel: ObservableObject {
                                                 withIntermediateDirectories: true)
         let url = directory.appendingPathComponent(
             "Aureline Bank \(selectedBank + 1).aurelinelibrary.xml")
-        try AurelineLibraryCodec.encode(voices).write(to: url, options: .atomic)
+        try AurelineLibraryCodec.encode(
+            voices, name: bankNames[selectedBank]).write(to: url, options: .atomic)
         return url
     }
 
     func importLibrary(from url: URL, intoBank bank: Int) throws {
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
-        let voices = try AurelineLibraryCodec.decode(Data(contentsOf: url))
+        let library = try AurelineLibraryCodec.decodeLibrary(Data(contentsOf: url))
         let target = min(3, max(0, bank))
-        try writeLibrary(voices, bank: target)
+        let importedName = normalizedBankName(
+            library.name, fallback: url.deletingPathExtension()
+                .deletingPathExtension().lastPathComponent)
+        try writeLibrary(library.voices, bank: target, name: importedName)
+        refreshBankNames()
         selectBank(target)
         refreshCurrentBankNames()
         if let selectedFactoryPresetIndex { loadFactoryPreset(selectedFactoryPresetIndex) }
@@ -529,12 +536,34 @@ final class MobileSynthModel: ObservableObject {
     }
 
     private func writeActiveLibrary(_ voices: [AurelineLibraryVoice]) throws {
-        try writeLibrary(voices, bank: selectedBank)
+        try writeLibrary(voices, bank: selectedBank,
+                         name: bankNames[selectedBank])
     }
 
-    private func writeLibrary(_ voices: [AurelineLibraryVoice], bank: Int) throws {
-        try AurelineLibraryCodec.encode(voices).write(
+    private func writeLibrary(_ voices: [AurelineLibraryVoice], bank: Int,
+                              name: String? = nil) throws {
+        let target = min(3, max(0, bank))
+        try AurelineLibraryCodec.encode(
+            voices, name: normalizedBankName(
+                name, fallback: MobileSynthModel.defaultBankNames[target])).write(
             to: bankLibraryURL(bank), options: .atomic)
+    }
+
+    private func normalizedBankName(_ name: String?, fallback: String) -> String {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return String((trimmed.isEmpty ? fallback : trimmed).uppercased().prefix(16))
+    }
+
+    private func refreshBankNames() {
+        bankNames = (0..<4).map { bank in
+            guard let url = try? bankLibraryURL(bank),
+                  let data = try? Data(contentsOf: url),
+                  let library = try? AurelineLibraryCodec.decodeLibrary(data) else {
+                return MobileSynthModel.defaultBankNames[bank]
+            }
+            return normalizedBankName(
+                library.name, fallback: MobileSynthModel.defaultBankNames[bank])
+        }
     }
 
     private func ensureBankLibraries() {

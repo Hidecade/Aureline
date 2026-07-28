@@ -71,7 +71,7 @@ struct EditView: View {
             .alert("LOAD LIBRARY TO BANK", isPresented: $confirmingLibraryLoad) {
                 Button("CANCEL", role: .cancel) { pendingLibraryURL = nil }
                 ForEach(0..<4) { bank in
-                    Button("BANK \(bank + 1)  \(MobileSynthModel.bankNames[bank])") {
+                    Button("BANK \(bank + 1)  \(synth.bankNames[bank])") {
                         guard let url = pendingLibraryURL else { return }
                         do { try synth.importLibrary(from: url, intoBank: bank) }
                         catch { voiceError = error.localizedDescription }
