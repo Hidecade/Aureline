@@ -139,6 +139,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-See [the Japanese product specification](docs/Aureline_Spec_ja.md) and
-[the iOS specification](docs/Aureline_iOS_Spec_ja.md) for further technical
-detail.
+See the [Japanese user manual](docs/Aureline_Manual_ja.md),
+[the Japanese product specification](docs/Aureline_Spec_ja.md), and the
+[current iPhone/AUv3 implementation notes](iOS/AurelineMobile/README.md) for
+further technical detail.

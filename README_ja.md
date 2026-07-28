@@ -138,6 +138,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-技術詳細は[製品仕様](docs/Aureline_Spec_ja.md)、
-[iOS仕様](docs/Aureline_iOS_Spec_ja.md)、
-[Wave Memory仕様](docs/Aureline_Wave_Memory_Oscillator_Spec_ja.md)を参照してください。
+操作方法は[Aureline取扱説明書](docs/Aureline_Manual_ja.md)を参照してください。
+
+技術詳細は[製品仕様](docs/Aureline_Spec_ja.md)と
+[iPhone／AUv3実装情報](iOS/AurelineMobile/README.md)を参照してください。
