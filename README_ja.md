@@ -10,6 +10,8 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 
 ![Aurelineデスクトップ版シンセサイザー画面](docs/images/aureline-desktop.png)
 
+![Aureline iPhone版シンセサイザー画面](docs/images/aureline-iphone.png)
+
 ## 主な機能
 
 - 最大8音、Poly／Mono Legato／Unisonモード

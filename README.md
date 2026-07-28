@@ -10,6 +10,8 @@ Current release: [v1.0.5](https://github.com/Hidecade/Aureline/releases/tag/v1.0
 
 ![Aureline desktop synthesizer interface](docs/images/aureline-desktop.png)
 
+![Aureline iPhone synthesizer interface](docs/images/aureline-iphone.png)
+
 ## Highlights
 
 - Eight-voice polyphony with Poly, Mono Legato, and Unison modes
