@@ -60,6 +60,7 @@ void AnalogVoice::start(int midiNote, int velocity, std::uint64_t ageValue,
                         double initialPhase, bool unison, double unisonPan,
                         double startDelaySeconds)
 {
+    const bool reusingActiveVoice = isActive();
     currentNote = std::clamp(midiNote, 0, 127);
     velocityGain = std::clamp(velocity, 1, 127) / 127.0;
     startAge = ageValue;
@@ -70,10 +71,14 @@ void AnalogVoice::start(int midiNote, int velocity, std::uint64_t ageValue,
     releasing = false;
     noteSamples = 0;
     startDelaySamplesRemaining = static_cast<std::uint64_t>(std::llround(
-        std::max(0.0, startDelaySeconds) * currentSampleRate));
-    oscillatorA.reset(initialPhase);
-    oscillatorB.reset(initialPhase + 0.37);
-    filter.reset();
+        (reusingActiveVoice ? 0.0 : std::max(0.0, startDelaySeconds))
+        * currentSampleRate));
+    if (!reusingActiveVoice)
+    {
+        oscillatorA.reset(initialPhase);
+        oscillatorB.reset(initialPhase + 0.37);
+        filter.reset();
+    }
     filterEnvelope.noteOn();
     amplifierEnvelope.noteOn();
 }
@@ -187,8 +192,18 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
     const auto envelopeFactor = std::max(0.5, 1.0
         + patch.vintageAmount * envelopeVariation * 0.15);
     const auto filterEnvelopeParameters = variedEnvelope(patch.filterEnvelope, envelopeFactor);
-    const auto amplifierEnvelopeParameters = variedEnvelope(patch.amplifierEnvelope,
-                                                              2.0 - envelopeFactor);
+    auto amplifierEnvelopeParameters = variedEnvelope(patch.amplifierEnvelope,
+                                                       2.0 - envelopeFactor);
+    // A real VCA never changes gain in a single sample. Preserve the panel's
+    // snappy zero setting while preventing discontinuities on sharp attacks
+    // and releases.
+    constexpr double minimumAmplifierTransitionSeconds = 0.006;
+    amplifierEnvelopeParameters.attackSeconds = std::max(
+        amplifierEnvelopeParameters.attackSeconds,
+        minimumAmplifierTransitionSeconds);
+    amplifierEnvelopeParameters.releaseSeconds = std::max(
+        amplifierEnvelopeParameters.releaseSeconds,
+        minimumAmplifierTransitionSeconds);
 
     if (currentPitchNote != targetPitchNote)
     {

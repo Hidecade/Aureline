@@ -4552,21 +4552,44 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     g.drawRoundedRectangle(woodenChassis.reduced(2.0f), 5.0f, 1.0f);
 
     auto headerBounds = getLocalBounds().reduced(20).removeFromTop(34);
-    auto headerArea = headerBounds.removeFromLeft(200)
-                          .withTrimmedBottom(2).toFloat();
+    auto titleArea = headerBounds.removeFromLeft(200).toFloat();
+    auto subtitleArea = headerBounds.removeFromLeft(310).toFloat();
+    headerBounds.removeFromRight(112);
+    headerBounds.removeFromRight(72);
+    const auto statusArea = headerBounds.toFloat();
+    const auto headerBaseline = titleArea.getBottom() - 5.0f;
+
     const juce::Font logoFont(juce::FontOptions(25.0f, juce::Font::bold));
     g.setFont(logoFont);
     g.setColour(juce::Colour(themeAmber));
-    g.drawText("AURELINE", headerArea.removeFromLeft(118.0f),
-               juce::Justification::bottomLeft);
-    headerArea.removeFromLeft(8.0f);
+    g.drawSingleLineText("AURELINE",
+                         juce::roundToInt(titleArea.getX()),
+                         juce::roundToInt(headerBaseline));
+
     auto version = juce::String(JUCE_APPLICATION_VERSION_STRING);
     if (version.endsWith(".0"))
         version = version.dropLastCharacters(2);
-    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    const juce::Font versionFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.setFont(versionFont);
     g.setColour(juce::Colour(themeGold));
-    g.drawText("v" + version, headerArea,
-               juce::Justification::bottomLeft);
+    g.drawSingleLineText("v" + version,
+                         juce::roundToInt(titleArea.getX() + 126.0f),
+                         juce::roundToInt(headerBaseline));
+
+    const juce::Font subtitleFont(juce::FontOptions(16.0f, juce::Font::bold));
+    g.setFont(subtitleFont);
+    g.drawSingleLineText(subtitleLabel.getText(),
+                         juce::roundToInt(subtitleArea.getX()),
+                         juce::roundToInt(headerBaseline));
+
+    const auto statusFont = statusLabel.getFont();
+    const auto statusText = statusLabel.getText();
+    g.setFont(statusFont);
+    const auto statusX = statusArea.getRight()
+        - juce::GlyphArrangement::getStringWidth(statusFont, statusText);
+    g.drawSingleLineText(statusText,
+                         juce::roundToInt(juce::jmax(statusArea.getX(), statusX)),
+                         juce::roundToInt(headerBaseline));
 
     auto area = getLocalBounds().reduced(20);
     area.removeFromTop(34);
@@ -5247,11 +5270,13 @@ void AurelineMainComponent::resized()
     titleLabel.setBounds(titleBounds);
     titleLabel.setVisible(false);
     subtitleLabel.setBounds(subtitleBounds);
+    subtitleLabel.setVisible(false);
     auto libraryButtonArea = header.removeFromRight(112);
     saveLibraryButton.setBounds(libraryButtonArea.reduced(2, 2));
     auto wavButtonArea = header.removeFromRight(72);
     wavRecordButton.setBounds(wavButtonArea.reduced(2, 2));
     statusLabel.setBounds(header.withTrimmedBottom(2));
+    statusLabel.setVisible(false);
 
     area.removeFromTop(4);
     constexpr int unifiedRowHeight = 104;

@@ -365,6 +365,53 @@ void testRapidParameterChangesRemainFinite()
     }
 }
 
+void testRapidRetriggerIsClickSafe()
+{
+    constexpr double sampleRate = 48000.0;
+    aureline::AnalogEngine engine;
+    engine.prepare(sampleRate);
+
+    auto patch = engine.getPatch();
+    patch.oscillatorA.level = 0.75;
+    patch.oscillatorA.sawEnabled = false;
+    patch.oscillatorA.triangleEnabled = true;
+    patch.oscillatorA.pulseEnabled = false;
+    patch.oscillatorB.level = 0.0;
+    patch.noiseLevel = 0.0;
+    patch.filterCutoffHz = 16000.0;
+    patch.filterResonance = 0.0;
+    patch.amplifierEnvelope.attackSeconds = 0.0;
+    patch.amplifierEnvelope.decaySeconds = 0.01;
+    patch.amplifierEnvelope.sustainLevel = 1.0;
+    patch.amplifierEnvelope.releaseSeconds = 0.0;
+    patch.masterGain = 0.75;
+    engine.setPatch(patch);
+
+    double previous = 0.0;
+    double largestStep = 0.0;
+    for (int strike = 0; strike < 48; ++strike)
+    {
+        engine.noteOn(60 + strike % 3, 127);
+        for (int sample = 0; sample < 160; ++sample)
+        {
+            const auto output = engine.renderSample();
+            largestStep = std::max(largestStep, std::abs(output - previous));
+            previous = output;
+        }
+        engine.noteOff(60 + strike % 3);
+        for (int sample = 0; sample < 80; ++sample)
+        {
+            const auto output = engine.renderSample();
+            largestStep = std::max(largestStep, std::abs(output - previous));
+            previous = output;
+        }
+    }
+
+    if (largestStep >= 0.12)
+        std::cerr << "Rapid retrigger step: " << largestStep << '\n';
+    assert(largestStep < 0.12);
+}
+
 void testFactoryPresets()
 {
     const auto& presets = aureline::factoryPresets();
@@ -571,6 +618,7 @@ int main()
     testMonoReturnsToLastHeldNote();
     testStereoSpreadAndFilterExpression();
     testRapidParameterChangesRemainFinite();
+    testRapidRetriggerIsClickSafe();
     testFactoryPresets();
     testPerformanceSequencer();
     testPatchChangeStartsFromNewParameters();
