@@ -4552,12 +4552,18 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     g.drawRoundedRectangle(woodenChassis.reduced(2.0f), 5.0f, 1.0f);
 
     auto headerBounds = getLocalBounds().reduced(20).removeFromTop(34);
-    auto titleArea = headerBounds.removeFromLeft(200).toFloat();
-    auto subtitleArea = headerBounds.removeFromLeft(310).toFloat();
+    auto titleArea = headerBounds.removeFromLeft(310).toFloat();
     headerBounds.removeFromRight(112);
     headerBounds.removeFromRight(72);
     const auto statusArea = headerBounds.toFloat();
     const auto headerBaseline = titleArea.getBottom() - 5.0f;
+
+    const juce::Font subtitleFont(juce::FontOptions(9.5f, juce::Font::bold));
+    g.setFont(subtitleFont);
+    g.setColour(juce::Colour(themeGold));
+    g.drawSingleLineText(subtitleLabel.getText(),
+                         juce::roundToInt(titleArea.getX()),
+                         juce::roundToInt(titleArea.getY() + 9.0f));
 
     const juce::Font logoFont(juce::FontOptions(25.0f, juce::Font::bold));
     g.setFont(logoFont);
@@ -4574,12 +4580,6 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colour(themeGold));
     g.drawSingleLineText("v" + version,
                          juce::roundToInt(titleArea.getX() + 126.0f),
-                         juce::roundToInt(headerBaseline));
-
-    const juce::Font subtitleFont(juce::FontOptions(16.0f, juce::Font::bold));
-    g.setFont(subtitleFont);
-    g.drawSingleLineText(subtitleLabel.getText(),
-                         juce::roundToInt(subtitleArea.getX()),
                          juce::roundToInt(headerBaseline));
 
     const auto statusFont = statusLabel.getFont();
@@ -5265,11 +5265,10 @@ void AurelineMainComponent::resized()
 {
     auto area = getLocalBounds().reduced(20);
     auto header = area.removeFromTop(34);
-    auto titleBounds = header.removeFromLeft(200);
-    auto subtitleBounds = header.removeFromLeft(310).withTrimmedBottom(2);
+    auto titleBounds = header.removeFromLeft(310);
     titleLabel.setBounds(titleBounds);
     titleLabel.setVisible(false);
-    subtitleLabel.setBounds(subtitleBounds);
+    subtitleLabel.setBounds(titleBounds);
     subtitleLabel.setVisible(false);
     auto libraryButtonArea = header.removeFromRight(112);
     saveLibraryButton.setBounds(libraryButtonArea.reduced(2, 2));
