@@ -4555,7 +4555,7 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     auto titleArea = headerBounds.removeFromLeft(310).toFloat();
     headerBounds.removeFromRight(112);
     headerBounds.removeFromRight(72);
-    const auto statusArea = headerBounds.toFloat();
+    const auto statusArea = headerBounds.toFloat().reduced(4.0f, 0.0f);
     const auto headerBaseline = titleArea.getBottom() - 5.0f;
 
     const juce::Font subtitleFont(juce::FontOptions(9.5f, juce::Font::bold));
@@ -4587,9 +4587,13 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     g.setFont(statusFont);
     const auto statusX = statusArea.getRight()
         - juce::GlyphArrangement::getStringWidth(statusFont, statusText);
-    g.drawSingleLineText(statusText,
-                         juce::roundToInt(juce::jmax(statusArea.getX(), statusX)),
-                         juce::roundToInt(headerBaseline));
+    {
+        juce::Graphics::ScopedSaveState statusState(g);
+        g.reduceClipRegion(statusArea.toNearestInt());
+        g.drawSingleLineText(statusText,
+                             juce::roundToInt(statusX),
+                             juce::roundToInt(headerBaseline));
+    }
 
     auto area = getLocalBounds().reduced(20);
     area.removeFromTop(34);
