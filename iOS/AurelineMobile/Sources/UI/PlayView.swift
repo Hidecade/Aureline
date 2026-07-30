@@ -3,8 +3,9 @@ import UniformTypeIdentifiers
 
 struct PlayView: View {
     @EnvironmentObject private var synth: MobileSynthModel
-    @State private var keyboardBaseNote = 60
-    @State private var keyboardScrollWhiteIndex: CGFloat = 23
+    @State private var keyboardBaseNote = 48
+    @State private var keyboardScrollWhiteIndex: CGFloat = 16
+    @State private var normalKeyboardBaseNote = 48
     @State private var voiceError: String?
     @State private var showingVoicePicker = false
     @State private var importingVoice = false
@@ -34,6 +35,20 @@ struct PlayView: View {
                     .environmentObject(synth).frame(height: keyboardHeight).clipped()
             }.padding(.vertical, 6).background(AurelineTheme.background)
         }.background(AurelineTheme.background).preferredColorScheme(.dark)
+            .onAppear {
+                if Int(synth.value("voiceMode").rounded()) == 3 {
+                    setBaseNote(36)
+                }
+            }
+            .onChange(of: Int(synth.value("voiceMode").rounded())) { mode in
+                synth.panic()
+                if mode == 3 {
+                    normalKeyboardBaseNote = keyboardBaseNote
+                    setBaseNote(36)
+                } else {
+                    setBaseNote(normalKeyboardBaseNote)
+                }
+            }
             .overlay {
                 if showingVoicePicker {
                     AurelineVoicePicker(
@@ -59,7 +74,7 @@ struct PlayView: View {
             }
             .alert("LOAD LIBRARY TO BANK", isPresented: $confirmingLibraryLoad) {
                 Button("CANCEL", role: .cancel) { pendingLibraryURL = nil }
-                ForEach(0..<4) { bank in
+                ForEach(synth.bankNames.indices, id: \.self) { bank in
                     Button("BANK \(bank + 1)  \(synth.bankNames[bank])") {
                         loadPendingLibrary(into: bank)
                     }
@@ -226,13 +241,21 @@ struct PlayView: View {
     }
 
     private var performanceSwitchRow: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 1) {
             AurelineCompactRockerButton("POLY", active: Int(synth.value("voiceMode")) == 0) { synth.set("voiceMode", 0) }
             AurelineCompactRockerButton("MONO", active: Int(synth.value("voiceMode")) == 1) { synth.set("voiceMode", 1) }
             AurelineCompactRockerButton("UNISON", active: Int(synth.value("voiceMode")) == 2) { synth.set("voiceMode", 2) }
             AurelineCompactRockerButton("ARP", active: synth.value("arpEnabled") >= 0.5) { synth.toggle("arpEnabled") }
             AurelineCompactRockerButton("CHORD", active: synth.value("chordEnabled") >= 0.5) { synth.toggle("chordEnabled") }
             AurelineCompactRockerButton("HOLD", active: synth.value("arpHold") >= 0.5) { synth.toggle("arpHold") }
+            AurelineCompactRockerButton("KIT", active: Int(synth.value("voiceMode")) == 3) {
+                let kitIsActive = Int(synth.value("voiceMode").rounded()) == 3
+                if !kitIsActive {
+                    synth.set("arpEnabled", 0)
+                    synth.set("chordEnabled", 0)
+                }
+                synth.set("voiceMode", kitIsActive ? 0 : 3)
+            }
         }
     }
 
@@ -256,7 +279,7 @@ struct PlayView: View {
     }
 
     private var lcdLines: [String] {
-        let mode = ["POLY", "MONO", "UNISON"][min(2, max(0, Int(synth.value("voiceMode"))))]
+        let mode = ["POLY", "MONO", "UNISON", "KIT"][min(3, max(0, Int(synth.value("voiceMode"))))]
         let macMode = mode == "UNISON" ? "UNI" : mode
         let tempo = Int(synth.value("tempoBpm").rounded())
         return ["\(macMode) TEMPO\(tempo)", synth.selectedPreset.uppercased()]
@@ -269,7 +292,11 @@ struct PlayView: View {
         } ?? 0
         changeVoice((current + delta + synth.factoryPresetNames.count) % max(1, synth.factoryPresetNames.count))
     }
-    private func resetKeyboard() { setBaseNote(60) }
+    private func resetKeyboard() {
+        let kitMode = Int(synth.value("voiceMode").rounded()) == 3
+        normalKeyboardBaseNote = 48
+        setBaseNote(kitMode ? 36 : 48)
+    }
     private func shiftWhite(_ delta: Int) {
         var candidate = keyboardBaseNote + delta
         while candidate >= 21, candidate <= 82, [1, 3, 6, 8, 10].contains(candidate % 12) { candidate += delta }
@@ -364,9 +391,16 @@ private struct AurelineCompactRockerButton: View {
                             ? [Color(hexValue: 0x62686b), Color(hexValue: 0x111416)]
                             : [Color(hexValue: 0x4b5053), Color(hexValue: 0x111416)], startPoint: .top, endPoint: .bottom))
                         .frame(height: 15).padding(.horizontal, 3).padding(.top, 16)
-                }.frame(width: 52, height: 33)
-            }.frame(width: 59, height: 48)
-        }.buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 33)
+                .padding(.horizontal, 3)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
     }
 }
 

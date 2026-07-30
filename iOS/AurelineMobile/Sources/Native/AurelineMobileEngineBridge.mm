@@ -31,7 +31,7 @@ enum Parameter : NSUInteger
     waveMemoryIndexA, waveMemoryIndexB, waveMemoryCharacterA, waveMemoryCharacterB,
     oscSync, oscAOctave, oscBOctave, oscBLowFrequency, oscBKeyTrack,
     pitchBendRange, arpEnabled, chordEnabled, arpHold, tempoBpm, arpRate,
-    arpDirection, arpGate, scaleRoot, parameterCount
+    arpDirection, arpGate, scaleRoot, filterMode, transientAccent, parameterCount
 };
 
 constexpr std::array<const char*, parameterCount> parameterNames {{
@@ -47,7 +47,8 @@ constexpr std::array<const char*, parameterCount> parameterNames {{
     "waveMemoryIndexA", "waveMemoryIndexB", "waveMemoryCharacterA", "waveMemoryCharacterB",
     "oscSync", "oscAOctave", "oscBOctave", "oscBLowFrequency", "oscBKeyTrack",
     "pitchBendRange", "arpEnabled", "chordEnabled", "arpHold", "tempoBpm",
-    "arpRate", "arpDirection", "arpGate", "scaleRoot"
+    "arpRate", "arpDirection", "arpGate", "scaleRoot", "filterMode",
+    "transientAccent"
 }};
 
 Parameter parameterForName(NSString* name)
@@ -149,7 +150,8 @@ double clamp(double value, double low, double high) { return std::max(low, std::
         patch.oscillatorSync ? 1.0 : 0.0, patch.oscillatorA.octave, patch.oscillatorB.octave,
         patch.oscillatorB.lowFrequencyMode ? 1.0 : 0.0,
         patch.oscillatorB.keyboardTracking ? 1.0 : 0.0, 2.0,
-        0.0, 0.0, 0.0, 120.0, 1.0, 0.0, 0.75, 0.0
+        0.0, 0.0, 0.0, 120.0, 1.0, 0.0, 0.75, 0.0,
+        static_cast<double>(patch.filterMode), patch.transientAccent
     }};
     for (NSUInteger index = 0; index < defaults.size(); ++index)
         values[index].store(defaults[index], std::memory_order_relaxed);
@@ -212,7 +214,8 @@ double clamp(double value, double low, double high) { return std::max(low, std::
         static_cast<double>(patch.oscillatorB.waveMemoryCharacter),
         patch.oscillatorSync ? 1.0 : 0.0, patch.oscillatorA.octave, patch.oscillatorB.octave,
         patch.oscillatorB.lowFrequencyMode ? 1.0 : 0.0, patch.oscillatorB.keyboardTracking ? 1.0 : 0.0, 2.0,
-        0.0, 0.0, 0.0, 120.0, 1.0, 0.0, 0.75, 0.0
+        0.0, 0.0, 0.0, 120.0, 1.0, 0.0, 0.75, 0.0,
+        static_cast<double>(patch.filterMode), patch.transientAccent
     }};
     for (NSUInteger parameter = 0; parameter < presetValues.size(); ++parameter)
         values[parameter].store(presetValues[parameter], std::memory_order_relaxed);
@@ -313,6 +316,26 @@ double clamp(double value, double low, double high) { return std::max(low, std::
             [self setParameter:name value:snapshot[name].doubleValue];
 }
 
+- (void)configureDrumKit:(NSArray<NSDictionary<NSString*, NSNumber*>*>*)snapshots
+{
+    static constexpr std::array<int, 32> midiNotes {{
+        36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 62, 63,
+        64, 65, 66, 67, 70, 72
+    }};
+    NSDictionary<NSString*, NSNumber*>* saved = [self patchSnapshot];
+    engine->clearDrumKit();
+    const auto count = std::min<NSUInteger>(snapshots.count, midiNotes.size());
+    for (NSUInteger index = 0; index < count; ++index)
+    {
+        [self applyPatchSnapshot:snapshots[index]];
+        [self applyPatch];
+        engine->setDrumKitPatch(midiNotes[index], engine->getPatch());
+    }
+    [self applyPatchSnapshot:saved];
+    [self applyPatch];
+}
+
 - (void)applyPatch
 {
     aureline::AnalogPatch patch;
@@ -323,6 +346,9 @@ double clamp(double value, double low, double high) { return std::max(low, std::
     patch.filterCutoffHz = v(cutoff); patch.filterResonance = v(resonance);
     patch.filterEnvelopeAmount = v(filterEnvAmount); patch.filterKeyboardTracking = v(filterKeyTrack);
     patch.filterVelocityAmount = v(filterVelocity);
+    patch.filterMode = static_cast<aureline::FilterMode>(
+        std::clamp(static_cast<int>(std::lround(v(filterMode))), 0, 3));
+    patch.transientAccent = std::clamp(v(transientAccent), 0.0, 1.0);
     patch.filterEnvelope = { v(filterAttack), v(filterDecay), v(filterSustain), v(filterRelease) };
     patch.amplifierEnvelope = { v(ampAttack), v(ampDecay), v(ampSustain), v(ampRelease) };
     patch.lfoRateHz = v(lfoRate); patch.lfoInitialAmount = v(lfoAmount);
@@ -347,7 +373,7 @@ double clamp(double value, double low, double high) { return std::max(low, std::
     patch.oscillatorA.semitones = v(transpose); patch.oscillatorB.semitones = v(transpose);
     patch.glideSeconds = v(glide); patch.glideLegatoOnly = v(glideLegato) >= 0.5;
     patch.masterTuneCents = v(masterTune); patch.unisonDetuneCents = v(unisonDetune);
-    patch.voiceMode = static_cast<aureline::VoiceMode>(std::clamp(static_cast<int>(std::lround(v(voiceMode))), 0, 2));
+    patch.voiceMode = static_cast<aureline::VoiceMode>(std::clamp(static_cast<int>(std::lround(v(voiceMode))), 0, 3));
     const int maskA = static_cast<int>(std::lround(v(waveformMaskA)));
     const int maskB = static_cast<int>(std::lround(v(waveformMaskB)));
     patch.oscillatorA.sawEnabled = (maskA & 1) != 0; patch.oscillatorA.triangleEnabled = (maskA & 2) != 0; patch.oscillatorA.pulseEnabled = (maskA & 4) != 0;

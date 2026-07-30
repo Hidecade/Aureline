@@ -484,6 +484,45 @@ void testFactoryPresets()
     }
 }
 
+void testDrumKitVoiceSnapshots()
+{
+    aureline::AnalogEngine engine;
+    engine.prepare(48000.0);
+
+    aureline::AnalogPatch kick;
+    kick.voiceMode = aureline::VoiceMode::poly;
+    kick.oscillatorA.triangleEnabled = true;
+    kick.oscillatorA.sawEnabled = false;
+    kick.oscillatorA.octave = -2.0;
+    kick.amplifierEnvelope = { 0.001, 0.12, 0.0, 0.03 };
+
+    aureline::AnalogPatch hat;
+    hat.voiceMode = aureline::VoiceMode::poly;
+    hat.oscillatorA.level = 0.0;
+    hat.oscillatorB.level = 0.0;
+    hat.noiseLevel = 0.7;
+    hat.amplifierEnvelope = { 0.001, 0.05, 0.0, 0.02 };
+
+    engine.setDrumKitPatch(36, kick);
+    engine.setDrumKitPatch(42, hat);
+    auto kit = kick;
+    kit.voiceMode = aureline::VoiceMode::drumKit;
+    engine.setPatch(kit);
+
+    assert(engine.hasDrumKitPatch(36));
+    assert(engine.hasDrumKitPatch(42));
+    assert(!engine.hasDrumKitPatch(37));
+    engine.noteOn(36, 120);
+    engine.noteOn(42, 100);
+    assert(engine.activeVoiceCount() == 2);
+    for (int sample = 0; sample < 512; ++sample)
+    {
+        const auto output = engine.renderStereoSample();
+        assert(std::isfinite(output.left));
+        assert(std::isfinite(output.right));
+    }
+}
+
 void testPerformanceSequencer()
 {
     aureline::AnalogEngine engine;
@@ -620,6 +659,7 @@ int main()
     testRapidParameterChangesRemainFinite();
     testRapidRetriggerIsClickSafe();
     testFactoryPresets();
+    testDrumKitVoiceSnapshots();
     testPerformanceSequencer();
     testPatchChangeStartsFromNewParameters();
     testWaveMemoryOscillator();

@@ -31,7 +31,7 @@ void normalizeOscillator(OscillatorParams& oscillator)
         step = static_cast<std::uint8_t>(std::min<int>(31, step));
     oscillator.octave = clamp(oscillator.octave, -3.0, 3.0);
     oscillator.semitones = clamp(oscillator.semitones, -12.0, 12.0);
-    oscillator.fineCents = clamp(oscillator.fineCents, -100.0, 100.0);
+    oscillator.fineCents = clamp(oscillator.fineCents, -1200.0, 1200.0);
     oscillator.pulseWidth = clamp(oscillator.pulseWidth, 0.02, 0.98);
     oscillator.level = clamp(oscillator.level, 0.0, 1.0);
 }
@@ -40,6 +40,9 @@ void normalizeOscillator(OscillatorParams& oscillator)
 AnalogPatch normalizePatch(const AnalogPatch& source)
 {
     auto patch = source;
+    patch.filterMode = static_cast<FilterMode>(std::clamp(
+        static_cast<int>(patch.filterMode), 0, 3));
+    patch.transientAccent = clamp(patch.transientAccent, 0.0, 1.0);
     normalizeOscillator(patch.oscillatorA);
     normalizeOscillator(patch.oscillatorB);
     normalizeEnvelope(patch.filterEnvelope);

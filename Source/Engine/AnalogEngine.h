@@ -20,6 +20,9 @@ public:
     void prepare(double sampleRate);
     void setPatch(const AnalogPatch& newPatch);
     const AnalogPatch& getPatch() const { return patch; }
+    void clearDrumKit();
+    void setDrumKitPatch(int midiNote, const AnalogPatch& drumPatch);
+    bool hasDrumKitPatch(int midiNote) const;
     void noteOn(int midiNote, int velocity);
     void noteOff(int midiNote);
     void setSustainPedal(bool down);
@@ -42,6 +45,9 @@ private:
 
     AnalogPatch patch;
     std::array<AnalogVoice, kVoiceCount> voices;
+    std::array<AnalogPatch, kVoiceCount> voicePatches;
+    std::array<AnalogPatch, 128> drumKitPatches;
+    std::array<bool, 128> drumKitPatchEnabled {};
     std::array<bool, 128> keyDownNotes {};
     std::array<bool, 128> sustainedNotes {};
     std::array<std::uint64_t, 128> notePriority {};

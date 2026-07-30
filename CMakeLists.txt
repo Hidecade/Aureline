@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Aureline VERSION 1.0.9 LANGUAGES C CXX)
+project(Aureline VERSION 1.0.10 LANGUAGES C CXX)
 
 include(CTest)
 
@@ -56,6 +56,7 @@ if(AURELINE_BUILD_STANDALONE OR AURELINE_BUILD_PLUGINS)
                 assets/aureline-wood-background.png
                 assets/Analog.aurelinelibrary.xml
                 assets/Analog2.aurelinelibrary.xml
+                assets/Circuit.aurelinelibrary.xml
                 assets/Retro.aurelinelibrary.xml
                 assets/8-Bit.aurelinelibrary.xml
         )

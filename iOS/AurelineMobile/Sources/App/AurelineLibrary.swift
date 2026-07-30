@@ -125,6 +125,8 @@ enum AurelineLibraryCodec {
                 guard let value = Double(text), value.isFinite else { continue }
                 patch[stateToVoice[key] ?? key] = value
             }
+            if patch["filterMode"] == nil { patch["filterMode"] = 1 }
+            if patch["transientAccent"] == nil { patch["transientAccent"] = 0 }
             voices.append(AurelineLibraryVoice(slot: slot, name: name, patch: patch))
         }
     }

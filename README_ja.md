@@ -6,7 +6,7 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 シンセサイザーです。クラシックなポリシンセの直接的な操作感に、Aureline独自の
 音源エンジン、UI、Wave Memoryオシレーター、音色ライブラリを組み合わせています。
 
-最新リリース：[v1.0.9](https://github.com/Hidecade/Aureline/releases/tag/v1.0.9)
+最新リリース：[v1.0.10](https://github.com/Hidecade/Aureline/releases/tag/v1.0.10)
 
 ![Aurelineデスクトップ版シンセサイザー画面](docs/images/aureline-desktop.png)
 
@@ -25,7 +25,7 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 - 複数波形、Delay、Fade、Retrigger、接続先選択を備えたLFO
 - Stereo Spread、Vintage Voice Variation、Glide、Pitch Bend、Mod Wheel
 - Arpeggiator、Chord、Hold、Tempo、Direction、Gate、Scale Root
-- 32音色×4つの書換可能バンク：Analog 1、Analog 2、Retro、8-Bit
+- 32音色×8つの書換可能バンク：BANK 3=Circuit、4=Retro、5=8-Bit、8=DRUM KIT専用
 - Mac／Windows／iPhone間で交換できる音色・バンクファイル
 - macOS／Windows Standalone版の24-bit Stereo WAV録音
 
@@ -68,7 +68,7 @@ Oscillator B Detuneが反映され、オーディオレートまたは低周波�
 
 ## 音色ライブラリ
 
-Aurelineは、各32スロットの書換可能な4バンクを搭載します。
+Aurelineは、各32スロットの書換可能な8バンクを搭載します。
 
 1. Analog 1 — Brass、Strings/Pad、Piano/Keys、Bass、SE
 2. Analog 2 — Lead、Poly Mod/Sync、Percussion、Rhythm、SE
@@ -80,9 +80,9 @@ Aurelineは、各32スロットの書換可能な4バンクを搭載します。
 SAVE BANKは32スロットすべてを書き出し、ライブラリをLOADすると置換先バンクを
 選択できます。
 
-追加ライブラリの[TR-808 Inspired](assets/TR-808.aurelinelibrary.xml)には、
+BANK 8専用の[DRUM KITライブラリ](assets/Circuit.aurelinelibrary.xml)には、
 Aurelineで新規作成した打楽器／リズム音色を32音色収録しています。収録音色と
-合成方法は[音色説明](assets/TR-808_音色説明.md)を参照してください。
+合成方法は[音色説明](assets/Circuit_音色説明.md)を参照してください。
 
 ## ファイル形式
 

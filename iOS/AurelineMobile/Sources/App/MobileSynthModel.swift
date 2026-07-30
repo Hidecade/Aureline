@@ -40,7 +40,11 @@ final class MobileSynthModel: ObservableObject {
     @Published var externalActiveNotes: [Int: Int] = [:]
     @Published var factoryPresetNames: [String] = []
     @Published var selectedBank = 0
-    static let defaultBankNames = ["ANALOG 1", "ANALOG 2", "RETRO", "8-BIT"]
+    static let bankCount = 8
+    static let defaultBankNames = [
+        "ANALOG 1", "ANALOG 2", "CIRCUIT", "RETRO",
+        "8-BIT", "BANK 6", "BANK 7", "DRUM KIT"
+    ]
     @Published var bankNames = MobileSynthModel.defaultBankNames
     @Published var canPasteVoice = false
     @Published var canPasteWave = false
@@ -79,7 +83,7 @@ final class MobileSynthModel: ObservableObject {
     static let oscillatorParameters = [
         AurelineParameter(id: "oscALevel", name: "VCO A", range: 0...1, defaultValue: 0.5, logarithmic: false),
         AurelineParameter(id: "oscBLevel", name: "VCO B", range: 0...1, defaultValue: 0.5, logarithmic: false),
-        AurelineParameter(id: "oscBFine", name: "DETUNE", range: -100...100, defaultValue: 7, logarithmic: false),
+        AurelineParameter(id: "oscBFine", name: "DETUNE", range: -1200...1200, defaultValue: 7, logarithmic: false),
         AurelineParameter(id: "pulseWidthA", name: "PW A", range: 0.02...0.98, defaultValue: 0.5, logarithmic: false),
         AurelineParameter(id: "pulseWidthB", name: "PW B", range: 0.02...0.98, defaultValue: 0.5, logarithmic: false),
         AurelineParameter(id: "noiseLevel", name: "NOISE", range: 0...1, defaultValue: 0, logarithmic: false)
@@ -129,8 +133,9 @@ final class MobileSynthModel: ObservableObject {
         factorySlotKeys = factoryPresetNames
         installBuiltInLibraries()
         ensureBankLibraries()
+        configureDrumKitBank()
         refreshBankNames()
-        selectedBank = min(3, max(0, UserDefaults.standard.integer(
+        selectedBank = min(Self.bankCount - 1, max(0, UserDefaults.standard.integer(
             forKey: lastBankDefaultsKey)))
         refreshCurrentBankNames()
         let lastSlot = min(AurelineLibraryCodec.voiceCount - 1,
@@ -166,6 +171,14 @@ final class MobileSynthModel: ObservableObject {
     func setSustain(_ down: Bool) { bridge.setSustainPedal(down) }
     func panic() { bridge.panic() }
 
+    private func configureDrumKitBank() {
+        guard let url = try? bankLibraryURL(7),
+              let data = try? Data(contentsOf: url),
+              let voices = try? AurelineLibraryCodec.decode(data) else { return }
+        bridge.configureDrumKit(voices.sorted { $0.slot < $1.slot }
+            .map { $0.patch.mapValues(NSNumber.init(value:)) })
+    }
+
     var displayedWaveformCycles: Double {
         let bend = pitchWheel * value("pitchBendRange", default: 2)
         let lfo = displayedLFOPitchSemitones(oscillatorA: nil)
@@ -188,7 +201,7 @@ final class MobileSynthModel: ObservableObject {
         let fine = oscillatorA ? 0 : value("oscBFine") / 1200
         let cycles = 2 * pow(2, (waveformPitchNote + bend + lfo - 60) / 12
                              + octave + fine)
-        return max(0.5, min(8, cycles))
+        return max(1.5, min(8, cycles))
     }
 
     private func displayedLFOPitchSemitones(oscillatorA: Bool?) -> Double {
@@ -393,13 +406,14 @@ final class MobileSynthModel: ObservableObject {
         voices[index] = AurelineLibraryVoice(
             slot: index, name: storedName, patch: preset.patch)
         try writeActiveLibrary(voices)
+        if selectedBank == 7 { configureDrumKitBank() }
         selectedPreset = storedName
         factoryPresetNames[index] = slotDisplayName(index, storedName)
         status = "Voice stored in slot \(index + 1): \(storedName)"
     }
 
     func selectBank(_ bank: Int) {
-        let target = min(3, max(0, bank))
+        let target = min(Self.bankCount - 1, max(0, bank))
         guard target != selectedBank else { return }
         selectedBank = target
         UserDefaults.standard.set(target, forKey: lastBankDefaultsKey)
@@ -489,11 +503,13 @@ final class MobileSynthModel: ObservableObject {
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
         let library = try AurelineLibraryCodec.decodeLibrary(Data(contentsOf: url))
-        let target = min(3, max(0, bank))
+        let target = min(Self.bankCount - 1, max(0, bank))
         let importedName = normalizedBankName(
             library.name, fallback: url.deletingPathExtension()
                 .deletingPathExtension().lastPathComponent)
-        try writeLibrary(library.voices, bank: target, name: importedName)
+        try writeLibrary(library.voices, bank: target,
+                         name: target == 7 ? "DRUM KIT" : importedName)
+        if target == 7 { configureDrumKitBank() }
         refreshBankNames()
         selectBank(target)
         refreshCurrentBankNames()
@@ -528,7 +544,7 @@ final class MobileSynthModel: ObservableObject {
 
     private func bankLibraryURL(_ bank: Int) throws -> URL {
         try applicationSupportDirectory().appendingPathComponent(
-            "bank-\(min(3, max(0, bank)) + 1).aurelinelibrary.xml")
+            "bank-\(min(Self.bankCount - 1, max(0, bank)) + 1).aurelinelibrary.xml")
     }
 
     private func readActiveLibrary() throws -> [AurelineLibraryVoice] {
@@ -542,7 +558,7 @@ final class MobileSynthModel: ObservableObject {
 
     private func writeLibrary(_ voices: [AurelineLibraryVoice], bank: Int,
                               name: String? = nil) throws {
-        let target = min(3, max(0, bank))
+        let target = min(Self.bankCount - 1, max(0, bank))
         try AurelineLibraryCodec.encode(
             voices, name: normalizedBankName(
                 name, fallback: MobileSynthModel.defaultBankNames[target])).write(
@@ -555,7 +571,7 @@ final class MobileSynthModel: ObservableObject {
     }
 
     private func refreshBankNames() {
-        bankNames = (0..<4).map { bank in
+        bankNames = (0..<Self.bankCount).map { bank in
             guard let url = try? bankLibraryURL(bank),
                   let data = try? Data(contentsOf: url),
                   let library = try? AurelineLibraryCodec.decodeLibrary(data) else {
@@ -582,49 +598,93 @@ final class MobileSynthModel: ObservableObject {
                 try? writeLibrary(factoryLibraryVoices(), bank: 0)
             }
         }
-        let previousOrderMigrationKey = "libraryOrderAnalogRetro8BitV2"
-        let orderMigrationKey = "libraryOrderAnalog1Analog2Retro8BitV3"
-        let hadPreviousSecondaryBanks = bankIsValid(1) && bankIsValid(2)
-        if hadPreviousSecondaryBanks
-            && !UserDefaults.standard.bool(forKey: orderMigrationKey),
-           let bank2URL = try? bankLibraryURL(1),
-           let bank3URL = try? bankLibraryURL(2),
-           let bank2Data = try? Data(contentsOf: bank2URL),
-           let bank3Data = try? Data(contentsOf: bank3URL),
-           let analog2Source = Bundle.main.url(
-               forResource: "Analog2", withExtension: "aurelinelibrary.xml"),
-           let analog2 = try? AurelineLibraryCodec.decode(
-               Data(contentsOf: analog2Source)),
-           let bank2Voices = try? AurelineLibraryCodec.decode(bank2Data),
-           let bank3Voices = try? AurelineLibraryCodec.decode(bank3Data) {
-            do {
-                let previousOrderWasMigrated = UserDefaults.standard.bool(
-                    forKey: previousOrderMigrationKey)
-                let retro = previousOrderWasMigrated ? bank2Voices : bank3Voices
-                let eightBit = previousOrderWasMigrated ? bank3Voices : bank2Voices
-                try writeLibrary(analog2, bank: 1)
-                try writeLibrary(retro, bank: 2)
-                try writeLibrary(eightBit, bank: 3)
-                UserDefaults.standard.set(true, forKey: orderMigrationKey)
-            } catch {
-                status = "LIBRARY ORDER MIGRATION FAILED"
-            }
-        }
-        for (bank, resource) in [
+        let orderMigrationKey = "libraryOrder8BanksV1"
+        let bundled: [(Int, String)] = [
             (1, "Analog2.aurelinelibrary.xml"),
-            (2, "Retro.aurelinelibrary.xml"),
-            (3, "8-Bit.aurelinelibrary.xml")
-        ] where !bankIsValid(bank) {
+            (2, "Circuit.aurelinelibrary.xml"),
+            (3, "Retro.aurelinelibrary.xml"),
+            (4, "8-Bit.aurelinelibrary.xml"),
+            (7, "Circuit.aurelinelibrary.xml")
+        ]
+        for (bank, resource) in bundled
+            where !UserDefaults.standard.bool(forKey: orderMigrationKey)
+               || !bankIsValid(bank) {
             let parts = resource.split(separator: ".", maxSplits: 1)
             if let source = Bundle.main.url(forResource: String(parts[0]),
                                             withExtension: String(parts[1])),
                let voices = try? AurelineLibraryCodec.decode(Data(contentsOf: source)) {
-                try? writeLibrary(voices, bank: bank)
+                try? writeLibrary(voices, bank: bank,
+                                  name: MobileSynthModel.defaultBankNames[bank])
             }
         }
-        if !UserDefaults.standard.bool(forKey: orderMigrationKey) {
-            UserDefaults.standard.set(true, forKey: orderMigrationKey)
+        let drumKitMigrationKey = "dedicatedDrumKitBank8V1"
+        if !UserDefaults.standard.bool(forKey: drumKitMigrationKey),
+           let url = try? bankLibraryURL(2),
+           let data = try? Data(contentsOf: url),
+           let library = try? AurelineLibraryCodec.decodeLibrary(data) {
+            if let bank8URL = try? bankLibraryURL(7),
+               FileManager.default.fileExists(atPath: bank8URL.path),
+               let directory = try? applicationSupportDirectory() {
+                let backup = directory.appendingPathComponent(
+                    "bank-8-before-drum-kit.aurelinelibrary.xml")
+                if !FileManager.default.fileExists(atPath: backup.path) {
+                    try? FileManager.default.copyItem(at: bank8URL, to: backup)
+                }
+            }
+            try? writeLibrary(library.voices, bank: 7, name: "DRUM KIT")
+            try? writeLibrary(library.voices, bank: 2, name: "CIRCUIT")
+            UserDefaults.standard.set(true, forKey: drumKitMigrationKey)
         }
+        let midiOrderMigrationKey = "drumKitMidiOrderV1"
+        if !UserDefaults.standard.bool(forKey: midiOrderMigrationKey),
+           let bank8URL = try? bankLibraryURL(7),
+           let data = try? Data(contentsOf: bank8URL),
+           let library = try? AurelineLibraryCodec.decodeLibrary(data) {
+            if library.voices.first?.name != "ACCENT KICK" {
+                if let directory = try? applicationSupportDirectory() {
+                    let backup = directory.appendingPathComponent(
+                        "bank-8-before-midi-order.aurelinelibrary.xml")
+                    if !FileManager.default.fileExists(atPath: backup.path) {
+                        try? FileManager.default.copyItem(at: bank8URL, to: backup)
+                    }
+                }
+                let sourceOrder = [
+                    25, 8, 26, 5, 4, 3, 2, 1, 0, 9, 6, 11, 7, 14, 20, 28,
+                    22, 15, 21, 27, 16, 23, 29, 24, 13, 30, 19, 18, 17, 31,
+                    12, 10
+                ]
+                let sorted = sourceOrder.enumerated().map { slot, source in
+                    AurelineLibraryVoice(
+                        slot: slot, name: library.voices[source].name,
+                        patch: library.voices[source].patch)
+                }
+                try? writeLibrary(sorted, bank: 7, name: "DRUM KIT")
+            }
+            UserDefaults.standard.set(true, forKey: midiOrderMigrationKey)
+        }
+        let drumKitBalanceKey = "drumKitLayoutV6"
+        if !UserDefaults.standard.bool(forKey: drumKitBalanceKey),
+           let source = Bundle.main.url(
+               forResource: "Circuit", withExtension: "aurelinelibrary.xml"),
+           let data = try? Data(contentsOf: source),
+           let library = try? AurelineLibraryCodec.decodeLibrary(data) {
+            if let bank8URL = try? bankLibraryURL(7),
+               FileManager.default.fileExists(atPath: bank8URL.path),
+               let directory = try? applicationSupportDirectory() {
+                let backup = directory.appendingPathComponent(
+                    "bank-8-before-layout-v6.aurelinelibrary.xml")
+                if !FileManager.default.fileExists(atPath: backup.path) {
+                    try? FileManager.default.copyItem(at: bank8URL, to: backup)
+                }
+            }
+            try? writeLibrary(library.voices, bank: 7, name: "DRUM KIT")
+            UserDefaults.standard.set(true, forKey: drumKitBalanceKey)
+        }
+        for bank in 5..<Self.bankCount where !bankIsValid(bank) {
+            try? writeLibrary(factoryLibraryVoices(), bank: bank,
+                              name: MobileSynthModel.defaultBankNames[bank])
+        }
+        UserDefaults.standard.set(true, forKey: orderMigrationKey)
         let analogPresetMigrationKey = "analogPresetLibrary64V4"
         if !UserDefaults.standard.bool(forKey: analogPresetMigrationKey),
            let analog1Source = Bundle.main.url(
@@ -722,20 +782,21 @@ final class MobileSynthModel: ObservableObject {
 
     private func installBuiltInLibraries() {
         guard let directory = try? userPresetDirectory() else { return }
-        for filename in [
-            "Analog.aurelinelibrary.xml",
-            "Analog2.aurelinelibrary.xml",
-            "Retro.aurelinelibrary.xml",
-            "8-Bit.aurelinelibrary.xml"
+        for (resource, destination) in [
+            ("Analog.aurelinelibrary.xml", "Analog.aurelinelibrary.xml"),
+            ("Analog2.aurelinelibrary.xml", "Analog2.aurelinelibrary.xml"),
+            ("Circuit.aurelinelibrary.xml", "DrumKit.aurelinelibrary.xml"),
+            ("Retro.aurelinelibrary.xml", "Retro.aurelinelibrary.xml"),
+            ("8-Bit.aurelinelibrary.xml", "8-Bit.aurelinelibrary.xml")
         ] {
-            let parts = filename.split(separator: ".", maxSplits: 1)
+            let parts = resource.split(separator: ".", maxSplits: 1)
             guard parts.count == 2,
                   let source = Bundle.main.url(
                     forResource: String(parts[0]),
                     withExtension: String(parts[1])),
                   let data = try? Data(contentsOf: source) else { continue }
             try? data.write(
-                to: directory.appendingPathComponent(filename),
+                to: directory.appendingPathComponent(destination),
                 options: .atomic)
         }
     }

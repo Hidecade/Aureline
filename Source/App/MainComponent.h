@@ -32,6 +32,7 @@ public:
     void playNote(int note, int velocity);
     void releaseNote(int note);
     bool isNoteHeld(int note) const;
+    int keyboardFirstNote() const;
     void queueMidiMessage(const juce::MidiMessage& message);
     void processPluginBlock(juce::AudioBuffer<float>& buffer,
                             const juce::MidiBuffer& midi);
@@ -138,6 +139,7 @@ private:
         std::atomic<float> tempoBpm { 120.0f };
         std::atomic<int> scaleRoot { 0 };
         std::atomic<float> master { 0.8f };
+        std::atomic<float> transientAccent { 0.0f };
         std::atomic<float> transpose { 0.0f };
         std::atomic<float> pitchBendRange { 2.0f };
         std::atomic<float> glide { 0.0f };
@@ -145,6 +147,7 @@ private:
         std::atomic<float> masterTune { 0.0f };
         std::atomic<float> unisonDetune { 14.0f };
         std::atomic<float> filterVelocity { 0.0f };
+        std::atomic<int> filterMode { 1 };
         std::atomic<float> pitchBend { 0.0f };
         std::atomic<float> modWheel { 0.0f };
         std::atomic<int> voiceMode { 0 };
@@ -179,6 +182,7 @@ private:
     void configureKnob(juce::Slider&, juce::Label&, const juce::String&,
                        double min, double max, double initial, double skew = 1.0);
     void applyParameters();
+    void configureDrumKitBank();
     void resetToInitialVoice();
     void loadVoiceFromFile(const juce::File&);
     void promptAndSaveVoice();
@@ -258,8 +262,11 @@ private:
     std::unique_ptr<juce::FileChooser> voiceFileChooser;
     std::unique_ptr<juce::FileChooser> wavFileChooser;
     juce::ComboBox voiceModeBox;
+    RockerButton filterLowPassButton { "Low Pass Filter" };
+    RockerButton filterBandPassButton { "Band Pass Filter" };
     RockerButton monoModeButton { "MONO" };
     RockerButton unisonModeButton { "UNISON" };
+    RockerButton drumKitModeButton { "KIT" };
     RockerButton arpButton { "ARP" };
     RockerButton chordButton { "CORD" };
     RockerButton arpHoldButton { "HOLD" };

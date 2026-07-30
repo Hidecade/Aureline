@@ -18,7 +18,8 @@ public:
     void start(int midiNote, int velocity, std::uint64_t age,
                double startNote, double glideSeconds, double detuneCents = 0.0,
                double initialPhase = 0.0, bool unison = false,
-               double unisonPan = 0.0, double startDelaySeconds = 0.0);
+               double unisonPan = 0.0, double startDelaySeconds = 0.0,
+               double targetNote = -1.0);
     void retarget(int midiNote, double glideSeconds);
     void release();
     void reset();
@@ -73,6 +74,8 @@ private:
     double vintagePanVariation = 0.0;
     double driftPhase = 0.0;
     double driftRateHz = 0.1;
+    double cowbellBandLow = 0.0;
+    double cowbellBand = 0.0;
     std::uint64_t noteSamples = 0;
     std::uint64_t startDelaySamplesRemaining = 0;
     std::uint64_t startAge = 0;

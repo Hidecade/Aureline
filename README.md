@@ -6,7 +6,7 @@ Aureline is an eight-voice analog-modeling synthesizer by Hidecade Instruments.
 It combines a direct, classic polysynth workflow with Aureline's own sound
 engine, interface, Wave Memory oscillators, and voice library.
 
-Current release: [v1.0.9](https://github.com/Hidecade/Aureline/releases/tag/v1.0.9)
+Current release: [v1.0.10](https://github.com/Hidecade/Aureline/releases/tag/v1.0.10)
 
 ![Aureline desktop synthesizer interface](docs/images/aureline-desktop.png)
 
@@ -25,7 +25,7 @@ Current release: [v1.0.9](https://github.com/Hidecade/Aureline/releases/tag/v1.0
 - Multi-wave LFO with delay, fade, retrigger, and selectable destinations
 - Stereo spread, vintage voice variation, glide, pitch bend, and mod wheel
 - Arpeggiator, chord mode, hold, tempo, direction, gate, and scale root
-- Four writable 32-voice banks: Analog 1, Analog 2, Retro, and 8-Bit
+- Eight writable 32-voice banks; Circuit is bank 3, Retro bank 4, 8-Bit bank 5, and the dedicated DRUM KIT is bank 8
 - Cross-platform voice and bank files
 - 24-bit stereo WAV recording in the macOS and Windows standalone apps
 
@@ -80,9 +80,9 @@ selected slot. SAVE exports the current voice without modifying the bank.
 SAVE BANK exports all 32 slots, and LOAD asks which bank to replace when a
 library is opened.
 
-The optional [TR-808 Inspired library](assets/TR-808.aurelinelibrary.xml)
+The built-in [DRUM KIT library](assets/Circuit.aurelinelibrary.xml)
 contains 32 original Aureline percussion and rhythm voices. See the
-[voice guide](assets/TR-808_音色説明.md) for its contents and synthesis
+[voice guide](assets/Circuit_音色説明.md) for its contents and synthesis
 approach.
 
 ## File formats

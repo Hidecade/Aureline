@@ -5,7 +5,7 @@ app and does not affect runtime behavior.
 
 ## Version
 
-- Version: `1.0.9`
+- Version: `1.0.10`
 - Build: `10`
 - Primary category: `Music`
 - Secondary category: `Entertainment`
@@ -42,7 +42,7 @@ Aurelineは、クラシックなアナログシンセの操作感とWave Memory�
 ・自己発振対応4段OTAローパスフィルター
 ・フィルター／アンプ独立エンベロープ
 ・LFO、アルペジエーター、コード、ホールド
-・4バンク、合計128音色
+・8バンク、合計256音色スロット
 ・音色、32音色バンク、Wave Memoryの保存／読み込み
 ・外部MIDI入力
 ・AUv3 Instrument対応
@@ -56,7 +56,7 @@ Aurelineは、クラシックなアナログシンセの操作感とWave Memory�
 ### What’s New
 
 ・ライブラリ読込時にバンク名を反映
-・TR-808に着想を得た32音色ライブラリを追加
+・FILTERスイッチを活用した32音色のDRUM KIT専用バンクを追加
 ・打楽器向けのPoly Mod、ノイズ、金属波形音色を追加
 
 ## English localization
@@ -99,7 +99,7 @@ synth,instrument,MIDI,AUv3,analog,waveform,music,keyboard,LFO,polyphonic
 ### What’s New
 
 • Added bank names that follow imported voice libraries
-• Added a 32-voice library inspired by classic TR-808 percussion
+• Added the dedicated 32-voice DRUM KIT electronic percussion bank
 • Added percussion voices using Poly Mod, noise, and metallic waveforms
 
 ## App Review information
@@ -162,7 +162,7 @@ Recommended sequence:
 - Keywords: maximum 100 bytes, comma-separated.
 - Screenshots: 1–10 per device size and localization.
 - Privacy Policy URL is required for iOS.
-- Select the uploaded build whose `CFBundleShortVersionString` is `1.0.9` and
+- Select the uploaded build whose `CFBundleShortVersionString` is `1.0.10` and
   whose `CFBundleVersion` is `10`.
 
 Before submission, recheck these values against the processed build shown in

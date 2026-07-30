@@ -15,6 +15,7 @@ void AnalogEngine::prepare(double sampleRate)
     unisonPhaseState = 0x8a5cd789U;
     keyDownNotes.fill(false);
     sustainedNotes.fill(false);
+    voicePatches.fill(patch);
     lastPlayedNote = -1;
 }
 
@@ -29,6 +30,25 @@ double AnalogEngine::nextUnisonPhase()
 void AnalogEngine::setPatch(const AnalogPatch& newPatch)
 {
     patch = normalizePatch(newPatch);
+}
+
+void AnalogEngine::clearDrumKit()
+{
+    drumKitPatchEnabled.fill(false);
+}
+
+void AnalogEngine::setDrumKitPatch(int midiNote, const AnalogPatch& drumPatch)
+{
+    if (midiNote < 0 || midiNote > 127)
+        return;
+    drumKitPatches[static_cast<std::size_t>(midiNote)] = normalizePatch(drumPatch);
+    drumKitPatchEnabled[static_cast<std::size_t>(midiNote)] = true;
+}
+
+bool AnalogEngine::hasDrumKitPatch(int midiNote) const
+{
+    return midiNote >= 0 && midiNote <= 127
+        && drumKitPatchEnabled[static_cast<std::size_t>(midiNote)];
 }
 
 AnalogVoice& AnalogEngine::selectVoice()
@@ -63,9 +83,12 @@ void AnalogEngine::noteOn(int midiNote, int velocity)
     switch (patch.voiceMode)
     {
         case VoiceMode::poly:
-            selectVoice().start(note, velocity, ++voiceAge,
-                                static_cast<double>(note), 0.0);
+        {
+            auto& voice = selectVoice();
+            voicePatches[static_cast<std::size_t>(&voice - voices.data())] = patch;
+            voice.start(note, velocity, ++voiceAge, static_cast<double>(note), 0.0);
             break;
+        }
         case VoiceMode::mono:
             if (voices[0].isActive() && !voices[0].isReleasing() && anotherKeyHeld)
                 voices[0].retarget(note, patch.glideSeconds);
@@ -104,6 +127,27 @@ void AnalogEngine::noteOn(int midiNote, int velocity)
                     panPositions[static_cast<std::size_t>(index)],
                     startDelaysSeconds[static_cast<std::size_t>(index)]);
             }
+            break;
+        }
+        case VoiceMode::drumKit:
+        {
+            if (!hasDrumKitPatch(note))
+                break;
+            // Closed/pedal hat cuts an already ringing open hat, like a
+            // hardware drum machine choke group.
+            if (note == 42 || note == 44)
+                for (auto& voice : voices)
+                    if (voice.isActive() && voice.note() == 46)
+                        voice.release();
+            auto& voice = selectVoice();
+            const auto index = static_cast<std::size_t>(&voice - voices.data());
+            voicePatches[index] = drumKitPatches[static_cast<std::size_t>(note)];
+            voicePatches[index].voiceMode = VoiceMode::poly;
+            voice.synchronizeParameters(voicePatches[index]);
+            constexpr double drumReferenceNote = 60.0;
+            voice.start(note, velocity, ++voiceAge, drumReferenceNote, 0.0,
+                        0.0, nextUnisonPhase(), false, 0.0, 0.0,
+                        drumReferenceNote);
             break;
         }
     }
@@ -201,13 +245,18 @@ StereoSample AnalogEngine::renderStereoSample()
     const auto lfoValue = lfo.render(patch.lfoRateHz, patch.lfoWaveformMask);
     displayedLfoValue.store(lfoValue, std::memory_order_relaxed);
     StereoSample output;
-    for (auto& voice : voices)
+    for (std::size_t index = 0; index < voices.size(); ++index)
     {
-        const auto sample = voice.render(patch, pitchBend * pitchBendRange, lfoValue, modWheel);
+        auto& voice = voices[index];
+        const auto& renderPatch = patch.voiceMode == VoiceMode::drumKit
+            ? voicePatches[index] : patch;
+        const auto sample = voice.render(renderPatch, pitchBend * pitchBendRange,
+                                         lfoValue, modWheel);
         const auto unisonSpread = voice.isUnisonVoice() ? 0.42 : 0.0;
-        const auto effectiveSpread = std::max(patch.stereoSpread, unisonSpread);
+        const auto effectiveSpread = std::max(renderPatch.stereoSpread, unisonSpread);
         const auto pan = std::clamp(voice.effectivePanPosition() * effectiveSpread
-                                    + voice.vintagePanPosition() * patch.vintageAmount * 0.2,
+                                    + voice.vintagePanPosition()
+                                        * renderPatch.vintageAmount * 0.2,
                                     -1.0, 1.0);
         const auto angle = (pan + 1.0) * 0.5 * halfPi;
         output.left += sample * std::cos(angle);

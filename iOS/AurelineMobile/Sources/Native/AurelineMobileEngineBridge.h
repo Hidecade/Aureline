@@ -20,6 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (double)parameterValue:(NSString*)identifier;
 - (NSDictionary<NSString*, NSNumber*>*)patchSnapshot;
 - (void)applyPatchSnapshot:(NSDictionary<NSString*, NSNumber*>*)snapshot;
+- (void)configureDrumKit:(NSArray<NSDictionary<NSString*, NSNumber*>*>*)snapshots;
 - (void)renderLeft:(float*)left right:(float*)right frames:(int)frames;
 - (void)renderToAudioBufferList:(AudioBufferList*)audioBufferList frames:(int)frames;
 - (NSData*)scopeSnapshotData NS_SWIFT_NAME(scopeSnapshotData());

@@ -107,7 +107,16 @@ enum class VoiceMode
 {
     poly,
     mono,
-    unison
+    unison,
+    drumKit
+};
+
+enum class FilterMode
+{
+    bypass,
+    lowPass,
+    bandPass,
+    lowPassBandPass
 };
 
 struct EnvelopeParams
@@ -155,6 +164,7 @@ struct AnalogPatch
     double filterEnvelopeAmount = 0.25;
     double filterKeyboardTracking = 0.0;
     double filterVelocityAmount = 0.0;
+    FilterMode filterMode = FilterMode::lowPass;
     double noiseLevel = 0.0;
     LfoWaveform lfoWaveform = LfoWaveform::triangle;
     int lfoWaveformMask = 2;
@@ -182,6 +192,7 @@ struct AnalogPatch
     double stereoSpread = 0.0;
     double vintageAmount = 0.0;
     double masterGain = 0.8;
+    double transientAccent = 0.0;
 };
 
 struct StereoSample

@@ -70,7 +70,7 @@ struct EditView: View {
             } message: { Text(voiceError ?? "") }
             .alert("LOAD LIBRARY TO BANK", isPresented: $confirmingLibraryLoad) {
                 Button("CANCEL", role: .cancel) { pendingLibraryURL = nil }
-                ForEach(0..<4) { bank in
+                ForEach(synth.bankNames.indices, id: \.self) { bank in
                     Button("BANK \(bank + 1)  \(synth.bankNames[bank])") {
                         guard let url = pendingLibraryURL else { return }
                         do { try synth.importLibrary(from: url, intoBank: bank) }
@@ -313,8 +313,9 @@ struct EditView: View {
                     }
                     HStack(spacing: -8) {
                         modeButton("UNISON", 2)
-                        switchButton("LEGATO", "glideLegato")
+                        modeButton("KIT", 3)
                     }
+                    switchButton("LEGATO", "glideLegato")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
@@ -348,8 +349,12 @@ struct EditView: View {
     private var filterCombinedSection: some View {
         VStack(spacing: 5) {
             AurelineEditGroup(title: "FILTER") {
-                knobRow(Array(MobileSynthModel.filterParameters.prefix(5)))
-                    .frame(maxWidth: .infinity, alignment: .center)
+                HStack(spacing: 3) {
+                    filterSwitchButton("LP", bit: 1)
+                    filterSwitchButton("BP", bit: 2)
+                    knobRow(Array(MobileSynthModel.filterParameters.prefix(5)))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             AurelineEditGroup(title: "FILTER ENV") {
@@ -525,7 +530,14 @@ struct EditView: View {
 
     private func modeButton(_ title: String, _ mode: Int) -> some View {
         let active = Int(synth.value("voiceMode").rounded()) == mode
-        return Button { synth.set("voiceMode", Double(mode)) } label: {
+        return Button {
+            if mode == 3 {
+                synth.set("arpEnabled", 0)
+                synth.set("chordEnabled", 0)
+                synth.panic()
+            }
+            synth.set("voiceMode", Double(mode))
+        } label: {
             AurelineMacRockerLabel(title: title, active: active)
         }
         .buttonStyle(.plain)
@@ -554,6 +566,17 @@ struct EditView: View {
         Button { synth.toggle(id) } label: {
             AurelineMacRockerLabel(title: title, active: synth.value(id) >= 0.5)
         }.buttonStyle(.plain)
+    }
+
+    private func filterSwitchButton(_ title: String, bit: Int) -> some View {
+        let mode = Int(synth.value("filterMode").rounded())
+        return Button {
+            synth.set("filterMode", Double(mode ^ bit))
+        } label: {
+            AurelineMacRockerLabel(title: title, active: (mode & bit) != 0)
+        }
+        .buttonStyle(.plain)
+        .frame(width: 58, height: 60)
     }
     private func binding(_ id: String) -> Binding<Double> { Binding(get: { synth.value(id) }, set: { synth.set(id, $0) }) }
 }

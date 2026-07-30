@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var synth: MobileSynthModel
     @State private var editKeyboardOctave = 3
+    @State private var normalEditKeyboardOctave = 3
     @State private var showingAbout = false
 
     var body: some View {
@@ -31,6 +32,20 @@ struct RootView: View {
         .padding(.horizontal, 8)
         .background(AurelineTheme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        .onAppear {
+            if Int(synth.value("voiceMode").rounded()) == 3 {
+                editKeyboardOctave = 2
+            }
+        }
+        .onChange(of: Int(synth.value("voiceMode").rounded())) { mode in
+            synth.panic()
+            if mode == 3 {
+                normalEditKeyboardOctave = editKeyboardOctave
+                editKeyboardOctave = 2
+            } else {
+                editKeyboardOctave = normalEditKeyboardOctave
+            }
+        }
         .sheet(isPresented: $showingAbout) {
             AboutView()
         }

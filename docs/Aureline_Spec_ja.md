@@ -1,7 +1,7 @@
 # Aureline 製品仕様
 
 - 文書バージョン：1.0
-- 対象製品バージョン：1.0.9
+- 対象製品バージョン：1.0.10
 - ブランド：Hidecade Instruments
 - ステータス：実装済み仕様
 
@@ -13,7 +13,7 @@ Aurelineは、クラシックなポリフォニック・アナログシンセサ
 
 2 Oscillator、Noise、4段OTA Low-pass Filter、Filter / Amplifier ADSR、LFO、
 Poly Modという簡潔な構成に、32ステップWave Memory、Arpeggiator、Chord、
-4バンクの音色ライブラリを統合する。
+8バンクの音色ライブラリを統合する。
 
 Aurelineは特定機種の完全なクローンではない。他製品のソースコード、実装定数、
 回路定数、プリセット、波形ROM、外観を複製せず、Hidecade独自の音響特性、
@@ -65,7 +65,10 @@ Poly Modは各ボイス内で処理し、Filter、VCA、Voice Panを含む最終
 ### 5.1 Polyphony
 
 - 最大同時発音数：8
-- Voice Mode：`POLY`、`MONO`、`UNISON`
+- Voice Mode：`POLY`、`MONO`、`UNISON`、`KIT`
+- KIT：専用BANK 8「DRUM KIT」の32音色をGM系MIDIノートへ割り当て、最大8音同時発音
+- Hi-Hat Choke：Closed／Pedal HatでOpen Hatをリリース
+- KITの詳細：[ドラムキット演奏モード仕様](Aureline_Drum_Kit_Spec_ja.md)
 - Sustain Pedal、All Notes Off、Panicに対応
 - MIDI Note範囲：0〜127
 
@@ -463,7 +466,7 @@ Poly Mod、Filter、VCAを含む最終波形を表示する。視認性のため
 
 ## 23. 実装基準
 
-現行仕様とコードが不一致の場合は、v1.0.9の実装を基準とする。
+現行仕様とコードが不一致の場合は、v1.0.10の実装を基準とする。
 
 - Patchと値域：`Source/Engine/AnalogPatch.*`
 - Voice信号処理：`Source/Engine/AnalogVoice.*`

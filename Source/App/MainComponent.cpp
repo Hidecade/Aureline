@@ -12,20 +12,83 @@
 
 namespace
 {
-constexpr int firstKeyboardNote = 48;
+constexpr int firstKeyboardNote = 36;
 constexpr int keyboardNoteCount = 37;
 constexpr int voiceSlotsPerBank = 32;
+constexpr int voiceBankCount = 8;
 constexpr int libraryFormatVersion = 2;
-constexpr std::array<const char*, 4> defaultVoiceBankNames {{
-    "ANALOG 1", "ANALOG 2", "RETRO", "8-BIT"
+constexpr std::array<const char*, voiceBankCount> defaultVoiceBankNames {{
+    "ANALOG 1", "ANALOG 2", "CIRCUIT", "RETRO",
+    "8-BIT", "BANK 6", "BANK 7", "DRUM KIT"
 }};
+
+class BankSelectionAlert final : public juce::AlertWindow
+{
+public:
+    explicit BankSelectionAlert(const std::array<juce::String, voiceBankCount>& names,
+                                juce::Component* associatedComponent)
+        : juce::AlertWindow(
+              "LOAD LIBRARY TO BANK",
+              "Choose the destination bank. Its 32 voices will be overwritten.",
+              juce::MessageBoxIconType::WarningIcon,
+              associatedComponent)
+    {
+        for (int bank = 0; bank < voiceBankCount; ++bank)
+        {
+            auto& button = bankButtons[static_cast<std::size_t>(bank)];
+            button.setButtonText("BANK " + juce::String(bank + 1) + "  "
+                                 + names[static_cast<std::size_t>(bank)]);
+            button.onClick = [this, bank] { exitModalState(bank + 1); };
+            buttonGrid.addAndMakeVisible(button);
+        }
+
+        buttonGrid.setSize(920, 116);
+        addCustomComponent(&buttonGrid);
+        addButton("CANCEL", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    }
+
+private:
+    class ButtonGrid final : public juce::Component
+    {
+    public:
+        explicit ButtonGrid(std::array<juce::TextButton, voiceBankCount>& buttons)
+            : bankButtons(buttons)
+        {
+        }
+
+        void resized() override
+        {
+            constexpr int columns = 4;
+            constexpr int gap = 10;
+            const auto buttonWidth = (getWidth() - gap * (columns - 1)) / columns;
+            const auto buttonHeight = (getHeight() - gap) / 2;
+
+            for (int bank = 0; bank < voiceBankCount; ++bank)
+            {
+                const auto row = bank / columns;
+                const auto column = bank % columns;
+                bankButtons[static_cast<std::size_t>(bank)].setBounds(
+                    column * (buttonWidth + gap),
+                    row * (buttonHeight + gap),
+                    buttonWidth,
+                    buttonHeight);
+            }
+        }
+
+    private:
+        std::array<juce::TextButton, voiceBankCount>& bankButtons;
+    };
+
+    std::array<juce::TextButton, voiceBankCount> bankButtons;
+    ButtonGrid buttonGrid { bankButtons };
+};
 
 int voiceMenuItemId(int bank, int slot)
 {
-    return juce::jlimit(0, 3, bank) * voiceSlotsPerBank
+    return juce::jlimit(0, voiceBankCount - 1, bank) * voiceSlotsPerBank
         + juce::jlimit(0, voiceSlotsPerBank - 1, slot) + 1;
 }
-constexpr int pcKeyboardTranspose = 12;
+constexpr int pcKeyboardTranspose = 0;
 constexpr float waveformDisplayGain = 2.0f;
 // Modern vintage palette: graphite chassis, warm control surfaces,
 // aged brass secondary type, ivory labels, and restrained burnt-orange accents.
@@ -110,7 +173,7 @@ juce::File legacyStoredVoiceFile(std::size_t slot)
 juce::File activeLibraryFile(int bank)
 {
     return aurelineApplicationSupportDirectory().getChildFile(
-        "bank-" + juce::String(juce::jlimit(0, 3, bank) + 1)
+        "bank-" + juce::String(juce::jlimit(0, voiceBankCount - 1, bank) + 1)
         + ".aurelinelibrary.xml");
 }
 
@@ -159,7 +222,7 @@ juce::String voiceBankDisplayName(const juce::ValueTree& library, int bank)
     auto name = library.getProperty("name").toString().trim();
     if (name.isEmpty())
         name = defaultVoiceBankNames[static_cast<std::size_t>(
-            juce::jlimit(0, 3, bank))];
+            juce::jlimit(0, voiceBankCount - 1, bank))];
     return name.toUpperCase().substring(0, 16);
 }
 
@@ -414,14 +477,15 @@ struct PcKeyNote
     int note;
 };
 
-constexpr std::array<PcKeyNote, 41> pcKeyboardMap {{
+constexpr std::array<PcKeyNote, 43> pcKeyboardMap {{
     { 'z', 36 }, { 'x', 38 }, { 'c', 40 }, { 'v', 41 }, { 'b', 43 }, { 'n', 45 }, { 'm', 47 },
-    { ',', 48 }, { '.', 50 }, { '/', 52 }, { '\\', 53 },
+    { ',', 48 }, { '.', 50 }, { '/', 52 }, { '\\', 73 }, { 0x00a5, 73 },
     { 's', 37 }, { 'd', 39 }, { 'g', 42 }, { 'h', 44 }, { 'j', 46 }, { 'l', 49 }, { ';', 51 }, { ':', 51 },
-    { 'q', 48 }, { 'w', 50 }, { 'e', 52 }, { 'r', 53 }, { 't', 55 }, { 'y', 57 }, { 'u', 59 },
-    { 'i', 60 }, { 'o', 62 }, { 'p', 64 }, { '@', 65 }, { '[', 67 }, { ']', 67 },
-    { '2', 49 }, { '3', 51 }, { '5', 54 }, { '6', 56 }, { '7', 58 }, { '9', 61 }, { '0', 63 },
-    { '-', 66 }, { '^', 66 }
+    { 'q', 53 }, { 'w', 55 }, { 'e', 57 }, { 'r', 59 }, { 't', 60 }, { 'y', 62 }, { 'u', 64 },
+    { 'i', 65 }, { 'o', 67 }, { 'p', 69 }, { '@', 71 }, { '_', 53 },
+    { ']', 54 }, { '[', 72 },
+    { '2', 54 }, { '3', 56 }, { '4', 58 }, { '6', 61 }, { '7', 63 }, { '9', 66 }, { '0', 68 },
+    { '-', 70 }, { '^', 70 }
 }};
 
 bool isPcKeyCurrentlyDown(int keyCode)
@@ -438,10 +502,10 @@ bool isBlackKey(int note)
     return pitch == 1 || pitch == 3 || pitch == 6 || pitch == 8 || pitch == 10;
 }
 
-int whiteIndexForNote(int note)
+int whiteIndexForNote(int note, int firstNote)
 {
     int result = 0;
-    for (int current = firstKeyboardNote; current < note; ++current)
+    for (int current = firstNote; current < note; ++current)
         if (!isBlackKey(current))
             ++result;
     return result;
@@ -785,16 +849,18 @@ void AurelineMainComponent::Keyboard::paint(juce::Graphics& g)
     const auto bounds = getLocalBounds().toFloat();
     g.fillAll(juce::Colour(0xff050403));
     const auto area = bounds.reduced(7.0f, 6.0f);
-    const int whiteCount = whiteIndexForNote(firstKeyboardNote + keyboardNoteCount);
+    const auto firstNote = owner.keyboardFirstNote();
+    const int whiteCount = whiteIndexForNote(
+        firstNote + keyboardNoteCount, firstNote);
     const float whiteWidth = area.getWidth() / static_cast<float>(whiteCount);
     const float blackWidth = whiteWidth * 0.58f;
     const float blackHeight = area.getHeight() * 0.62f;
 
-    for (int note = firstKeyboardNote; note < firstKeyboardNote + keyboardNoteCount; ++note)
+    for (int note = firstNote; note < firstNote + keyboardNoteCount; ++note)
     {
         if (isBlackKey(note))
             continue;
-        const auto key = juce::Rectangle<float>(area.getX() + whiteWidth * static_cast<float>(whiteIndexForNote(note)) + 0.4f,
+        const auto key = juce::Rectangle<float>(area.getX() + whiteWidth * static_cast<float>(whiteIndexForNote(note, firstNote)) + 0.4f,
                                                  area.getY(), whiteWidth - 0.8f, area.getHeight());
         const bool down = note == heldNote || owner.isNoteHeld(note);
         g.setGradientFill({ down ? juce::Colour(0xffffd47a) : juce::Colour(0xfff5efe2),
@@ -806,11 +872,26 @@ void AurelineMainComponent::Keyboard::paint(juce::Graphics& g)
         g.drawRoundedRectangle(key, 1.5f, 1.0f);
     }
 
-    for (int note = firstKeyboardNote; note < firstKeyboardNote + keyboardNoteCount; ++note)
+    g.setFont(juce::FontOptions(8.0f, juce::Font::bold));
+    g.setColour(juce::Colour(0xff665b4b));
+    for (int note = firstNote; note < firstNote + keyboardNoteCount; ++note)
+    {
+        if (note % 12 != 0)
+            continue;
+        const auto key = juce::Rectangle<float>(
+            area.getX() + whiteWidth
+                * static_cast<float>(whiteIndexForNote(note, firstNote)) + 0.4f,
+            area.getY(), whiteWidth - 0.8f, area.getHeight());
+        g.drawText("C" + juce::String(note / 12 - 1),
+                   key.withTrimmedTop(key.getHeight() - 14.0f),
+                   juce::Justification::centred, false);
+    }
+
+    for (int note = firstNote; note < firstNote + keyboardNoteCount; ++note)
     {
         if (!isBlackKey(note))
             continue;
-        const auto key = juce::Rectangle<float>(area.getX() + whiteWidth * static_cast<float>(whiteIndexForNote(note)) - blackWidth * 0.5f,
+        const auto key = juce::Rectangle<float>(area.getX() + whiteWidth * static_cast<float>(whiteIndexForNote(note, firstNote)) - blackWidth * 0.5f,
                                                  area.getY(), blackWidth, blackHeight);
         const bool down = note == heldNote || owner.isNoteHeld(note);
         g.setGradientFill({ down ? juce::Colour(0xff78551d) : juce::Colour(0xff252018),
@@ -826,16 +907,18 @@ void AurelineMainComponent::Keyboard::paint(juce::Graphics& g)
 int AurelineMainComponent::Keyboard::noteAt(juce::Point<int> position) const
 {
     const auto area = getLocalBounds().toFloat().reduced(7.0f, 6.0f);
-    const int whiteCount = whiteIndexForNote(firstKeyboardNote + keyboardNoteCount);
+    const auto firstNote = owner.keyboardFirstNote();
+    const int whiteCount = whiteIndexForNote(
+        firstNote + keyboardNoteCount, firstNote);
     const float whiteWidth = area.getWidth() / static_cast<float>(whiteCount);
     const float blackWidth = whiteWidth * 0.58f;
     const float blackHeight = area.getHeight() * 0.62f;
     const auto point = position.toFloat();
     if (point.y < area.getY() + blackHeight)
-        for (int note = firstKeyboardNote; note < firstKeyboardNote + keyboardNoteCount; ++note)
+        for (int note = firstNote; note < firstNote + keyboardNoteCount; ++note)
             if (isBlackKey(note))
             {
-                const auto key = juce::Rectangle<float>(area.getX() + whiteWidth * static_cast<float>(whiteIndexForNote(note)) - blackWidth * 0.5f,
+                const auto key = juce::Rectangle<float>(area.getX() + whiteWidth * static_cast<float>(whiteIndexForNote(note, firstNote)) - blackWidth * 0.5f,
                                                          area.getY(), blackWidth, blackHeight);
                 if (key.contains(point))
                     return note;
@@ -843,7 +926,7 @@ int AurelineMainComponent::Keyboard::noteAt(juce::Point<int> position) const
     const int wanted = juce::jlimit(0, whiteCount - 1,
         static_cast<int>((point.x - area.getX()) / whiteWidth));
     int white = 0;
-    for (int note = firstKeyboardNote; note < firstKeyboardNote + keyboardNoteCount; ++note)
+    for (int note = firstNote; note < firstNote + keyboardNoteCount; ++note)
         if (!isBlackKey(note) && white++ == wanted)
             return note;
     return -1;
@@ -894,6 +977,34 @@ AurelineMainComponent::RockerButton::RockerButton(const juce::String& label)
 void AurelineMainComponent::RockerButton::paintButton(juce::Graphics& g,
                                                        bool highlighted, bool down)
 {
+    if (getHeight() <= 24)
+    {
+        const auto area = getLocalBounds().toFloat();
+        const auto led = juce::Rectangle<float>(8.0f, 8.0f)
+            .withCentre({ area.getX() + 9.0f,
+                          area.getCentreY() + (down ? 1.0f : 0.0f) });
+        g.setColour(juce::Colour(0xffc7c9c8));
+        g.setFont(juce::FontOptions(8.5f, juce::Font::bold));
+        g.drawText(getButtonText(), area.withTrimmedLeft(20.0f),
+                   juce::Justification::centredLeft, false);
+        g.setColour(juce::Colours::black.withAlpha(0.52f));
+        g.fillEllipse(led.expanded(2.2f).translated(0.0f, 1.0f));
+        g.setColour(juce::Colour(0xff090a0a));
+        g.fillEllipse(led.expanded(1.7f));
+        g.setGradientFill({
+            getToggleState() ? juce::Colour(0xffff4a34) : juce::Colour(0xff5a1711),
+            led.getX(), led.getY(),
+            getToggleState() ? juce::Colour(0xffd5160d) : juce::Colour(0xff260806),
+            led.getX(), led.getBottom(), false });
+        g.fillEllipse(led);
+        if (getToggleState())
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.48f));
+            g.fillEllipse(juce::Rectangle<float>(2.8f, 1.8f)
+                .withCentre({ led.getCentreX() - 1.2f, led.getCentreY() - 1.7f }));
+        }
+        return;
+    }
     auto area = getLocalBounds().toFloat();
     const auto labelArea = area.removeFromTop(16.0f);
     const auto housingHeight = juce::jmin(50.0f, area.getHeight());
@@ -1968,14 +2079,25 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     voiceModeBox.addItem("POLY", 1);
     voiceModeBox.addItem("MONO", 2);
     voiceModeBox.addItem("UNISON", 3);
+    voiceModeBox.addItem("DRUM KIT", 4);
     voiceModeBox.setSelectedId(1);
     voiceModeBox.addListener(this);
+    for (auto* button : { &filterLowPassButton, &filterBandPassButton })
+    {
+        button->setClickingTogglesState(true);
+        button->addListener(this);
+        addAndMakeVisible(*button);
+    }
+    filterLowPassButton.setToggleState(true, juce::dontSendNotification);
     monoModeButton.setClickingTogglesState(true);
     monoModeButton.addListener(this);
     addAndMakeVisible(monoModeButton);
     unisonModeButton.setClickingTogglesState(true);
     unisonModeButton.addListener(this);
     addAndMakeVisible(unisonModeButton);
+    drumKitModeButton.setClickingTogglesState(true);
+    drumKitModeButton.addListener(this);
+    addAndMakeVisible(drumKitModeButton);
     glideLegatoButton.setClickingTogglesState(true);
     glideLegatoButton.addListener(this);
     addAndMakeVisible(glideLegatoButton);
@@ -2099,9 +2221,9 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
         "NOISE", "CUTOFF", "RESONANCE", "FILTER ENV", "KEY TRACK", "ATTACK", "DECAY",
         "SUSTAIN", "RELEASE", "LFO RATE", "MOD AMT", "FILTER ENV", "OSC B", "VOLUME",
         "ATTACK", "DECAY", "SUSTAIN", "RELEASE" };
-    const std::array<double, 23> mins { 0, 0, -100, 0.02, 0.02, 0, 20, 0, -1, 0,
+    const std::array<double, 23> mins { 0, 0, -1200, 0.02, 0.02, 0, 20, 0, -1, 0,
         0.001, 0.001, 0, 0.001, 0.01, 0, 0, 0, 0, 0.001, 0.001, 0, 0.001 };
-    const std::array<double, 23> maxs { 1, 1, 100, 0.98, 0.98, 1, 20000, 1, 1, 1,
+    const std::array<double, 23> maxs { 1, 1, 1200, 0.98, 0.98, 1, 20000, 1, 1, 1,
         5, 5, 1, 8, 30, 1, 1, 1, 1, 5, 5, 1, 8 };
     const std::array<double, 23> values { 0.5, 0.5, 7, 0.5, 0.5, 0, 8000, 0.1, 0.25, 0,
         0.01, 0.25, 0.75, 0.4, 5, 0, 0, 0, 0.8, 0.01, 0.3, 0.4, 0.5 };
@@ -2257,7 +2379,8 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     initialiseVoiceBanks();
     if (lastSelectedBankFile().existsAsFile())
         selectedVoiceBank = juce::jlimit(
-            0, 3, lastSelectedBankFile().loadFileAsString().trim().getIntValue());
+            0, voiceBankCount - 1,
+            lastSelectedBankFile().loadFileAsString().trim().getIntValue());
     refreshVoiceBankNames();
     if (readVoiceLibrary(activeLibraryFile(selectedVoiceBank)).getNumChildren()
         == static_cast<int>(factoryVoices.size()))
@@ -2278,6 +2401,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     startupVoiceIndex = juce::jlimit(
         0, static_cast<int>(factoryVoices.size()) - 1, startupVoiceIndex);
     loadFactoryVoice(static_cast<std::size_t>(startupVoiceIndex));
+    configureDrumKitBank();
     installBuiltInVoiceLibrary(
         aurelineDocumentsDirectory().getChildFile(
             "Analog.aurelinelibrary.xml"),
@@ -2288,6 +2412,11 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
             "Analog2.aurelinelibrary.xml"),
         BinaryData::Analog2_aurelinelibrary_xml,
         BinaryData::Analog2_aurelinelibrary_xmlSize);
+    installBuiltInVoiceLibrary(
+        aurelineDocumentsDirectory().getChildFile(
+            "DrumKit.aurelinelibrary.xml"),
+        BinaryData::Circuit_aurelinelibrary_xml,
+        BinaryData::Circuit_aurelinelibrary_xmlSize);
     installBuiltInVoiceLibrary(
         aurelineDocumentsDirectory().getChildFile(
             "Retro.aurelinelibrary.xml"),
@@ -2408,6 +2537,8 @@ void AurelineMainComponent::applyParameters()
     patch.filterEnvelopeAmount = parameters.filterEnvelope.load();
     patch.filterKeyboardTracking = parameters.filterKeyboardTracking.load();
     patch.filterVelocityAmount = parameters.filterVelocity.load();
+    patch.filterMode = static_cast<aureline::FilterMode>(
+        juce::jlimit(0, 3, parameters.filterMode.load()));
     patch.filterEnvelope.attackSeconds = parameters.filterAttack.load();
     patch.filterEnvelope.decaySeconds = parameters.filterDecay.load();
     patch.filterEnvelope.sustainLevel = parameters.filterSustain.load();
@@ -2449,11 +2580,36 @@ void AurelineMainComponent::applyParameters()
     patch.masterTuneCents = parameters.masterTune.load();
     patch.unisonDetuneCents = parameters.unisonDetune.load();
     patch.masterGain = parameters.master.load();
+    patch.transientAccent = parameters.transientAccent.load();
     patch.voiceMode = static_cast<aureline::VoiceMode>(parameters.voiceMode.load());
     engine.setPatch(patch);
     engine.setPitchBend(parameters.pitchBend.load());
     engine.setPitchBendRange(parameters.pitchBendRange.load());
     engine.setModWheel(parameters.modWheel.load());
+}
+
+void AurelineMainComponent::configureDrumKitBank()
+{
+    // BANK 8 is the dedicated drum bank. KIT mode takes a snapshot of its
+    // GM drum-map positions take priority from C2 through C5. Additional
+    // Aureline sounds fill unused notes in that range.
+    static constexpr std::array<int, voiceSlotsPerBank> midiNotes {{
+        36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 62, 63,
+        64, 65, 66, 67, 70, 72
+    }};
+    const auto savedState = capturePluginState();
+    const auto circuit = readVoiceLibrary(activeLibraryFile(7));
+    engine.clearDrumKit();
+    if (circuit.getNumChildren() == static_cast<int>(midiNotes.size()))
+        for (std::size_t slot = 0; slot < midiNotes.size(); ++slot)
+        {
+            restorePluginState(circuit.getChild(static_cast<int>(slot)));
+            applyParameters();
+            engine.setDrumKitPatch(midiNotes[slot], engine.getPatch());
+        }
+    restorePluginState(savedState);
+    applyParameters();
 }
 
 #if 0 // Replaced by the shared JUCE-independent PerformanceSequencer implementation below.
@@ -2846,6 +3002,17 @@ bool AurelineMainComponent::isNoteHeld(int note) const
     return note >= 0 && note < 128 && heldNotes[static_cast<std::size_t>(note)].load();
 }
 
+int AurelineMainComponent::keyboardFirstNote() const
+{
+#if JUCE_IOS
+    // Melodic patches start at C3 on the compact iPhone keyboard. KIT keeps
+    // C2 visible because MIDI note 36 is the first kick in the drum layout.
+    return parameters.voiceMode.load() == 3 ? 36 : 48;
+#else
+    return firstKeyboardNote;
+#endif
+}
+
 void AurelineMainComponent::queueMidiMessage(const juce::MidiMessage& message)
 {
     if (message.isNoteOn())
@@ -2891,6 +3058,7 @@ juce::ValueTree AurelineMainComponent::capturePluginState() const
 #define SAVE_INT(name) state.setProperty(#name, parameters.name.load(), nullptr)
 #define SAVE_BOOL(name) state.setProperty(#name, parameters.name.load(), nullptr)
     SAVE_FLOAT(oscillatorALevel); SAVE_FLOAT(oscillatorBLevel); SAVE_FLOAT(oscillatorBFine);
+    SAVE_INT(filterMode);
     SAVE_FLOAT(pulseWidthA); SAVE_FLOAT(pulseWidthB); SAVE_FLOAT(noiseLevel);
     SAVE_FLOAT(cutoff); SAVE_FLOAT(resonance); SAVE_FLOAT(filterEnvelope);
     SAVE_FLOAT(filterKeyboardTracking); SAVE_FLOAT(filterAttack); SAVE_FLOAT(filterDecay);
@@ -2898,7 +3066,8 @@ juce::ValueTree AurelineMainComponent::capturePluginState() const
     SAVE_FLOAT(decay); SAVE_FLOAT(sustain); SAVE_FLOAT(release); SAVE_FLOAT(lfoRate);
     SAVE_FLOAT(lfoAmount); SAVE_FLOAT(modRange); SAVE_FLOAT(lfoDelay); SAVE_FLOAT(lfoFade);
     SAVE_FLOAT(polyModFilterEnvelope); SAVE_FLOAT(polyModOscillatorB); SAVE_FLOAT(spread);
-    SAVE_FLOAT(vintage); SAVE_FLOAT(tempoBpm); SAVE_FLOAT(master); SAVE_FLOAT(transpose);
+    SAVE_FLOAT(vintage); SAVE_FLOAT(tempoBpm); SAVE_FLOAT(master);
+    SAVE_FLOAT(transientAccent); SAVE_FLOAT(transpose);
     SAVE_FLOAT(pitchBendRange); SAVE_FLOAT(glide); SAVE_FLOAT(masterTune);
     SAVE_FLOAT(unisonDetune); SAVE_FLOAT(filterVelocity);
     SAVE_FLOAT(oscillatorAOctave); SAVE_FLOAT(oscillatorBOctave); SAVE_FLOAT(arpGate);
@@ -2950,6 +3119,8 @@ void AurelineMainComponent::restorePluginState(const juce::ValueTree& state)
 #define LOAD_INT(name) restoreInt(#name, parameters.name)
 #define LOAD_BOOL(name) restoreBool(#name, parameters.name)
     LOAD_FLOAT(oscillatorALevel); LOAD_FLOAT(oscillatorBLevel); LOAD_FLOAT(oscillatorBFine);
+    parameters.filterMode.store(state.hasProperty("filterMode")
+        ? juce::jlimit(0, 3, static_cast<int>(state["filterMode"])) : 1);
     LOAD_FLOAT(pulseWidthA); LOAD_FLOAT(pulseWidthB); LOAD_FLOAT(noiseLevel);
     LOAD_FLOAT(cutoff); LOAD_FLOAT(resonance); LOAD_FLOAT(filterEnvelope);
     LOAD_FLOAT(filterKeyboardTracking); LOAD_FLOAT(filterAttack); LOAD_FLOAT(filterDecay);
@@ -2962,7 +3133,10 @@ void AurelineMainComponent::restorePluginState(const juce::ValueTree& state)
         parameters.modRange.store(0.35f);
     LOAD_FLOAT(lfoDelay); LOAD_FLOAT(lfoFade);
     LOAD_FLOAT(polyModFilterEnvelope); LOAD_FLOAT(polyModOscillatorB); LOAD_FLOAT(spread);
-    LOAD_FLOAT(vintage); LOAD_FLOAT(tempoBpm); LOAD_FLOAT(master); LOAD_FLOAT(transpose);
+    LOAD_FLOAT(vintage); LOAD_FLOAT(tempoBpm); LOAD_FLOAT(master);
+    parameters.transientAccent.store(state.hasProperty("transientAccent")
+        ? juce::jlimit(0.0f, 1.0f, static_cast<float>(state["transientAccent"])) : 0.0f);
+    LOAD_FLOAT(transpose);
     LOAD_FLOAT(pitchBendRange); LOAD_FLOAT(glide); LOAD_FLOAT(masterTune);
     LOAD_FLOAT(unisonDetune); LOAD_FLOAT(filterVelocity);
     LOAD_FLOAT(oscillatorAOctave); LOAD_FLOAT(oscillatorBOctave); LOAD_FLOAT(arpGate);
@@ -3044,7 +3218,13 @@ void AurelineMainComponent::syncControlsFromParameters()
     const int mode = parameters.voiceMode.load();
     monoModeButton.setToggleState(mode == 1, juce::dontSendNotification);
     unisonModeButton.setToggleState(mode == 2, juce::dontSendNotification);
+    drumKitModeButton.setToggleState(mode == 3, juce::dontSendNotification);
     voiceModeBox.setSelectedId(mode + 1, juce::dontSendNotification);
+    const auto filterMode = juce::jlimit(0, 3, parameters.filterMode.load());
+    filterLowPassButton.setToggleState((filterMode & 1) != 0,
+                                       juce::dontSendNotification);
+    filterBandPassButton.setToggleState((filterMode & 2) != 0,
+                                        juce::dontSendNotification);
     glideLegatoButton.setToggleState(parameters.glideLegatoOnly.load(), juce::dontSendNotification);
     lfoRetriggerButton.setToggleState(parameters.lfoRetrigger.load(), juce::dontSendNotification);
     syncButton.setToggleState(parameters.oscillatorSync.load(), juce::dontSendNotification);
@@ -3084,7 +3264,11 @@ void AurelineMainComponent::syncControlsFromParameters()
     for (std::size_t index = 0; index < lfoDestinationButtons.size(); ++index)
         lfoDestinationButtons[index].setToggleState(parameters.lfoDestinations[index].load(),
                                                      juce::dontSendNotification);
-    presetBox.setText("RESTORED VOICE", juce::dontSendNotification);
+    // This routine restores parameter controls only. Do not replace the
+    // selected voice text here: callers such as drum-kit preparation restore
+    // several temporary states and do not carry a voice name. The caller that
+    // actually selects or loads a voice updates both presetBox and
+    // currentVoiceName.
     repaint();
 }
 
@@ -3183,7 +3367,7 @@ void AurelineMainComponent::comboBoxChanged(juce::ComboBox* box)
         const int encoded = presetBox.getSelectedId() - 1;
         const int selectedBank = encoded / voiceSlotsPerBank;
         const int selectedIndex = encoded % voiceSlotsPerBank;
-        selectedVoiceBank = juce::jlimit(0, 3, selectedBank);
+        selectedVoiceBank = juce::jlimit(0, voiceBankCount - 1, selectedBank);
         lastSelectedBankFile().replaceWithText(juce::String(selectedVoiceBank));
         if (selectedIndex >= 0 && selectedIndex < static_cast<int>(factoryVoices.size()))
             loadFactoryVoice(static_cast<std::size_t>(selectedIndex));
@@ -3192,7 +3376,7 @@ void AurelineMainComponent::comboBoxChanged(juce::ComboBox* box)
     }
     else if (box == &voiceModeBox)
     {
-        parameters.voiceMode.store(juce::jlimit(0, 2, voiceModeBox.getSelectedId() - 1));
+        parameters.voiceMode.store(juce::jlimit(0, 3, voiceModeBox.getSelectedId() - 1));
         repaint();
     }
     else
@@ -3545,72 +3729,108 @@ void AurelineMainComponent::initialiseVoiceBanks()
     if (readVoiceLibrary(bank1).getNumChildren()
         != static_cast<int>(factoryVoices.size()))
         writeVoiceLibraryToFile(bank1, true, false);
-
-    const auto bank2 = activeLibraryFile(1);
-    const auto bank3 = activeLibraryFile(2);
-    const auto bank4 = activeLibraryFile(3);
-    const auto presetLibraryMarker = aurelineApplicationSupportDirectory()
-        .getChildFile(".analog-presets-64-v4");
-    if (!presetLibraryMarker.existsAsFile())
-    {
-        const bool installed =
-            bank1.replaceWithData(BinaryData::Analog_aurelinelibrary_xml,
-                                  BinaryData::Analog_aurelinelibrary_xmlSize)
-            && bank2.replaceWithData(BinaryData::Analog2_aurelinelibrary_xml,
-                                     BinaryData::Analog2_aurelinelibrary_xmlSize);
-        if (installed)
-            presetLibraryMarker.replaceWithText("1");
-    }
     const auto orderMarker = aurelineApplicationSupportDirectory()
-        .getChildFile(".library-order-analog1-analog2-retro-8bit");
-
-    // Preserve the editable Retro and 8-Bit banks while inserting Analog 2.
-    // The discarded fourth bank was the generated INIT bank.
-    if (!orderMarker.existsAsFile()
-        && readVoiceLibrary(bank2).getNumChildren() == voiceSlotsPerBank
-        && readVoiceLibrary(bank3).getNumChildren() == voiceSlotsPerBank)
-    {
-        const auto bank2Xml = bank2.loadFileAsString();
-        const auto bank3Xml = bank3.loadFileAsString();
-        const auto bank4Xml = bank4.loadFileAsString();
-        const auto bank2Name = readVoiceLibrary(bank2).getProperty("name").toString();
-        const bool bank2WasEightBit = bank2Name.equalsIgnoreCase("8-Bit");
-        const auto& retroXml = bank2WasEightBit ? bank3Xml : bank2Xml;
-        const auto& eightBitXml = bank2WasEightBit ? bank2Xml : bank3Xml;
-
-        const bool migrated =
-            bank2.replaceWithData(BinaryData::Analog2_aurelinelibrary_xml,
-                                  BinaryData::Analog2_aurelinelibrary_xmlSize)
-            && bank3.replaceWithText(retroXml)
-            && bank4.replaceWithText(eightBitXml);
-        if (migrated)
-            orderMarker.replaceWithText("3");
-        else
-        {
-            bank2.replaceWithText(bank2Xml);
-            bank3.replaceWithText(bank3Xml);
-            if (bank4Xml.isNotEmpty())
-                bank4.replaceWithText(bank4Xml);
-        }
-    }
-
-    const std::array<std::tuple<int, const char*, int>, 3> bundled {{
+        .getChildFile(".library-order-8-banks-v1");
+    const std::array<std::tuple<int, const char*, int>, 5> bundled {{
         { 1, BinaryData::Analog2_aurelinelibrary_xml,
           BinaryData::Analog2_aurelinelibrary_xmlSize },
-        { 2, BinaryData::Retro_aurelinelibrary_xml,
+        { 2, BinaryData::Circuit_aurelinelibrary_xml,
+          BinaryData::Circuit_aurelinelibrary_xmlSize },
+        { 3, BinaryData::Retro_aurelinelibrary_xml,
           BinaryData::Retro_aurelinelibrary_xmlSize },
-        { 3, BinaryData::_8Bit_aurelinelibrary_xml,
-          BinaryData::_8Bit_aurelinelibrary_xmlSize }
+        { 4, BinaryData::_8Bit_aurelinelibrary_xml,
+          BinaryData::_8Bit_aurelinelibrary_xmlSize },
+        { 7, BinaryData::Circuit_aurelinelibrary_xml,
+          BinaryData::Circuit_aurelinelibrary_xmlSize }
     }};
     for (const auto& [bank, data, size] : bundled)
     {
         const auto file = activeLibraryFile(bank);
-        if (readVoiceLibrary(file).getNumChildren()
-            != static_cast<int>(factoryVoices.size()))
+        if (!orderMarker.existsAsFile()
+            || readVoiceLibrary(file).getNumChildren()
+                != static_cast<int>(factoryVoices.size()))
             file.replaceWithData(data, static_cast<std::size_t>(size));
     }
-    if (!orderMarker.existsAsFile())
-        orderMarker.replaceWithText("3");
+    const auto drumKitMarker = aurelineApplicationSupportDirectory()
+        .getChildFile(".drum-kit-bank-8-v1");
+    if (!drumKitMarker.existsAsFile())
+    {
+        const auto previousBank8 = activeLibraryFile(7);
+        const auto bank8Backup = aurelineApplicationSupportDirectory()
+            .getChildFile("bank-8-before-drum-kit.aurelinelibrary.xml");
+        if (previousBank8.existsAsFile() && !bank8Backup.existsAsFile())
+            previousBank8.copyFileTo(bank8Backup);
+
+        auto drumKitLibrary = readVoiceLibrary(activeLibraryFile(2));
+        if (drumKitLibrary.getNumChildren() == voiceSlotsPerBank)
+        {
+            drumKitLibrary.setProperty("name", "DRUM KIT", nullptr);
+            if (const auto xml = drumKitLibrary.createXml())
+                activeLibraryFile(7).replaceWithText(xml->toString());
+            auto circuitLibrary = drumKitLibrary.createCopy();
+            circuitLibrary.setProperty("name", "CIRCUIT", nullptr);
+            if (const auto xml = circuitLibrary.createXml())
+                activeLibraryFile(2).replaceWithText(xml->toString());
+        }
+        drumKitMarker.replaceWithText("1");
+    }
+    const auto midiOrderMarker = aurelineApplicationSupportDirectory()
+        .getChildFile(".drum-kit-midi-order-v1");
+    if (!midiOrderMarker.existsAsFile())
+    {
+        auto library = readVoiceLibrary(activeLibraryFile(7));
+        if (library.getNumChildren() == voiceSlotsPerBank
+            && library.getChild(0).getProperty("voiceName").toString()
+                   != "ACCENT KICK")
+        {
+            const auto backup = aurelineApplicationSupportDirectory()
+                .getChildFile("bank-8-before-midi-order.aurelinelibrary.xml");
+            if (!backup.existsAsFile())
+                activeLibraryFile(7).copyFileTo(backup);
+            static constexpr std::array<int, 32> sourceOrder {{
+                25, 8, 26, 5, 4, 3, 2, 1, 0, 9, 6, 11, 7, 14, 20, 28,
+                22, 15, 21, 27, 16, 23, 29, 24, 13, 30, 19, 18, 17, 31,
+                12, 10
+            }};
+            auto sorted = library.createCopy();
+            sorted.removeAllChildren(nullptr);
+            for (std::size_t slot = 0; slot < sourceOrder.size(); ++slot)
+            {
+                auto voice = library.getChild(sourceOrder[slot]).createCopy();
+                voice.setProperty("slot", static_cast<int>(slot), nullptr);
+                sorted.addChild(voice, -1, nullptr);
+            }
+            if (const auto xml = sorted.createXml())
+                activeLibraryFile(7).replaceWithText(xml->toString());
+        }
+        midiOrderMarker.replaceWithText("1");
+    }
+    const auto balanceMarker = aurelineApplicationSupportDirectory()
+        .getChildFile(".drum-kit-layout-v6");
+    if (!balanceMarker.existsAsFile())
+    {
+        const auto bank8 = activeLibraryFile(7);
+        const auto backup = aurelineApplicationSupportDirectory()
+            .getChildFile("bank-8-before-layout-v6.aurelinelibrary.xml");
+        if (bank8.existsAsFile() && !backup.existsAsFile())
+            bank8.copyFileTo(backup);
+        bank8.replaceWithData(BinaryData::Circuit_aurelinelibrary_xml,
+                              BinaryData::Circuit_aurelinelibrary_xmlSize);
+        balanceMarker.replaceWithText("1");
+    }
+    for (int bank = 5; bank < voiceBankCount; ++bank)
+    {
+        const auto file = activeLibraryFile(bank);
+        if (readVoiceLibrary(file).getNumChildren() != voiceSlotsPerBank)
+        {
+            auto library = readVoiceLibrary(bank1);
+            library.setProperty("name", defaultVoiceBankNames[
+                static_cast<std::size_t>(bank)], nullptr);
+            if (const auto xml = library.createXml())
+                file.replaceWithText(xml->toString());
+        }
+    }
+    orderMarker.replaceWithText("1");
 }
 
 void AurelineMainComponent::refreshVoiceBankNames()
@@ -3619,7 +3839,7 @@ void AurelineMainComponent::refreshVoiceBankNames()
     if (root == nullptr)
         return;
     root->clear();
-    for (int bank = 0; bank < 4; ++bank)
+    for (int bank = 0; bank < voiceBankCount; ++bank)
     {
         juce::PopupMenu voices;
         const auto library = readVoiceLibrary(activeLibraryFile(bank));
@@ -3644,25 +3864,19 @@ void AurelineMainComponent::refreshVoiceBankNames()
 
 void AurelineMainComponent::confirmAndLoadVoiceLibrary(const juce::File& file)
 {
-    auto* dialog = new juce::AlertWindow(
-        "LOAD LIBRARY TO BANK",
-        "Choose the destination bank. Its 32 voices will be overwritten.",
-        juce::MessageBoxIconType::WarningIcon,
-        this);
-    for (int bank = 0; bank < 4; ++bank)
-        dialog->addButton(
-            "BANK " + juce::String(bank + 1) + "  "
-                + voiceBankDisplayName(readVoiceLibrary(activeLibraryFile(bank)),
-                                       bank),
-            bank + 1);
-    dialog->addButton("CANCEL", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    std::array<juce::String, voiceBankCount> bankNames;
+    for (int bank = 0; bank < voiceBankCount; ++bank)
+        bankNames[static_cast<std::size_t>(bank)] =
+            voiceBankDisplayName(readVoiceLibrary(activeLibraryFile(bank)), bank);
+
+    auto* dialog = new BankSelectionAlert(bankNames, this);
     dialog->enterModalState(
         true,
         juce::ModalCallbackFunction::create(
             [safe = juce::Component::SafePointer<AurelineMainComponent>(this), file]
             (int result)
             {
-                if (safe != nullptr && result >= 1 && result <= 4)
+                if (safe != nullptr && result >= 1 && result <= voiceBankCount)
                     safe->loadVoiceLibraryFromFile(file, result - 1);
             }),
         true);
@@ -3719,8 +3933,10 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file,
             importedBankName = importedBankName.dropLastCharacters(
                 juce::String(".aurelinelibrary").length());
     }
-    library.setProperty(
-        "name", importedBankName.toUpperCase().substring(0, 16), nullptr);
+    library.setProperty("name",
+        bank == 7 ? juce::String("DRUM KIT")
+                  : importedBankName.toUpperCase().substring(0, 16),
+        nullptr);
 
     const auto normalizedXml = library.createXml();
     if (normalizedXml == nullptr
@@ -3739,13 +3955,15 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file,
             .deleteFile();
     }
 
-    selectedVoiceBank = juce::jlimit(0, 3, bank);
+    selectedVoiceBank = juce::jlimit(0, voiceBankCount - 1, bank);
     lastSelectedBankFile().replaceWithText(juce::String(selectedVoiceBank));
     refreshVoiceBankNames();
 
     if (selectedFactoryVoiceIndex >= 0
         && selectedFactoryVoiceIndex < static_cast<int>(factoryVoices.size()))
         loadFactoryVoice(static_cast<std::size_t>(selectedFactoryVoiceIndex));
+    if (bank == 7)
+        configureDrumKitBank();
     statusLabel.setText("Bank " + juce::String(selectedVoiceBank + 1)
                             + " replaced from: " + file.getFileName(),
                         juce::dontSendNotification);
@@ -3829,6 +4047,8 @@ void AurelineMainComponent::storeCurrentVoice()
     presetBox.setSelectedId(
         voiceMenuItemId(selectedVoiceBank, selectedFactoryVoiceIndex),
                             juce::dontSendNotification);
+    if (selectedVoiceBank == 7)
+        configureDrumKitBank();
     statusLabel.setText("Voice stored in slot "
                             + juce::String(selectedFactoryVoiceIndex + 1)
                             + ": " + voiceName,
@@ -4018,6 +4238,7 @@ void AurelineMainComponent::loadFactoryVoice(std::size_t index,
     const auto voiceMode = static_cast<int>(patch.voiceMode);
     monoModeButton.setToggleState(voiceMode == 1, juce::dontSendNotification);
     unisonModeButton.setToggleState(voiceMode == 2, juce::dontSendNotification);
+    drumKitModeButton.setToggleState(voiceMode == 3, juce::dontSendNotification);
     parameters.voiceMode.store(voiceMode);
     voiceModeBox.setSelectedId(voiceMode + 1, juce::dontSendNotification);
 
@@ -4081,6 +4302,7 @@ void AurelineMainComponent::resetToInitialVoice()
 
     monoModeButton.setToggleState(false, juce::dontSendNotification);
     unisonModeButton.setToggleState(false, juce::dontSendNotification);
+    drumKitModeButton.setToggleState(false, juce::dontSendNotification);
     arpButton.setToggleState(false, juce::dontSendNotification);
     chordButton.setToggleState(false, juce::dontSendNotification);
     arpHoldButton.setToggleState(false, juce::dontSendNotification);
@@ -4342,9 +4564,13 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
     else if (button == &monoModeButton)
     {
         if (monoModeButton.getToggleState())
+        {
             unisonModeButton.setToggleState(false, juce::dontSendNotification);
+            drumKitModeButton.setToggleState(false, juce::dontSendNotification);
+        }
         parameters.voiceMode.store(monoModeButton.getToggleState() ? 1
-                                   : unisonModeButton.getToggleState() ? 2 : 0);
+                                   : unisonModeButton.getToggleState() ? 2
+                                   : drumKitModeButton.getToggleState() ? 3 : 0);
         voiceModeBox.setSelectedId(parameters.voiceMode.load() + 1,
                                    juce::dontSendNotification);
         repaint();
@@ -4352,11 +4578,32 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
     else if (button == &unisonModeButton)
     {
         if (unisonModeButton.getToggleState())
+        {
             monoModeButton.setToggleState(false, juce::dontSendNotification);
+            drumKitModeButton.setToggleState(false, juce::dontSendNotification);
+        }
         parameters.voiceMode.store(unisonModeButton.getToggleState() ? 2
-                                   : monoModeButton.getToggleState() ? 1 : 0);
+                                   : monoModeButton.getToggleState() ? 1
+                                   : drumKitModeButton.getToggleState() ? 3 : 0);
         voiceModeBox.setSelectedId(parameters.voiceMode.load() + 1,
                                    juce::dontSendNotification);
+        repaint();
+    }
+    else if (button == &drumKitModeButton)
+    {
+        if (drumKitModeButton.getToggleState())
+        {
+            monoModeButton.setToggleState(false, juce::dontSendNotification);
+            unisonModeButton.setToggleState(false, juce::dontSendNotification);
+            parameters.arpEnabled.store(false);
+            parameters.chordEnabled.store(false);
+            arpButton.setToggleState(false, juce::dontSendNotification);
+            chordButton.setToggleState(false, juce::dontSendNotification);
+        }
+        parameters.voiceMode.store(drumKitModeButton.getToggleState() ? 3 : 0);
+        voiceModeBox.setSelectedId(parameters.voiceMode.load() + 1,
+                                   juce::dontSendNotification);
+        performanceSequencer.panic(engine);
         repaint();
     }
     else if (button == &arpButton)
@@ -4446,6 +4693,13 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
         if (button == &lfoDestinationButtons[index])
             parameters.lfoDestinations[index].store(
                 lfoDestinationButtons[index].getToggleState());
+    if (button == &filterLowPassButton || button == &filterBandPassButton)
+    {
+        const auto mode = (filterLowPassButton.getToggleState() ? 1 : 0)
+                        | (filterBandPassButton.getToggleState() ? 2 : 0);
+        parameters.filterMode.store(mode);
+        repaint();
+    }
 }
 
 void AurelineMainComponent::timerCallback()
@@ -4695,25 +4949,27 @@ void AurelineMainComponent::paint(juce::Graphics& g)
                    juce::Justification::centredLeft, false);
     };
 
+    constexpr float upperRightPanelWidth = 528.0f;
+    auto upperRightPanel = displayContent.removeFromRight(upperRightPanelWidth);
+    displayContent.removeFromRight(8.0f);
+    auto upperMixerDisplay = upperRightPanel.removeFromRight(165.0f);
+    upperRightPanel.removeFromRight(8.0f);
+    auto upperOscillatorADisplay = upperRightPanel;
     auto lcdColumn = displayContent.removeFromLeft(280.0f);
     auto lcd = lcdColumn.removeFromTop(52.0f);
     displayContent.removeFromLeft(8.0f);
-    auto arpeggioDisplay = displayContent.removeFromRight(250.0f);
-    displayContent.removeFromRight(8.0f);
-    auto mixerDisplay = displayContent.removeFromRight(228.0f);
-    displayContent.removeFromRight(8.0f);
     auto scope = displayContent;
     auto filterEnvelopeDisplay = scope;
     auto amplifierDisplay = filterEnvelopeDisplay;
     auto waveformPanelArea = scope;
-    constexpr float waveformRowGap = 4.0f;
+    constexpr float waveformRowGap = 8.0f;
     auto waveformCombinedPanel = waveformPanelArea.removeFromTop(
         juce::jmax(1.0f,
                    (waveformPanelArea.getHeight() - waveformRowGap) * 0.5f));
     waveformPanelArea.removeFromTop(waveformRowGap);
     auto waveformAPanel = waveformPanelArea.removeFromLeft(
-        juce::jmax(1.0f, waveformPanelArea.getWidth() * 0.5f - 2.0f));
-    waveformPanelArea.removeFromLeft(4.0f);
+        juce::jmax(1.0f, waveformPanelArea.getWidth() * 0.5f - 4.0f));
+    waveformPanelArea.removeFromLeft(8.0f);
     auto waveformBPanel = waveformPanelArea;
     g.setGradientFill({ juce::Colour(0xff28170d), lcd.getX(), lcd.getY(),
                         juce::Colour(0xff0b0704), lcd.getX(), lcd.getBottom(), false });
@@ -4723,8 +4979,8 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     drawDisplayFrame(waveformCombinedPanel, {});
     drawDisplayFrame(waveformAPanel, {});
     drawDisplayFrame(waveformBPanel, {});
-    drawControlFrame(mixerDisplay, "MIXER");
-    drawControlFrame(arpeggioDisplay, "ARPEGGIO");
+    drawControlFrame(upperOscillatorADisplay, "OSCILLATOR A");
+    drawControlFrame(upperMixerDisplay, "MIXER");
 
     const auto writeIndex = scopeWriteIndex.load(std::memory_order_acquire);
     constexpr std::size_t levelWindow = 128;
@@ -5011,8 +5267,9 @@ void AurelineMainComponent::paint(juce::Graphics& g)
             : 0.0;
         const auto rawCycles = finalMix ? 1.0 : 2.0 * std::pow(
             2.0, (note - 60.0) / 12.0 + octave + fine);
+        const auto minimumCycles = finalMix ? 1.0 : 1.5;
         const auto cycles = std::isfinite(rawCycles)
-            ? juce::jlimit(0.5, 8.0, rawCycles) : 2.0;
+            ? juce::jlimit(minimumCycles, 8.0, rawCycles) : 2.0;
         const auto startPhase = 0.5 - cycles * 0.5;
         const auto width = juce::jmax(1, static_cast<int>(waveArea.getWidth()));
         const auto centreHalf = juce::jmin(0.5, 0.5 / cycles);
@@ -5139,7 +5396,8 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     const auto offDot = juce::Colour(0xff603119).withAlpha(0.46f);
     const auto onDot = juce::Colour(0xffffa04a);
     const auto voiceMode = parameters.voiceMode.load();
-    const juce::String modeText = voiceMode == 1 ? "MONO" : voiceMode == 2 ? "UNI" : "POLY";
+    const juce::String modeText = voiceMode == 1 ? "MONO"
+        : voiceMode == 2 ? "UNI" : voiceMode == 3 ? "KIT" : "POLY";
     const auto currentBankName = voiceBankDisplayName(
         readVoiceLibrary(activeLibraryFile(selectedVoiceBank)),
         selectedVoiceBank);
@@ -5176,7 +5434,9 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     topInside.removeFromLeft(2);
     auto patchArea = topInside.removeFromLeft(244).reduced(8, 0);
 
-    const auto drawOscillatorGroup = [&g](juce::Rectangle<float> group, const juce::String& name)
+    const auto drawOscillatorGroup = [&g](juce::Rectangle<float> group,
+                                           const juce::String& name,
+                                           float headerControlWidth = 0.0f)
     {
         const auto captionFont = juce::Font(juce::FontOptions(11.5f, juce::Font::bold));
         juce::GlyphArrangement captionGlyphs;
@@ -5189,6 +5449,24 @@ void AurelineMainComponent::paint(juce::Graphics& g)
         {
             juce::Graphics::ScopedSaveState savedState(g);
             g.excludeClipRegion(caption.getSmallestIntegerContainer());
+            if (headerControlWidth > 0.0f)
+            {
+                const auto switchFont = juce::Font(juce::FontOptions(8.5f, juce::Font::bold));
+                const auto controlWidthFor = [&switchFont](const juce::String& text)
+                {
+                    juce::GlyphArrangement glyphs;
+                    glyphs.addLineOfText(switchFont, text, 0.0f, 0.0f);
+                    return 20.0f + std::ceil(glyphs.getBoundingBox(
+                        0, glyphs.getNumGlyphs(), true).getWidth()) + 3.0f;
+                };
+                const auto lowPassWidth = controlWidthFor("Low Pass Filter");
+                const auto bandPassX = group.getX() + 70.0f + lowPassWidth + 6.0f;
+                const auto controlsX = group.getX() + 70.0f;
+                const auto controlsRight = bandPassX + controlWidthFor("Band Pass Filter");
+                g.excludeClipRegion(juce::Rectangle<float>(
+                    controlsX, group.getY() - 8.0f,
+                    controlsRight - controlsX, 16.0f).getSmallestIntegerContainer());
+            }
             g.setColour(juce::Colour(themeLineGray));
             g.drawRoundedRectangle(group.reduced(0.5f), 4.0f, 0.75f);
         }
@@ -5265,30 +5543,36 @@ void AurelineMainComponent::paint(juce::Graphics& g)
                               parameters.sustain.load(), parameters.release.load());
         g.endTransparencyLayer();
     }
-    topInside.removeFromLeft(2);
-    auto oscillatorGroups = topInside.toFloat();
-    auto commonColumn = oscillatorGroups.removeFromRight(280.0f);
-    auto filterGroup = commonColumn.removeFromTop(rowHeight);
-    commonColumn.removeFromTop(8.0f);
-    auto filterEnvelopeGroup = commonColumn.removeFromTop(rowHeight);
-    commonColumn.removeFromTop(8.0f);
-    auto lfoModGroup = commonColumn.removeFromTop(rowHeight);
-    filterEnvelopeGroup.removeFromLeft(52.0f);
-    lfoModGroup.removeFromLeft(52.0f);
-    oscillatorGroups.removeFromRight(8.0f);
-    auto oscillatorTopRow = oscillatorGroups.removeFromTop(rowHeight);
-    oscillatorGroups.removeFromTop(8.0f);
-    auto oscillatorBGroup = oscillatorGroups.removeFromTop(rowHeight);
-    oscillatorBGroup = oscillatorBGroup.withWidth(oscillatorBGroup.getWidth() + 52.0f);
-    oscillatorGroups.removeFromTop(8.0f);
-    drawOscillatorGroup(oscillatorTopRow, "OSCILLATOR A");
+    auto rightGroups = topInside.toFloat();
+    auto oscillatorBRow = rightGroups.removeFromTop(rowHeight);
+    auto oscillatorBGroup = oscillatorBRow;
+    oscillatorBGroup = oscillatorBGroup.withTrimmedLeft(
+        juce::jmax(0.0f, upperOscillatorADisplay.getX()
+                              - oscillatorBGroup.getX()));
+    rightGroups.removeFromTop(8.0f);
+    auto thirdRow = rightGroups.removeFromTop(rowHeight);
+    auto arpeggioGroup = juce::Rectangle<float>(
+        oscillatorBRow.getX(), oscillatorBRow.getY(),
+        juce::jmax(1.0f, oscillatorBGroup.getX()
+                            - oscillatorBRow.getX() - 8.0f),
+        rowHeight * 2.0f + 8.0f);
+    rightGroups.removeFromTop(8.0f);
+    auto fourthRow = rightGroups.removeFromTop(rowHeight);
+    auto filterEnvelopeGroup = thirdRow.removeFromRight(208.0f);
+    const auto filterLeft = arpeggioGroup.getRight() + 8.0f;
+    auto filterGroup = juce::Rectangle<float>(
+        filterLeft, thirdRow.getY(),
+        juce::jmax(1.0f, filterEnvelopeGroup.getX() - 8.0f - filterLeft),
+        thirdRow.getHeight());
+    auto amplifierGroupRight = fourthRow.removeFromRight(208.0f);
+    fourthRow.removeFromRight(8.0f);
+    auto lfoGroup = fourthRow;
     drawOscillatorGroup(oscillatorBGroup, "OSCILLATOR B");
-    auto lfoGroup = oscillatorGroups.removeFromTop(rowHeight);
-    lfoGroup = lfoGroup.withWidth(lfoGroup.getWidth() + 52.0f);
+    drawOscillatorGroup(arpeggioGroup, "ARPEGGIO");
     drawOscillatorGroup(lfoGroup, "LFO");
     drawOscillatorGroup(filterEnvelopeGroup, "FILTER ENV");
-    drawOscillatorGroup(filterGroup, "FILTER");
-    drawOscillatorGroup(lfoModGroup, "AMP ENV");
+    drawOscillatorGroup(filterGroup, "FILTER", 96.0f);
+    drawOscillatorGroup(amplifierGroupRight, "AMP ENV");
 
 }
 
@@ -5315,6 +5599,12 @@ void AurelineMainComponent::resized()
     auto display = area.removeFromTop(unifiedRowHeight);
     auto displayContent = display.reduced(4, 0).withTrimmedTop(6)
                               .withHeight(unifiedRowHeight);
+    constexpr int upperRightPanelWidth = 528;
+    auto upperRightPanel = displayContent.removeFromRight(upperRightPanelWidth);
+    displayContent.removeFromRight(8);
+    auto upperMixerPanel = upperRightPanel.removeFromRight(165);
+    upperRightPanel.removeFromRight(8);
+    auto upperOscillatorAPanel = upperRightPanel;
     auto lcdColumn = displayContent.removeFromLeft(280);
     lcdColumn.removeFromTop(55);
     auto presetRow = lcdColumn.removeFromTop(22);
@@ -5337,11 +5627,7 @@ void AurelineMainComponent::resized()
         voiceActions.removeFromLeft(voiceActionGap);
     }
     displayContent.removeFromLeft(8);
-    auto arpeggioDisplay = displayContent.removeFromRight(250).reduced(6, 0);
-    displayContent.removeFromRight(8);
-    auto mixerDisplay = displayContent.removeFromRight(228).reduced(5, 0);
-    displayContent.removeFromRight(8);
-    auto mixerRow = mixerDisplay;
+    auto mixerRow = upperMixerPanel.reduced(5, 0);
     mixerRow.removeFromTop(14);
     mixerRow.removeFromBottom(6);
     constexpr std::array<std::size_t, 3> mixerIndices { 0, 1, 5 };
@@ -5353,22 +5639,41 @@ void AurelineMainComponent::resized()
         knobLabels[index].setBounds(cell.removeFromTop(16));
         knobs[index].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
     }
-    lowFrequencyButton.setBounds(mixerRow.getX() + 156, mixerRow.getY(), 32, 70);
-    keyboardTrackingButton.setBounds(mixerRow.getX() + 190, mixerRow.getY(), 32, 70);
-    arpeggioDisplay.removeFromTop(10);
-    const int arpeggioCellWidth = arpeggioDisplay.getWidth() / 4;
-    auto layoutTopArpKnob = [](juce::Rectangle<int> cell,
-                               juce::Label& label, juce::Slider& knob)
+    const auto layoutArpeggio = [](juce::Rectangle<int> arpeggioDisplay,
+                                  juce::Label& targetScaleLabel,
+                                  juce::Slider& targetScaleKnob,
+                                  std::array<juce::Label, 3>& targetArpLabels,
+                                  std::array<juce::Slider, 3>& targetArpKnobs)
     {
-        label.setBounds(cell.removeFromTop(12));
-        label.setFont(juce::FontOptions(8.5f, juce::Font::bold));
-        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 14);
-        knob.setBounds(cell.withSizeKeepingCentre(54, 62));
+        arpeggioDisplay = arpeggioDisplay.reduced(4, 2);
+        arpeggioDisplay.removeFromTop(6);
+        constexpr int rowGap = 4;
+        const int cellWidth = arpeggioDisplay.getWidth() / 2;
+        const int cellHeight = (arpeggioDisplay.getHeight() - rowGap) / 2;
+        auto layoutArpCell = [](juce::Rectangle<int> cell,
+                                juce::Label& label, juce::Slider& knob)
+        {
+            label.setBounds(cell.removeFromTop(10));
+            label.setFont(juce::FontOptions(7.5f, juce::Font::bold));
+            knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false,
+                                 juce::jmin(48, cell.getWidth() - 4), 12);
+            knob.setBounds(cell.withSizeKeepingCentre(
+                juce::jmin(54, cell.getWidth() - 4),
+                juce::jmin(72, cell.getHeight())));
+        };
+        const auto cellAt = [arpeggioDisplay, cellWidth, cellHeight](
+                                int column, int row)
+        {
+            return juce::Rectangle<int>(
+                arpeggioDisplay.getX() + column * cellWidth,
+                arpeggioDisplay.getY() + row * (cellHeight + rowGap),
+                cellWidth, cellHeight);
+        };
+        layoutArpCell(cellAt(0, 0), targetScaleLabel, targetScaleKnob);
+        layoutArpCell(cellAt(1, 0), targetArpLabels[0], targetArpKnobs[0]);
+        layoutArpCell(cellAt(0, 1), targetArpLabels[1], targetArpKnobs[1]);
+        layoutArpCell(cellAt(1, 1), targetArpLabels[2], targetArpKnobs[2]);
     };
-    layoutTopArpKnob(arpeggioDisplay.removeFromLeft(arpeggioCellWidth), scaleLabel, scaleKnob);
-    for (std::size_t index = 0; index < arpKnobs.size(); ++index)
-        layoutTopArpKnob(arpeggioDisplay.removeFromLeft(arpeggioCellWidth),
-                         arpLabels[index], arpKnobs[index]);
     area.removeFromTop(unifiedRowGap);
     auto top = area.removeFromTop(
                         unifiedRowHeight * 3 + unifiedRowGap * 2 + controlRowsInsets)
@@ -5398,10 +5703,7 @@ void AurelineMainComponent::resized()
 
     top.removeFromLeft(2);
     auto patch = top.removeFromLeft(244).reduced(8, 0);
-    top.removeFromLeft(8);
-    auto commonPanel = top.removeFromRight(280);
-    top.removeFromRight(8);
-    auto oscillatorPanel = top;
+    auto rightPanel = top;
     const int threeRowHeight = (patch.getHeight() - 16) / 3;
     const auto fixedCell = [](juce::Rectangle<int> bounds, int offset, int width)
     {
@@ -5444,12 +5746,13 @@ void AurelineMainComponent::resized()
     transposeFader.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 16);
     transposeFader.setBounds(transposeCell.withSizeKeepingCentre(50, transposeCell.getHeight()));
     auto performanceButtonGroup = fixedCell(performanceRow, 104, 102);
-    const auto monoCell = performanceButtonGroup.removeFromLeft(34);
-    const auto unisonCell = performanceButtonGroup.removeFromLeft(34);
-    const auto syncCell = performanceButtonGroup.removeFromLeft(34);
-    monoModeButton.setBounds(monoCell.getX(), performanceRow.getY(), 32, 70);
-    unisonModeButton.setBounds(unisonCell.getX(), performanceRow.getY(), 32, 70);
-    syncButton.setBounds(syncCell.getX(), performanceRow.getY(), 32, 70);
+    const int performanceModeCellWidth = performanceButtonGroup.getWidth() / 3;
+    const auto monoCell = performanceButtonGroup.removeFromLeft(performanceModeCellWidth);
+    const auto unisonCell = performanceButtonGroup.removeFromLeft(performanceModeCellWidth);
+    const auto kitCell = performanceButtonGroup;
+    monoModeButton.setBounds(monoCell.getCentreX() - 12, performanceRow.getY(), 24, 70);
+    unisonModeButton.setBounds(unisonCell.getCentreX() - 12, performanceRow.getY(), 24, 70);
+    drumKitModeButton.setBounds(kitCell.getCentreX() - 12, performanceRow.getY(), 24, 70);
     patch.removeFromTop(8);
     auto leftLfoModRow = patch.removeFromTop(threeRowHeight).reduced(5, 0);
     leftLfoModRow.removeFromTop(14);
@@ -5507,40 +5810,71 @@ void AurelineMainComponent::resized()
 
         if (!oscillatorA)
         {
-            auto detuneArea = juce::Rectangle<int>(row.getRight() - 50, row.getY(),
+            auto detuneArea = juce::Rectangle<int>(row.getX() + 360, row.getY(),
                                                    50, row.getHeight());
             knobLabels[2].setBounds(detuneArea.removeFromTop(16));
             knobs[2].setBounds(detuneArea.withSizeKeepingCentre(
                 50, detuneArea.getHeight()));
+            syncButton.setBounds(row.getX() + 420, row.getY(), 32, 70);
+            lowFrequencyButton.setBounds(row.getX() + 454, row.getY(), 32, 70);
+            keyboardTrackingButton.setBounds(row.getX() + 488, row.getY(), 32, 70);
         }
 
     };
-    auto oscillatorTopRow = oscillatorPanel.removeFromTop(threeRowHeight);
-    layoutOscillatorRow(oscillatorTopRow, true);
-    oscillatorPanel.removeFromTop(8);
-    auto oscillatorBPanel = oscillatorPanel.removeFromTop(threeRowHeight);
-    oscillatorBPanel = oscillatorBPanel.withWidth(oscillatorBPanel.getWidth() + 52);
+    layoutOscillatorRow(upperOscillatorAPanel, true);
+    auto oscillatorBRow = rightPanel.removeFromTop(threeRowHeight);
+    auto oscillatorBPanel = oscillatorBRow;
+    oscillatorBPanel = oscillatorBPanel.withTrimmedLeft(
+        juce::jmax(0, upperOscillatorAPanel.getX()
+                         - oscillatorBPanel.getX()));
+    auto arpeggioPanel = juce::Rectangle<int>(
+        oscillatorBRow.getX(), oscillatorBRow.getY(),
+        juce::jmax(1, oscillatorBPanel.getX()
+                         - oscillatorBRow.getX() - 8),
+        threeRowHeight * 2 + 8);
     layoutOscillatorRow(oscillatorBPanel, false);
-    oscillatorPanel.removeFromTop(8);
-    auto lfoPanel = oscillatorPanel.removeFromTop(threeRowHeight);
+    rightPanel.removeFromTop(8);
+    auto thirdRowPanel = rightPanel.removeFromTop(threeRowHeight);
+    rightPanel.removeFromTop(8);
+    auto fourthRowPanel = rightPanel.removeFromTop(threeRowHeight);
+    auto amplifierPanel = fourthRowPanel.removeFromRight(208);
+    fourthRowPanel.removeFromRight(8);
+    auto lfoPanel = fourthRowPanel;
     auto lfoRow = lfoPanel.reduced(5, 0);
     lfoRow.removeFromTop(14);
     lfoRow.removeFromBottom(6);
-    auto rateCell = fixedCell(lfoRow, 0, 50);
+    auto lfoContent = lfoRow.reduced(6, 0);
+    constexpr int lfoWaveformCellWidth = 34;
+    constexpr int lfoWaveformGroupWidth =
+        lfoWaveformCellWidth * 5;
+    constexpr int lfoOtherControlCount = 5;
+    const int lfoControlCellWidth =
+        (lfoContent.getWidth() - lfoWaveformGroupWidth)
+        / lfoOtherControlCount;
+    const auto lfoControlCell = [lfoContent, lfoControlCellWidth](int index)
+    {
+        const auto x = lfoContent.getX() + index * lfoControlCellWidth;
+        return juce::Rectangle<int>(
+            x, lfoContent.getY(), lfoControlCellWidth,
+            lfoContent.getHeight());
+    };
+    auto rateCell = lfoControlCell(0);
     knobLabels[14].setBounds(rateCell.removeFromTop(16));
     knobs[14].setBounds(rateCell.withSizeKeepingCentre(50, rateCell.getHeight()));
     constexpr int lfoWaveformButtonWidth = 30;
-    constexpr int lfoWaveformButtonCellWidth = 30;
-    auto lfoShapeGroup = fixedCell(lfoRow, 52,
-                                   lfoWaveformButtonCellWidth
-                                       * static_cast<int>(lfoWaveformButtons.size()));
-    const auto lfoShapeGroupBounds = lfoShapeGroup;
+    const auto lfoShapeGroupBounds = juce::Rectangle<int>(
+        rateCell.getRight(), lfoRow.getY(),
+        lfoWaveformGroupWidth, lfoRow.getHeight());
     lfoShapeLabel.setBounds(lfoShapeGroupBounds.getX(), lfoRow.getBottom() - 14,
                             lfoShapeGroupBounds.getWidth(), 14);
     for (std::size_t index = 0; index < lfoWaveformButtons.size(); ++index)
     {
-        const auto cell = lfoShapeGroup.removeFromLeft(lfoWaveformButtonCellWidth);
-        lfoWaveformButtons[index].setBounds(cell.getX(), lfoRow.getY(),
+        const auto cell = juce::Rectangle<int>(
+            lfoShapeGroupBounds.getX()
+                + static_cast<int>(index) * lfoWaveformCellWidth,
+            lfoRow.getY(), lfoWaveformCellWidth, lfoRow.getHeight());
+        lfoWaveformButtons[index].setBounds(
+            cell.getCentreX() - lfoWaveformButtonWidth / 2, lfoRow.getY(),
                                             lfoWaveformButtonWidth, waveformButtonHeight);
     }
     const std::array<juce::Slider*, 3> remainingLfoUnits {
@@ -5551,58 +5885,82 @@ void AurelineMainComponent::resized()
     };
     for (std::size_t index = 0; index < remainingLfoUnits.size(); ++index)
     {
-        auto cell = fixedCell(lfoRow, 204 + static_cast<int>(index) * 52, 50);
+        auto cell = juce::Rectangle<int>(
+            lfoShapeGroupBounds.getRight()
+                + static_cast<int>(index) * lfoControlCellWidth,
+            lfoContent.getY(), lfoControlCellWidth, lfoContent.getHeight());
         remainingLfoLabels[index]->setBounds(cell.removeFromTop(16));
-        remainingLfoUnits[index]->setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
+        remainingLfoUnits[index]->setBounds(
+            cell.withSizeKeepingCentre(50, cell.getHeight()));
     }
-    auto retriggerCell = fixedCell(lfoRow, 360, 34);
-    lfoRetriggerButton.setBounds(retriggerCell.getX() + 1, lfoRow.getY(), 32, 70);
+    const auto retriggerCell = juce::Rectangle<int>(
+        lfoShapeGroupBounds.getRight() + 3 * lfoControlCellWidth,
+        lfoContent.getY(),
+        lfoContent.getRight()
+            - (lfoShapeGroupBounds.getRight() + 3 * lfoControlCellWidth),
+        lfoContent.getHeight());
+    lfoRetriggerButton.setBounds(retriggerCell.getCentreX() - 16,
+                                 lfoRow.getY(), 32, 70);
 
-    constexpr std::array<std::size_t, 8> filterIndices {
-        6, 7, 8, 9,
-        19, 20, 21, 22
-    };
-    constexpr int commonUnitWidth = 50;
-    auto filterPanel = commonPanel.removeFromTop(threeRowHeight * 2 + 8);
-    commonPanel.removeFromTop(8);
-    auto lfoModPanel = commonPanel.removeFromTop(threeRowHeight);
-    const auto layoutCommonKnob = [this](juce::Rectangle<int> cell, std::size_t index)
+    auto filterEnvelopePanel = thirdRowPanel.removeFromRight(208);
+    const auto filterLeft = arpeggioPanel.getRight() + 8;
+    auto filterPanel = juce::Rectangle<int>(
+        filterLeft, thirdRowPanel.getY(),
+        juce::jmax(1, filterEnvelopePanel.getX() - 8 - filterLeft),
+        thirdRowPanel.getHeight());
+    layoutArpeggio(arpeggioPanel, scaleLabel, scaleKnob, arpLabels, arpKnobs);
+    const auto switchFont = juce::Font(juce::FontOptions(8.5f, juce::Font::bold));
+    juce::GlyphArrangement lowPassGlyphs;
+    lowPassGlyphs.addLineOfText(switchFont, "Low Pass Filter", 0.0f, 0.0f);
+    const auto lowPassControlWidth = 20 + static_cast<int>(std::ceil(
+        lowPassGlyphs.getBoundingBox(0, lowPassGlyphs.getNumGlyphs(), true).getWidth())) + 3;
+    const auto bandPassX = filterPanel.getX() + 70 + lowPassControlWidth + 6;
+    filterLowPassButton.setBounds(filterPanel.getX() + 70,
+                                  filterPanel.getY() - 8, 96, 16);
+    filterBandPassButton.setBounds(bandPassX,
+                                   filterPanel.getY() - 8, 90, 16);
+    const auto layoutCommonKnob = [this](juce::Rectangle<int> cell,
+                                         std::size_t index, int knobWidth)
     {
         cell.removeFromTop(14);
         cell.removeFromBottom(6);
         knobLabels[index].setBounds(cell.removeFromTop(16));
-        knobs[index].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
+        knobs[index].setBounds(cell.withSizeKeepingCentre(
+            juce::jmin(knobWidth, cell.getWidth()), cell.getHeight()));
     };
-    for (std::size_t position = 0; position < filterIndices.size() + 1; ++position)
+    constexpr std::array<std::size_t, 4> filterKnobIndices { 6, 7, 8, 9 };
+    const int filterCellWidth = filterPanel.getWidth() / 5;
+    for (std::size_t position = 0; position < filterKnobIndices.size(); ++position)
     {
-        const bool filterControl = position <= 4;
-        const int column = filterControl ? static_cast<int>(position)
-                                         : static_cast<int>(position - 4);
-        const int rowIndex = filterControl ? 0 : 1;
-        const int rowY = filterPanel.getY() + rowIndex * (threeRowHeight + 8);
-        auto cell = fixedCell(juce::Rectangle<int>(filterPanel.getX(), rowY,
-                                                   filterPanel.getWidth(), threeRowHeight),
-                              column * 52, commonUnitWidth);
-        if (position == 4)
-        {
-            cell.removeFromTop(14);
-            cell.removeFromBottom(6);
-            performanceLabels[4].setBounds(cell.removeFromTop(16));
-            performanceKnobs[4].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
-        }
-        else
-        {
-            const auto sourceIndex = position < 4 ? position : position - 1;
-            layoutCommonKnob(cell, filterIndices[sourceIndex]);
-        }
+        auto cell = filterPanel.withWidth(filterCellWidth)
+            .translated(static_cast<int>(position) * filterCellWidth, 0);
+        layoutCommonKnob(cell, filterKnobIndices[position], 48);
     }
-    auto amplifierRow = lfoModPanel.reduced(4, 0);
+    auto velocityCell = filterPanel.withWidth(filterCellWidth)
+        .translated(filterCellWidth * 4, 0);
+    velocityCell.removeFromTop(14);
+    velocityCell.removeFromBottom(6);
+    performanceLabels[4].setBounds(velocityCell.removeFromTop(16));
+    performanceKnobs[4].setBounds(velocityCell.withSizeKeepingCentre(
+        juce::jmin(48, velocityCell.getWidth()), velocityCell.getHeight()));
+
+    const int envelopeCellWidth = filterEnvelopePanel.getWidth() / 4;
+    for (std::size_t position = 0; position < 4; ++position)
+    {
+        auto cell = filterEnvelopePanel.withWidth(envelopeCellWidth)
+            .translated(static_cast<int>(position) * envelopeCellWidth, 0);
+        layoutCommonKnob(cell, 19 + position, envelopeCellWidth);
+    }
+
+    auto amplifierRow = amplifierPanel.reduced(4, 0);
     amplifierRow.removeFromTop(14);
     amplifierRow.removeFromBottom(6);
     for (std::size_t position = 0; position < 4; ++position)
     {
         const auto index = position + 10;
-        auto cell = fixedCell(amplifierRow, (static_cast<int>(position) + 1) * 52, 50);
+        const int cellWidth = amplifierRow.getWidth() / 4;
+        auto cell = amplifierRow.withWidth(cellWidth)
+            .translated(static_cast<int>(position) * cellWidth, 0);
         knobLabels[index].setBounds(cell.removeFromTop(16));
         knobs[index].setBounds(cell.withSizeKeepingCentre(50, cell.getHeight()));
     }

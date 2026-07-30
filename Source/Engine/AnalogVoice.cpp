@@ -58,7 +58,7 @@ void AnalogVoice::prepare(double sampleRate, int voiceIndex)
 void AnalogVoice::start(int midiNote, int velocity, std::uint64_t ageValue,
                         double startNote, double glideSeconds, double detuneCents,
                         double initialPhase, bool unison, double unisonPan,
-                        double startDelaySeconds)
+                        double startDelaySeconds, double targetNote)
 {
     const bool reusingActiveVoice = isActive();
     currentNote = std::clamp(midiNote, 0, 127);
@@ -67,7 +67,9 @@ void AnalogVoice::start(int midiNote, int velocity, std::uint64_t ageValue,
     unisonDetuneCents = detuneCents;
     unisonActive = unison;
     unisonPanPosition = unisonPan;
-    configureGlide(startNote, static_cast<double>(currentNote), glideSeconds);
+    configureGlide(startNote, targetNote >= 0.0 ? targetNote
+                                                : static_cast<double>(currentNote),
+                   glideSeconds);
     releasing = false;
     noteSamples = 0;
     startDelaySamplesRemaining = static_cast<std::uint64_t>(std::llround(
@@ -78,6 +80,8 @@ void AnalogVoice::start(int midiNote, int velocity, std::uint64_t ageValue,
         oscillatorA.reset(initialPhase);
         oscillatorB.reset(initialPhase + 0.37);
         filter.reset();
+        cowbellBandLow = 0.0;
+        cowbellBand = 0.0;
     }
     filterEnvelope.noteOn();
     amplifierEnvelope.noteOn();
@@ -123,6 +127,8 @@ void AnalogVoice::reset()
     filterEnvelope.reset();
     amplifierEnvelope.reset();
     filter.reset();
+    cowbellBandLow = 0.0;
+    cowbellBand = 0.0;
 }
 
 void AnalogVoice::synchronizeParameters(const AnalogPatch& patch)
@@ -269,8 +275,28 @@ double AnalogVoice::render(const AnalogPatch& patch, double pitchBendSemitones,
     const auto vintageCutoff = cutoff * std::pow(2.0,
         patch.vintageAmount * filterVariation * 0.2);
     const auto mixed = a + b + noise.render() * noiseLevelSmoother.process(patch.noiseLevel);
-    return filter.render(std::tanh(mixed), vintageCutoff,
-                         resonanceSmoother.process(patch.filterResonance))
-         * amp * velocityGain * (1.0 + patch.vintageAmount * gainVariation * 0.08);
+    const auto resonance = resonanceSmoother.process(patch.filterResonance);
+    const auto saturated = std::tanh(mixed);
+    const auto lowPass = filter.render(saturated, vintageCutoff, resonance);
+    auto filtered = patch.filterMode == FilterMode::bypass ? saturated : lowPass;
+    if (patch.filterMode == FilterMode::bandPass
+        || patch.filterMode == FilterMode::lowPassBandPass)
+    {
+        const auto centreFrequency = std::clamp(vintageCutoff, 20.0,
+                                                currentSampleRate * 0.20);
+        const auto coefficient = std::min(0.95, 2.0 * std::sin(
+            3.14159265358979323846 * centreFrequency / currentSampleRate));
+        cowbellBandLow += coefficient * cowbellBand;
+        const auto damping = 1.35 - resonance * 0.95;
+        const auto high = mixed - cowbellBandLow - damping * cowbellBand;
+        cowbellBand += coefficient * high;
+        const auto bandPass = std::tanh(cowbellBand * 1.65);
+        filtered = patch.filterMode == FilterMode::bandPass
+            ? bandPass : lowPass * 0.35 + bandPass * 0.85;
+    }
+    const auto transientGain = 1.0 + patch.transientAccent
+        * std::exp(-elapsedSeconds / 0.026);
+    return filtered * transientGain * amp * velocityGain
+         * (1.0 + patch.vintageAmount * gainVariation * 0.08);
 }
 } // namespace aureline

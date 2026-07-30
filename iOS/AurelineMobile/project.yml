@@ -23,6 +23,7 @@ targets:
       - path: ../../assets/Analog.aurelinelibrary.xml
         buildPhase: resources
       - path: ../../assets/Analog2.aurelinelibrary.xml
+      - path: ../../assets/Circuit.aurelinelibrary.xml
         buildPhase: resources
       - path: ../../assets/Retro.aurelinelibrary.xml
         buildPhase: resources
@@ -39,8 +40,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.hidekikonishi.aureline.mobile
         PRODUCT_NAME: Aureline
         INFOPLIST_KEY_CFBundleDisplayName: Aureline
-        MARKETING_VERSION: "1.0.9"
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: "1.0.10"
+        CURRENT_PROJECT_VERSION: 11
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MACCATALYST: false
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
@@ -109,6 +110,7 @@ targets:
       - path: ../../assets/Analog.aurelinelibrary.xml
         buildPhase: resources
       - path: ../../assets/Analog2.aurelinelibrary.xml
+      - path: ../../assets/Circuit.aurelinelibrary.xml
         buildPhase: resources
       - path: ../../assets/Retro.aurelinelibrary.xml
         buildPhase: resources
@@ -124,8 +126,8 @@ targets:
         PRODUCT_NAME: AurelineAUv3Extension
         PRODUCT_MODULE_NAME: AurelineAUv3Extension
         INFOPLIST_KEY_CFBundleDisplayName: Aureline
-        MARKETING_VERSION: "1.0.9"
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: "1.0.10"
+        CURRENT_PROJECT_VERSION: 11
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MACCATALYST: false
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false

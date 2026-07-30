@@ -1,6 +1,6 @@
 # Aureline 取扱説明書
 
-- 対象バージョン：1.0.9
+- 対象バージョン：1.0.10
 - ブランド：Hidecade Instruments
 - 対応環境：macOS、Windows、iPhone / AUv3
 
@@ -30,9 +30,9 @@ Aurelineは、2基のオシレーター、ノイズ、4段OTAローパスフィ�
 
 使用する形式のインストーラーを実行します。
 
-- `Aureline-Standalone-1.0.9-macOS.pkg`
-- `Aureline-VST3-1.0.9-macOS.pkg`
-- `Aureline-AU-1.0.9-macOS.pkg`
+- `Aureline-Standalone-1.0.10-macOS.pkg`
+- `Aureline-VST3-1.0.10-macOS.pkg`
+- `Aureline-AU-1.0.10-macOS.pkg`
 
 インストーラーはApple公証済みです。インストール後、DAWを再起動して
 プラグインを再スキャンしてください。
@@ -75,7 +75,7 @@ Standalone版のAudio/MIDI機器はウインドウ上部の`Options`から設定
 
 ### 音色操作
 
-- 音色名：4バンク、各32音色から選択
+- 音色名：8バンク、各32音色から選択
 - `<` / `>`：前後の音色へ移動
 - `LOAD`：単一音色または音色ライブラリを読み込む
 - `SAVE`：現在の単一音色を書き出す
@@ -89,14 +89,45 @@ Standalone版のAudio/MIDI機器はウインドウ上部の`Options`から設定
 
 ## 6. 音色バンク
 
-Aurelineには、32音色ずつの4バンクがあります。
+Aurelineには、32音色ずつの8バンクがあります。BANK 3はCircuit、
+BANK 4はRetro、BANK 5は8-Bit、BANK 8はDRUM KIT専用です。
 
 1. `Analog 1`：Brass、Strings/Pad、Piano/Keys、Bass、SE
 2. `Analog 2`：Lead、Poly Mod/Sync、Percussion、Rhythm、SE
-3. `Retro`：ビンテージゲーム／アーケード風
-4. `8-Bit`：Pulse、Noise、Wave Memory、PSG／拡張音源風
+3. `Circuit`：アナログ・ドラム／パーカッションの通常音色
+4. `Retro`：ビンテージゲーム／アーケード風
+5. `8-Bit`：Pulse、Noise、Wave Memory、PSG／拡張音源風
+8. `DRUM KIT`：KITモード専用の32音色
+
+BANK 8の音色は、鍵盤上の位置と選択スロットが一致するように
+MIDIノートの低い順から高い順へ並んでいます。
 
 各バンクの最後4音色は効果音です。
+
+### DRUM KIT
+
+PERFORMANCEの`KIT`をオンにすると、BANK 8「DRUM KIT」の32音色を
+1つのドラムセットとして鍵盤／MIDIから演奏できます。各キーは独立した
+音色スナップショットで発音するため、Kick、Snare、Hatなどを最大8音まで
+同時に鳴らせます。中心となる配置はMIDIドラムセットに準じています。
+デスクトップ版の画面鍵盤は、通常モードとKITモードのどちらも
+C2（MIDI 36）からC5まで表示します。
+
+- MIDI 36 (C2): Deep Kick
+- MIDI 38 (D2): Classic Snare
+- MIDI 39 (D#2): Hand Clap
+- MIDI 42 (F#2): Closed Hat
+- MIDI 46 (A#2): Open Hat
+- MIDI 49 (C#2): Metal Cymbal
+- MIDI 41／45／48: Low／Mid／High Tom
+- MIDI 56: Cowbell
+
+Closed Hatを鳴らすとOpen Hatの余韻が止まります。KITをオンにした際は
+ARPEGGIOとCHORDが自動的にオフになります。BANK 8の音色をSTOREした場合、
+ドラムセットにも更新内容が反映されます。
+
+全32音色のキーマップと内部動作は
+[ドラムキット演奏モード仕様](Aureline_Drum_Kit_Spec_ja.md)を参照してください。
 
 ### 単一音色の保存
 
@@ -274,6 +305,12 @@ Oscillator B変調は、より速いオーディオレート変調にも使用�
 - `LEGATO`：重ねて弾いた場合だけGlide / Mono Legatoを適用
 - `HOLD`：鍵盤を離しても音またはArpeggioを保持
 
+デスクトップ版の画面鍵盤では、C音の下部に`C2`、`C3`、`C4`のような
+オクターブ名を表示します。PCキーボード演奏は下段`Z`をC2、上段`Q`をF3
+として割り当てます。上段の黒鍵は`2`=F#3、`3`=G#3、`4`=A#3、
+`6`=C#4、`7`=D#4の順です。日本語配列では`_`をF3（MIDI 53）、`]`をF#3
+（MIDI 54）、`¥`をC#5（MIDI 73）として使用できます。
+
 ## 15. Arpeggiator
 
 - `SCALE`：基準音
@@ -342,8 +379,10 @@ WAV録音はmacOS／WindowsのStandalone版で使用できます。
 ![Aureline iPhone版](images/aureline-iphone.png)
 
 iPhone版は横画面で使用します。画面下部の鍵盤を残したまま、Play / Edit画面を
-切り替えて操作します。音源パラメータ、4バンク、Wave Memory、音色ファイルは
+切り替えて操作します。音源パラメータ、8バンク、Wave Memory、音色ファイルは
 デスクトップ版と共通です。
+画面鍵盤の左端は通常音色ではC3、KITモードではキックを含むC2へ自動的に
+切り替わります。
 
 AUv3版ではAudioとMIDIをホストアプリが管理します。Standalone版ではCore MIDI入力と
 画面鍵盤を使用できます。
