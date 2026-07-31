@@ -1,6 +1,6 @@
 # Aureline 取扱説明書
 
-- 対象バージョン：1.0.10
+- 対象バージョン：1.0.11
 - ブランド：Hidecade Instruments
 - 対応環境：macOS、Windows、iPhone / AUv3
 
@@ -30,9 +30,9 @@ Aurelineは、2基のオシレーター、ノイズ、4段OTAローパスフィ�
 
 使用する形式のインストーラーを実行します。
 
-- `Aureline-Standalone-1.0.10-macOS.pkg`
-- `Aureline-VST3-1.0.10-macOS.pkg`
-- `Aureline-AU-1.0.10-macOS.pkg`
+- `Aureline-Standalone-1.0.11-macOS.pkg`
+- `Aureline-VST3-1.0.11-macOS.pkg`
+- `Aureline-AU-1.0.11-macOS.pkg`
 
 インストーラーはApple公証済みです。インストール後、DAWを再起動して
 プラグインを再スキャンしてください。
@@ -70,6 +70,8 @@ Standalone版のAudio/MIDI機器はウインドウ上部の`Options`から設定
 - `AURELINE`：製品名とバージョン
 - `Audio`：現在の出力デバイス
 - `MIDI`：現在選択されているMIDI入力
+- `PART 1`〜`PART 4`：デスクトップ版の編集・演奏対象パート
+- Part LED：各パートのMIDI受信時に点灯
 - `WAV`：最終ステレオ出力の録音
 - `SAVE BANK`：現在の32音色バンクを書き出す
 
@@ -126,8 +128,47 @@ Closed Hatを鳴らすとOpen Hatの余韻が止まります。KITをオンに�
 ARPEGGIOとCHORDが自動的にオフになります。BANK 8の音色をSTOREした場合、
 ドラムセットにも更新内容が反映されます。
 
-全32音色のキーマップと内部動作は
-[ドラムキット演奏モード仕様](Aureline_Drum_Kit_Spec_ja.md)を参照してください。
+全32音色の配置は次のとおりです。オクターブ表記はMIDI 60=C4を基準とし、
+DAWやMIDI機器によって1オクターブ異なる場合があります。
+
+| Slot | Sound | MIDI | Note |
+|---:|---|---:|---|
+| 1 | DEEP KICK | 36 | C2 |
+| 2 | RIM SHOT | 37 | C#2 |
+| 3 | CLASSIC SNARE | 38 | D2 |
+| 4 | HAND CLAP | 39 | D#2 |
+| 5 | TIGHT SNARE | 40 | E2 |
+| 6 | LOW TOM | 41 | F2 |
+| 7 | CLOSED HAT | 42 | F#2 |
+| 8 | DISCO TOM | 43 | G2 |
+| 9 | METAL HAT | 44 | G#2 |
+| 10 | MID TOM | 45 | A2 |
+| 11 | OPEN HAT | 46 | A#2 |
+| 12 | ELECTRO SNARE | 47 | B2 |
+| 13 | HIGH TOM | 48 | C3 |
+| 14 | SHORT CYMBAL | 49 | C#3 |
+| 15 | HAT PULSE | 50 | D3 |
+| 16 | METAL CYMBAL | 51 | D#3 |
+| 17 | ACCENT KICK | 52 | E3 |
+| 18 | SHORT KICK | 53 | F3 |
+| 19 | BOOM KICK | 54 | F#3 |
+| 20 | TUNED KICK | 55 | G3 |
+| 21 | COWBELL | 56 | G#3 |
+| 22 | CLICK KICK | 57 | A3 |
+| 23 | SUB DROP | 58 | A#3 |
+| 24 | NOISE SNARE | 59 | B3 |
+| 25 | HIGH CONGA | 62 | D4 |
+| 26 | MID CONGA | 63 | D#4 |
+| 27 | LOW CONGA | 64 | E4 |
+| 28 | CLAVES | 65 | F4 |
+| 29 | SUB BASS | 66 | F#4 |
+| 30 | MUTED COWBELL | 67 | G4 |
+| 31 | MARACAS | 70 | A#4 |
+| 32 | TRIGGER FX | 72 | C5 |
+
+MIDI 60、61、68、69、71と割り当て範囲外のノートはKITモードでは
+発音しません。ドラム音色は配置キーの高さではなく、音色作成時の基準ピッチで
+再生されます。
 
 ### 単一音色の保存
 
@@ -387,6 +428,10 @@ iPhone版は横画面で使用します。画面下部の鍵盤を残したま�
 AUv3版ではAudioとMIDIをホストアプリが管理します。Standalone版ではCore MIDI入力と
 画面鍵盤を使用できます。
 
+iPhone版とAUv3版はシングルティンバー、最大8ボイスの固定仕様です。
+GarageBandなどで複数音色を同時に使用する場合は、トラックごとにAureline AUv3を
+別インスタンスとして読み込みます。
+
 ファイルAppの共有機能を使って、Macと次のデータを交換できます。
 
 - `.aurelinevoice`
@@ -394,6 +439,29 @@ AUv3版ではAudioとMIDIをホストアプリが管理します。Standalone版
 - `.aurelinewave`
 
 ## 20. MIDI
+
+### デスクトップ版の4パート演奏
+
+macOS／WindowsのStandalone、VST3、Audio Unit版は4パート・
+マルチティンバーで動作します。ヘッダーの`PART`で編集対象を切り替えます。
+
+| Part | MIDI Channel | 用途 |
+|---:|---:|---|
+| 1 | 1 | 通常音色 |
+| 2 | 2 | 通常音色 |
+| 3 | 3 | 通常音色 |
+| 4 | 10 | BANK 8 DRUM KIT |
+
+各パートは最大8音、全体では最大16音を演奏内容に応じて動的に共有します。
+Part 1〜3は独立した音色を保持します。Part 4はKIT専用です。画面鍵盤と
+PCキーボードは、現在選択しているパートへ送られます。
+
+Part 1〜3は、各チャンネルのBank Select MSB（CC0）値0〜6でBANK 1〜7、
+Program Change値0〜31でVOICE 1〜32を選択できます。Part 4はBANK 8固定のため
+Bank SelectとProgram Changeを無視します。
+
+iPhone Standalone／AUv3はマルチティンバー動作を行わず、シングルティンバー、
+最大8ボイスで動作します。
 
 対応する主なMIDIメッセージ：
 

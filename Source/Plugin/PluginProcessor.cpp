@@ -60,14 +60,15 @@ juce::AudioProcessorEditor* AurelinePluginProcessor::createEditor()
 
 void AurelinePluginProcessor::getStateInformation(juce::MemoryBlock& destination)
 {
-    if (auto xml = interface.capturePluginState().createXml())
+    if (auto xml = interface.captureMultiTimbralState().createXml())
         copyXmlToBinary(*xml, destination);
 }
 
 void AurelinePluginProcessor::setStateInformation(const void* data, int size)
 {
     if (auto xml = getXmlFromBinary(data, size))
-        interface.restorePluginState(juce::ValueTree::fromXml(*xml));
+        interface.restoreMultiTimbralState(
+            juce::ValueTree::fromXml(*xml));
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

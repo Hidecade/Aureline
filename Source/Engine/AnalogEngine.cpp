@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace aureline
 {
@@ -301,5 +302,51 @@ int AnalogEngine::activeVoiceCount() const
 {
     return static_cast<int>(std::count_if(voices.begin(), voices.end(),
                                           [](const auto& voice) { return voice.isActive(); }));
+}
+
+bool AnalogEngine::hasReleasingVoice() const
+{
+    return std::any_of(voices.begin(), voices.end(),
+                       [](const auto& voice)
+                       {
+                           return voice.isActive() && voice.isReleasing();
+                       });
+}
+
+double AnalogEngine::quietestReleasingVoiceLevel() const
+{
+    auto level = std::numeric_limits<double>::infinity();
+    for (const auto& voice : voices)
+        if (voice.isActive() && voice.isReleasing())
+            level = std::min(level, voice.level());
+    return level;
+}
+
+bool AnalogEngine::forceStopQuietestReleasingVoice()
+{
+    auto candidate = voices.end();
+    for (auto voice = voices.begin(); voice != voices.end(); ++voice)
+        if (voice->isActive() && voice->isReleasing()
+            && (candidate == voices.end()
+                || voice->level() < candidate->level()))
+            candidate = voice;
+    if (candidate == voices.end())
+        return false;
+    candidate->reset();
+    return true;
+}
+
+bool AnalogEngine::forceStopOldestVoice()
+{
+    auto candidate = voices.end();
+    for (auto voice = voices.begin(); voice != voices.end(); ++voice)
+        if (voice->isActive()
+            && (candidate == voices.end()
+                || voice->age() < candidate->age()))
+            candidate = voice;
+    if (candidate == voices.end())
+        return false;
+    candidate->reset();
+    return true;
 }
 } // namespace aureline

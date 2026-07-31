@@ -5,8 +5,8 @@ app and does not affect runtime behavior.
 
 ## Version
 
-- Version: `1.0.10`
-- Build: `10`
+- Version: `1.0.11`
+- Build: `13`
 - Primary category: `Music`
 - Secondary category: `Entertainment`
 - Copyright: `2026 Hideki Konishi / Hidecade Instruments`
@@ -24,7 +24,7 @@ app and does not affect runtime behavior.
 
 ### Promotional text
 
-アナログモデリング、Wave Memory、POLY MODを一台に。128音色を収録し、スタンドアロンでもAUv3音源としても演奏できます。
+アナログモデリング、Wave Memory、POLY MODを一台に。256音色スロットを備え、スタンドアロンでもAUv3音源としても演奏できます。
 
 ### Description
 
@@ -55,9 +55,9 @@ Aurelineは、クラシックなアナログシンセの操作感とWave Memory�
 
 ### What’s New
 
-・ライブラリ読込時にバンク名を反映
-・FILTERスイッチを活用した32音色のDRUM KIT専用バンクを追加
-・打楽器向けのPoly Mod、ノイズ、金属波形音色を追加
+・8バンクとDRUM KITの操作性を改善
+・説明表示と音色ライブラリ管理を整理
+・安定性を改善
 
 ## English localization
 
@@ -67,7 +67,7 @@ Aurelineは、クラシックなアナログシンセの操作感とWave Memory�
 
 ### Promotional text
 
-Analog modeling, Wave Memory, and POLY MOD in one instrument, with 128 sounds. Play standalone or as an AUv3 Instrument.
+Analog modeling, Wave Memory, and POLY MOD in one instrument, with 256 voice slots. Play standalone or as an AUv3 Instrument.
 
 ### Description
 
@@ -85,7 +85,7 @@ Features:
 • Self-oscillating four-stage OTA low-pass filter
 • Independent filter and amplifier envelopes
 • LFO, arpeggiator, chord, and hold controls
-• Four banks with 128 sounds
+• Eight banks with 256 voice slots
 • Voice, 32-sound bank, and Wave Memory import/export
 • External MIDI input
 • AUv3 Instrument support
@@ -98,9 +98,9 @@ synth,instrument,MIDI,AUv3,analog,waveform,music,keyboard,LFO,polyphonic
 
 ### What’s New
 
-• Added bank names that follow imported voice libraries
-• Added the dedicated 32-voice DRUM KIT electronic percussion bank
-• Added percussion voices using Poly Mod, noise, and metallic waveforms
+• Improved operation of the eight banks and DRUM KIT
+• Refined help text and voice-library management
+• Improved stability
 
 ## App Review information
 
@@ -115,7 +115,7 @@ Aureline is a standalone synthesizer and also includes an AUv3 Instrument extens
 Standalone test:
 1. Launch Aureline.
 2. Tap the on-screen keyboard; audio should play immediately.
-3. Change a voice from one of the four banks in the voice selector.
+3. Change a voice from one of the eight banks in the voice selector.
 4. Open EDIT WAVE to draw and audition a waveform-memory sound.
 5. Tap SAVE or SAVE BANK to open the standard document export interface.
 
@@ -149,7 +149,7 @@ Recommended sequence:
 1. PLAY screen with the keyboard and oscillator waveforms.
 2. EDIT screen with synthesis controls.
 3. WAVE EDIT modal with a custom waveform.
-4. Four-bank voice selection/library screen.
+4. Eight-bank voice selection/library screen.
 5. POLY MOD and FINAL MIX waveform display.
 6. AUv3 running inside a compatible host, if the host UI can be shown clearly.
 
@@ -162,8 +162,8 @@ Recommended sequence:
 - Keywords: maximum 100 bytes, comma-separated.
 - Screenshots: 1–10 per device size and localization.
 - Privacy Policy URL is required for iOS.
-- Select the uploaded build whose `CFBundleShortVersionString` is `1.0.10` and
-  whose `CFBundleVersion` is `10`.
+- Select the uploaded build whose `CFBundleShortVersionString` is `1.0.11` and
+  whose `CFBundleVersion` is `13`.
 
 Before submission, recheck these values against the processed build shown in
 App Store Connect. This document is a submission worksheet; changing it does

@@ -38,6 +38,8 @@ public:
                             const juce::MidiBuffer& midi);
     juce::ValueTree capturePluginState() const;
     void restorePluginState(const juce::ValueTree& state);
+    juce::ValueTree captureMultiTimbralState() const;
+    void restoreMultiTimbralState(const juce::ValueTree& state);
 
 private:
     class AurelineLookAndFeel final : public juce::LookAndFeel_V4
@@ -182,7 +184,21 @@ private:
     void configureKnob(juce::Slider&, juce::Label&, const juce::String&,
                        double min, double max, double initial, double skew = 1.0);
     void applyParameters();
+    void applyParametersToEngine(aureline::AnalogEngine&);
     void configureDrumKitBank();
+    aureline::AnalogEngine& partEngine(int part);
+    aureline::PerformanceSequencer& partSequencer(int part);
+    static int partForMidiChannel(int channel);
+    static int midiChannelForPart(int part);
+    void selectPart(int part);
+    void saveSelectedPartState();
+    void restoreSelectedPartState();
+    void updateSelectedPartMetadata();
+    void refreshProgramChangeCache();
+    void processPendingProgramChanges();
+    void applyProgramChange(int part, int bank, int program);
+    int totalActiveVoiceCount() const;
+    void enforceGlobalVoiceLimit(int preferredPart = -1);
     void resetToInitialVoice();
     void loadVoiceFromFile(const juce::File&);
     void promptAndSaveVoice();
@@ -218,13 +234,37 @@ private:
     aureline::WaveMemoryData copiedWaveMemory {};
     bool hasCopiedWaveMemory = false;
     juce::Image woodBackground;
-    aureline::AnalogEngine engine;
-    aureline::PerformanceSequencer performanceSequencer;
+    static constexpr int timbrePartCount = 4;
+    std::array<aureline::AnalogEngine, timbrePartCount> partEngines;
+    std::array<aureline::PerformanceSequencer, timbrePartCount> partSequencers;
+    std::array<juce::ValueTree, timbrePartCount> partStates;
+    std::array<juce::String, timbrePartCount> partVoiceNames {
+        "INIT ANALOG", "INIT ANALOG", "INIT ANALOG", "DRUM KIT"
+    };
+    std::array<int, timbrePartCount> partVoiceBanks { 0, 0, 0, 7 };
+    std::array<int, timbrePartCount> partVoiceIndices { 0, 0, 0, 0 };
+    std::array<std::atomic<int>, timbrePartCount> partMidiActivity {};
+    static constexpr int melodicBankCount = 7;
+    static constexpr int programsPerBank = 32;
+    std::array<std::array<juce::ValueTree, programsPerBank>,
+               melodicBankCount> programChangeCache;
+    std::array<std::atomic<int>, timbrePartCount> midiBankSelect {
+        std::atomic<int> { 0 }, std::atomic<int> { 0 },
+        std::atomic<int> { 0 }, std::atomic<int> { 7 }
+    };
+    std::array<std::atomic<int>, timbrePartCount> pendingProgramChange {
+        std::atomic<int> { -1 }, std::atomic<int> { -1 },
+        std::atomic<int> { -1 }, std::atomic<int> { -1 }
+    };
+    juce::CriticalSection engineStateLock;
+    std::atomic<int> selectedPart { 0 };
     juce::MidiMessageCollector midiCollector;
     std::vector<juce::String> connectedMidiInputIds;
     bool ownsStandaloneAudio = true;
     juce::String lastDeviceStatus;
     std::array<std::atomic<bool>, 128> heldNotes {};
+    std::array<std::array<std::atomic<bool>, 128>,
+               timbrePartCount> partHeldNotes {};
     std::array<bool, 128> pcKeyboardHeldNotes {};
     static constexpr std::size_t scopeSize = 2048;
     std::array<std::atomic<float>, scopeSize> scopeSamples {};
@@ -242,6 +282,7 @@ private:
     juce::Label titleLabel;
     juce::Label subtitleLabel;
     juce::Label statusLabel;
+    juce::ComboBox partSelector;
     juce::ComboBox presetBox;
     juce::TextButton previousVoiceButton { "<" };
     juce::TextButton nextVoiceButton { ">" };

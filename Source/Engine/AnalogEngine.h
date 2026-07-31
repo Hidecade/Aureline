@@ -34,6 +34,10 @@ public:
     double renderSample();
     void renderBlock(float* left, float* right, int numSamples);
     int activeVoiceCount() const;
+    bool hasReleasingVoice() const;
+    double quietestReleasingVoiceLevel() const;
+    bool forceStopQuietestReleasingVoice();
+    bool forceStopOldestVoice();
     double currentLfoValue() const
     {
         return displayedLfoValue.load(std::memory_order_relaxed);

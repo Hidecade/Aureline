@@ -6,7 +6,7 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 シンセサイザーです。クラシックなポリシンセの直接的な操作感に、Aureline独自の
 音源エンジン、UI、Wave Memoryオシレーター、音色ライブラリを組み合わせています。
 
-最新リリース：[v1.0.10](https://github.com/Hidecade/Aureline/releases/tag/v1.0.10)
+最新リリース：[v1.0.11](https://github.com/Hidecade/Aureline/releases/tag/v1.0.11)
 
 ![Aurelineデスクトップ版シンセサイザー画面](docs/images/aureline-desktop.png)
 
@@ -14,7 +14,7 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 
 ## 主な機能
 
-- 最大8音、Poly／Mono Legato／Unisonモード
+- 1パート最大8音、Poly／Mono Legato／Unisonモード
 - 1ボイスあたり2基の帯域制限オシレーターとNoise
 - Saw、Triangle、Pulse、32ステップWave Memory波形
 - Hard Sync、PWM、Oscillator B Detune、Low Frequencyモード
@@ -28,6 +28,10 @@ Aurelineは、Hidecade Instrumentsによる8音ポリフォニック・アナロ
 - 32音色×8つの書換可能バンク：BANK 3=Circuit、4=Retro、5=8-Bit、8=DRUM KIT専用
 - Mac／Windows／iPhone間で交換できる音色・バンクファイル
 - macOS／Windows Standalone版の24-bit Stereo WAV録音
+- デスクトップ版は4パート・マルチティンバー、各パート最大8音／全体最大16音の動的割り当て
+- Part 1／2／3は通常音色（MIDI CH 1／2／3）、Part 4はDRUM KIT専用（CH 10）
+- Part 1〜3はCC0（BANK 1〜7）とProgram Change（VOICE 1〜32）に対応
+- ヘッダーでパートを選択し、パート別MIDI LEDで受信を確認
 
 ## 対応形式
 
@@ -72,10 +76,14 @@ Aurelineは、各32スロットの書換可能な8バンクを搭載します。
 
 1. Analog 1 — Brass、Strings/Pad、Piano/Keys、Bass、SE
 2. Analog 2 — Lead、Poly Mod/Sync、Percussion、Rhythm、SE
-3. Retro — コンパクトなビンテージゲーム／アーケード風サウンド
-4. 8-Bit — Pulse、Noise、Wavetable、PSG、拡張音源風サウンド
+3. Circuit — アナログ・ドラム／パーカッション
+4. Retro — コンパクトなビンテージゲーム／アーケード風サウンド
+5. 8-Bit — Pulse、Noise、Wavetable、PSG、拡張音源風サウンド
+6. Bank 6 — ユーザーバンク
+7. Bank 7 — ユーザーバンク
+8. DRUM KIT — 鍵盤配置された専用32音色
 
-各バンクの最後4スロットは効果音です。STOREは現在選択中のスロットを
+通常音色の内蔵バンクでは最後4スロットが効果音です。STOREは現在選択中のスロットを
 上書きします。SAVEはバンクを変更せず、現在の音色を外部ファイルへ保存します。
 SAVE BANKは32スロットすべてを書き出し、ライブラリをLOADすると置換先バンクを
 選択できます。

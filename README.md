@@ -6,7 +6,7 @@ Aureline is an eight-voice analog-modeling synthesizer by Hidecade Instruments.
 It combines a direct, classic polysynth workflow with Aureline's own sound
 engine, interface, Wave Memory oscillators, and voice library.
 
-Current release: [v1.0.10](https://github.com/Hidecade/Aureline/releases/tag/v1.0.10)
+Current release: [v1.0.11](https://github.com/Hidecade/Aureline/releases/tag/v1.0.11)
 
 ![Aureline desktop synthesizer interface](docs/images/aureline-desktop.png)
 
@@ -14,7 +14,7 @@ Current release: [v1.0.10](https://github.com/Hidecade/Aureline/releases/tag/v1.
 
 ## Highlights
 
-- Eight-voice polyphony with Poly, Mono Legato, and Unison modes
+- Up to eight voices per part with Poly, Mono Legato, and Unison modes
 - Two band-limited oscillators per voice plus noise
 - Saw, triangle, pulse, and 32-step Wave Memory waveforms
 - Hard sync, pulse-width modulation, oscillator detune, and low-frequency mode
@@ -28,6 +28,10 @@ Current release: [v1.0.10](https://github.com/Hidecade/Aureline/releases/tag/v1.
 - Eight writable 32-voice banks; Circuit is bank 3, Retro bank 4, 8-Bit bank 5, and the dedicated DRUM KIT is bank 8
 - Cross-platform voice and bank files
 - 24-bit stereo WAV recording in the macOS and Windows standalone apps
+- Four-part desktop multitimbral operation: up to 8 voices per part, dynamically shared within a 16-voice global limit
+- Parts 1–3 receive melodic voices on MIDI channels 1–3; Part 4 is the dedicated DRUM KIT on channel 10
+- Parts 1–3 accept CC0 Bank Select (Banks 1–7) and Program Change (Voices 1–32)
+- Header part selector and per-part MIDI activity LEDs
 
 ## Formats
 
@@ -68,14 +72,18 @@ as an audio-rate or low-frequency Poly Mod source.
 
 ## Voice library
 
-Aureline provides four writable banks with 32 slots each:
+Aureline provides eight writable banks with 32 slots each:
 
 1. Analog 1 — brass, strings/pads, piano/keys, bass, and effects
 2. Analog 2 — leads, Poly Mod/sync, percussion, rhythm, and effects
-3. Retro — compact vintage game and arcade-inspired sounds
-4. 8-Bit — pulse, noise, wavetable, PSG, and expansion-style sounds
+3. Circuit — analog drum and percussion sounds
+4. Retro — compact vintage game and arcade-inspired sounds
+5. 8-Bit — pulse, noise, wavetable, PSG, and expansion-style sounds
+6. Bank 6 — user bank
+7. Bank 7 — user bank
+8. DRUM KIT — dedicated 32-sound keyboard kit
 
-The last four slots of every bank are sound effects. STORE overwrites the
+The final four slots of the melodic factory banks are sound effects. STORE overwrites the
 selected slot. SAVE exports the current voice without modifying the bank.
 SAVE BANK exports all 32 slots, and LOAD asks which bank to replace when a
 library is opened.

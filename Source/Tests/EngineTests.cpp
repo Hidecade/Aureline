@@ -638,6 +638,30 @@ void testWaveMemoryOscillator()
     }
 }
 
+void testDynamicVoiceStealingPrimitives()
+{
+    aureline::AnalogEngine engine;
+    engine.prepare(48000.0);
+    for (int note = 60; note < 68; ++note)
+        engine.noteOn(note, 100);
+    assert(engine.activeVoiceCount() == 8);
+
+    // Let the attack envelopes rise before releasing a voice. Releasing an
+    // unrendered note starts from zero and is correctly retired immediately.
+    for (int sample = 0; sample < 512; ++sample)
+        engine.renderStereoSample();
+    engine.noteOff(60);
+    for (int sample = 0; sample < 32; ++sample)
+        engine.renderStereoSample();
+    assert(engine.hasReleasingVoice());
+    assert(std::isfinite(engine.quietestReleasingVoiceLevel()));
+    assert(engine.forceStopQuietestReleasingVoice());
+    assert(engine.activeVoiceCount() == 7);
+
+    assert(engine.forceStopOldestVoice());
+    assert(engine.activeVoiceCount() == 6);
+}
+
 } // namespace
 
 int main()
@@ -663,6 +687,7 @@ int main()
     testPerformanceSequencer();
     testPatchChangeStartsFromNewParameters();
     testWaveMemoryOscillator();
+    testDynamicVoiceStealingPrimitives();
     std::cout << "Aureline engine tests passed\n";
     return 0;
 }

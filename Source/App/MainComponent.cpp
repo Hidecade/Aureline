@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <tuple>
 
 namespace
@@ -2036,7 +2037,8 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     titleLabel.setColour(juce::Label::textColourId, juce::Colour(themeAmber));
     titleLabel.setJustificationType(juce::Justification::centredBottom);
     addAndMakeVisible(titleLabel);
-    subtitleLabel.setText("8-VOICE ANALOG MODELING SYNTHESIZER", juce::dontSendNotification);
+    subtitleLabel.setText("4-PART ANALOG MODELING SYNTHESIZER",
+                          juce::dontSendNotification);
     subtitleLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
     subtitleLabel.setColour(juce::Label::textColourId, juce::Colour(themeGold));
     subtitleLabel.setJustificationType(juce::Justification::bottomLeft);
@@ -2046,6 +2048,22 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     statusLabel.setColour(juce::Label::textColourId, juce::Colour(themeGold));
     statusLabel.setJustificationType(juce::Justification::bottomRight);
     addAndMakeVisible(statusLabel);
+
+    partSelector.setName("partSelector");
+    partSelector.addItem("PART 1  CH 1", 1);
+    partSelector.addItem("PART 2  CH 2", 2);
+    partSelector.addItem("PART 3  CH 3", 3);
+    partSelector.addItem("PART 4  DRUM CH 10", 4);
+    partSelector.setSelectedId(1, juce::dontSendNotification);
+    partSelector.setColour(juce::ComboBox::textColourId, juce::Colour(themeGold));
+    partSelector.setColour(juce::ComboBox::backgroundColourId,
+                           juce::Colour(themeBackground));
+    partSelector.setColour(juce::ComboBox::outlineColourId,
+                           juce::Colour(themeLineGray));
+    partSelector.setColour(juce::ComboBox::arrowColourId,
+                           juce::Colour(themeAmber));
+    partSelector.addListener(this);
+    addAndMakeVisible(partSelector);
 
     presetBox.setName("voiceSelector");
     presetBox.setColour(juce::ComboBox::textColourId, juce::Colour(themeAmber));
@@ -2097,6 +2115,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     addAndMakeVisible(unisonModeButton);
     drumKitModeButton.setClickingTogglesState(true);
     drumKitModeButton.addListener(this);
+    drumKitModeButton.setEnabled(false);
     addAndMakeVisible(drumKitModeButton);
     glideLegatoButton.setClickingTogglesState(true);
     glideLegatoButton.addListener(this);
@@ -2373,6 +2392,9 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
 
     for (auto& note : heldNotes)
         note.store(false);
+    for (auto& partNotes : partHeldNotes)
+        for (auto& note : partNotes)
+            note.store(false);
     pcKeyboardHeldNotes.fill(false);
     for (auto& sample : scopeSamples)
         sample.store(0.0f);
@@ -2402,6 +2424,26 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
         0, static_cast<int>(factoryVoices.size()) - 1, startupVoiceIndex);
     loadFactoryVoice(static_cast<std::size_t>(startupVoiceIndex));
     configureDrumKitBank();
+    const auto initialPartState = capturePluginState().createCopy();
+    for (int part = 0; part < timbrePartCount; ++part)
+    {
+        partStates[static_cast<std::size_t>(part)] =
+            initialPartState.createCopy();
+        partVoiceNames[static_cast<std::size_t>(part)] = currentVoiceName;
+        partVoiceBanks[static_cast<std::size_t>(part)] = selectedVoiceBank;
+        partVoiceIndices[static_cast<std::size_t>(part)] =
+            selectedFactoryVoiceIndex;
+        partMidiActivity[static_cast<std::size_t>(part)].store(0);
+    }
+    partStates[3].setProperty("voiceMode",
+                              static_cast<int>(aureline::VoiceMode::drumKit),
+                              nullptr);
+    partStates[3].setProperty("arpEnabled", false, nullptr);
+    partStates[3].setProperty("chordEnabled", false, nullptr);
+    partStates[3].setProperty("arpHold", false, nullptr);
+    partVoiceNames[3] = "DRUM KIT";
+    partVoiceBanks[3] = 7;
+    partVoiceIndices[3] = 0;
     installBuiltInVoiceLibrary(
         aurelineDocumentsDirectory().getChildFile(
             "Analog.aurelinelibrary.xml"),
@@ -2427,6 +2469,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
             "8-Bit.aurelinelibrary.xml"),
         BinaryData::_8Bit_aurelinelibrary_xml,
         BinaryData::_8Bit_aurelinelibrary_xmlSize);
+    refreshProgramChangeCache();
     startTimerHz(30);
     setSize(1024, 668);
     setWantsKeyboardFocus(true);
@@ -2485,14 +2528,292 @@ void AurelineMainComponent::configureKnob(juce::Slider& slider, juce::Label& lab
 void AurelineMainComponent::prepareToPlay(int, double sampleRate)
 {
     currentSampleRate = sampleRate;
-    engine.prepare(sampleRate);
-    performanceSequencer.prepare(sampleRate);
+    for (auto& engine : partEngines)
+        engine.prepare(sampleRate);
+    for (auto& sequencer : partSequencers)
+        sequencer.prepare(sampleRate);
+    for (int part = 0; part < timbrePartCount; ++part)
+    {
+        const auto currentPart = selectedPart.exchange(part);
+        restoreSelectedPartState();
+        applyParameters();
+        selectedPart.store(currentPart);
+    }
+    restoreSelectedPartState();
+    configureDrumKitBank();
     midiCollector.reset(sampleRate);
+}
+
+aureline::AnalogEngine& AurelineMainComponent::partEngine(int part)
+{
+    return partEngines[static_cast<std::size_t>(
+        juce::jlimit(0, timbrePartCount - 1, part))];
+}
+
+aureline::PerformanceSequencer& AurelineMainComponent::partSequencer(int part)
+{
+    return partSequencers[static_cast<std::size_t>(
+        juce::jlimit(0, timbrePartCount - 1, part))];
+}
+
+int AurelineMainComponent::partForMidiChannel(int channel)
+{
+    switch (channel)
+    {
+        case 1: return 0;
+        case 2: return 1;
+        case 3: return 2;
+        case 10: return 3;
+        default: return -1;
+    }
+}
+
+int AurelineMainComponent::midiChannelForPart(int part)
+{
+    return part == 3 ? 10 : juce::jlimit(0, 2, part) + 1;
+}
+
+void AurelineMainComponent::refreshProgramChangeCache()
+{
+    for (int bank = 0; bank < melodicBankCount; ++bank)
+    {
+        const auto library = readVoiceLibrary(activeLibraryFile(bank));
+        for (int program = 0; program < programsPerBank; ++program)
+        {
+            auto& cached =
+                programChangeCache[static_cast<std::size_t>(bank)]
+                                  [static_cast<std::size_t>(program)];
+            cached = program < library.getNumChildren()
+                ? library.getChild(program).createCopy()
+                : juce::ValueTree {};
+        }
+    }
+}
+
+void AurelineMainComponent::processPendingProgramChanges()
+{
+    for (int part = 0; part < 3; ++part)
+    {
+        const auto request =
+            pendingProgramChange[static_cast<std::size_t>(part)].exchange(-1);
+        if (request < 0)
+            continue;
+        applyProgramChange(part, request / programsPerBank,
+                           request % programsPerBank);
+    }
+}
+
+void AurelineMainComponent::applyProgramChange(int part, int bank, int program)
+{
+    if (part < 0 || part >= 3
+        || bank < 0 || bank >= melodicBankCount
+        || program < 0 || program >= programsPerBank)
+        return;
+
+    auto state =
+        programChangeCache[static_cast<std::size_t>(bank)]
+                          [static_cast<std::size_t>(program)].createCopy();
+    if (!state.isValid() || !state.hasType("AurelineState"))
+        return;
+
+    if (static_cast<int>(state.getProperty("voiceMode", 0))
+        == static_cast<int>(aureline::VoiceMode::drumKit))
+        state.setProperty("voiceMode",
+                          static_cast<int>(aureline::VoiceMode::poly),
+                          nullptr);
+
+    auto voiceName = state.getProperty("voiceName").toString().trim();
+    if (voiceName.isEmpty())
+        voiceName = "VOICE " + juce::String(program + 1);
+
+    const juce::ScopedLock engineLock(engineStateLock);
+    const auto editedPart = selectedPart.load();
+    if (part != editedPart)
+        saveSelectedPartState();
+
+    // A Program Change starts a new instrument state. Release every voice
+    // belonging to this part first, otherwise a note started by the previous
+    // patch can remain active after its matching Note Off has been displaced
+    // by the patch change.
+    auto& targetEngine = partEngine(part);
+    partSequencer(part).panic(targetEngine);
+    targetEngine.setSustainPedal(false);
+    for (auto& note : partHeldNotes[static_cast<std::size_t>(part)])
+        note.store(false);
+    restorePluginState(state);
+    applyParametersToEngine(targetEngine);
+    partStates[static_cast<std::size_t>(part)] = state.createCopy();
+    partVoiceNames[static_cast<std::size_t>(part)] = voiceName;
+    partVoiceBanks[static_cast<std::size_t>(part)] = bank;
+    partVoiceIndices[static_cast<std::size_t>(part)] = program;
+
+    if (part == editedPart)
+    {
+        updateSelectedPartMetadata();
+        syncControlsFromParameters();
+    }
+    else
+    {
+        restoreSelectedPartState();
+        syncControlsFromParameters();
+    }
+}
+
+int AurelineMainComponent::totalActiveVoiceCount() const
+{
+    auto total = 0;
+    for (const auto& engine : partEngines)
+        total += engine.activeVoiceCount();
+    return total;
+}
+
+void AurelineMainComponent::enforceGlobalVoiceLimit(int preferredPart)
+{
+    constexpr int globalVoiceLimit = 16;
+    while (totalActiveVoiceCount() > globalVoiceLimit)
+    {
+        // First remove the quietest voice that is already in its release
+        // stage, regardless of part.
+        auto releasePart = -1;
+        auto releaseLevel = std::numeric_limits<double>::infinity();
+        for (int part = 0; part < timbrePartCount; ++part)
+        {
+            const auto level = partEngine(part).quietestReleasingVoiceLevel();
+            if (level < releaseLevel)
+            {
+                releaseLevel = level;
+                releasePart = part;
+            }
+        }
+        if (releasePart >= 0
+            && partEngine(releasePart).forceStopQuietestReleasingVoice())
+            continue;
+
+        // Short drum transients are the next least disruptive candidates.
+        if (partEngine(3).forceStopOldestVoice())
+            continue;
+
+        // Prefer stealing the oldest voice from the part that requested the
+        // new note, keeping the other timbres stable.
+        if (preferredPart >= 0 && preferredPart < 3
+            && partEngine(preferredPart).forceStopOldestVoice())
+            continue;
+
+        // Finally take one voice from the busiest melodic part. This keeps
+        // the allocation dynamic instead of imposing a fixed four-voice quota.
+        auto busiestPart = -1;
+        auto busiestCount = 0;
+        for (int part = 0; part < 3; ++part)
+        {
+            const auto count = partEngine(part).activeVoiceCount();
+            if (count > busiestCount)
+            {
+                busiestCount = count;
+                busiestPart = part;
+            }
+        }
+        if (busiestPart < 0
+            || !partEngine(busiestPart).forceStopOldestVoice())
+            break;
+    }
+}
+
+void AurelineMainComponent::saveSelectedPartState()
+{
+    const auto part = juce::jlimit(0, timbrePartCount - 1,
+                                   selectedPart.load());
+    partStates[static_cast<std::size_t>(part)] =
+        capturePluginState().createCopy();
+    partVoiceNames[static_cast<std::size_t>(part)] = currentVoiceName;
+    partVoiceBanks[static_cast<std::size_t>(part)] = selectedVoiceBank;
+    partVoiceIndices[static_cast<std::size_t>(part)] =
+        selectedFactoryVoiceIndex;
+}
+
+void AurelineMainComponent::restoreSelectedPartState()
+{
+    const auto part = juce::jlimit(0, timbrePartCount - 1,
+                                   selectedPart.load());
+    const auto& state = partStates[static_cast<std::size_t>(part)];
+    if (state.isValid())
+        restorePluginState(state);
+    updateSelectedPartMetadata();
+}
+
+void AurelineMainComponent::updateSelectedPartMetadata()
+{
+    const auto part = juce::jlimit(0, timbrePartCount - 1,
+                                   selectedPart.load());
+    currentVoiceName = partVoiceNames[static_cast<std::size_t>(part)];
+    selectedVoiceBank = partVoiceBanks[static_cast<std::size_t>(part)];
+    selectedFactoryVoiceIndex =
+        partVoiceIndices[static_cast<std::size_t>(part)];
+    const auto presetId = selectedVoiceBank * voiceSlotsPerBank
+                        + juce::jmax(0, selectedFactoryVoiceIndex) + 1;
+    presetBox.setSelectedId(presetId, juce::dontSendNotification);
+}
+
+void AurelineMainComponent::selectPart(int part)
+{
+    part = juce::jlimit(0, timbrePartCount - 1, part);
+    if (part == selectedPart.load())
+        return;
+
+    // Commit any MIDI voice changes before the shared editor parameters are
+    // saved for the currently visible part. This prevents a pending Program
+    // Change from being overwritten by the previous standalone selection.
+    processPendingProgramChanges();
+    const juce::ScopedLock engineLock(engineStateLock);
+    saveSelectedPartState();
+    selectedPart.store(part);
+    restoreSelectedPartState();
+
+    if (part == 3)
+    {
+        parameters.voiceMode.store(
+            static_cast<int>(aureline::VoiceMode::drumKit));
+        currentVoiceName = "DRUM KIT";
+        selectedVoiceBank = 7;
+        selectedFactoryVoiceIndex = 0;
+        drumKitModeButton.setToggleState(true,
+                                         juce::dontSendNotification);
+    }
+    applyParameters();
+    partSelector.setSelectedId(part + 1, juce::dontSendNotification);
+    const auto melodicPart = part != 3;
+    presetBox.setEnabled(melodicPart);
+    previousVoiceButton.setEnabled(melodicPart);
+    nextVoiceButton.setEnabled(melodicPart);
+    loadVoiceButton.setEnabled(melodicPart);
+    saveVoiceButton.setEnabled(melodicPart);
+    copyVoiceButton.setEnabled(melodicPart);
+    pasteVoiceButton.setEnabled(melodicPart && copiedVoiceState.isValid());
+    initVoiceButton.setEnabled(melodicPart);
+    storeVoiceButton.setEnabled(melodicPart);
+    monoModeButton.setEnabled(melodicPart);
+    unisonModeButton.setEnabled(melodicPart);
+    drumKitModeButton.setEnabled(false);
+    syncControlsFromParameters();
+    repaint();
 }
 
 void AurelineMainComponent::applyParameters()
 {
-    auto patch = engine.getPatch();
+    const auto part = selectedPart.load();
+    if (part == 3)
+        parameters.voiceMode.store(
+            static_cast<int>(aureline::VoiceMode::drumKit));
+    else if (parameters.voiceMode.load()
+             == static_cast<int>(aureline::VoiceMode::drumKit))
+        parameters.voiceMode.store(
+            static_cast<int>(aureline::VoiceMode::poly));
+    applyParametersToEngine(partEngine(selectedPart.load()));
+}
+
+void AurelineMainComponent::applyParametersToEngine(
+    aureline::AnalogEngine& targetEngine)
+{
+    auto patch = targetEngine.getPatch();
     patch.oscillatorA.level = parameters.oscillatorALevel.load();
     patch.oscillatorB.level = parameters.oscillatorBLevel.load();
     const auto waveformMaskA = parameters.waveformMaskA.load();
@@ -2581,11 +2902,19 @@ void AurelineMainComponent::applyParameters()
     patch.unisonDetuneCents = parameters.unisonDetune.load();
     patch.masterGain = parameters.master.load();
     patch.transientAccent = parameters.transientAccent.load();
-    patch.voiceMode = static_cast<aureline::VoiceMode>(parameters.voiceMode.load());
-    engine.setPatch(patch);
-    engine.setPitchBend(parameters.pitchBend.load());
-    engine.setPitchBendRange(parameters.pitchBendRange.load());
-    engine.setModWheel(parameters.modWheel.load());
+    const auto targetPart = static_cast<int>(
+        &targetEngine - partEngines.data());
+    auto requestedMode = static_cast<aureline::VoiceMode>(
+        parameters.voiceMode.load());
+    if (targetPart == 3)
+        requestedMode = aureline::VoiceMode::drumKit;
+    else if (requestedMode == aureline::VoiceMode::drumKit)
+        requestedMode = aureline::VoiceMode::poly;
+    patch.voiceMode = requestedMode;
+    targetEngine.setPatch(patch);
+    targetEngine.setPitchBend(parameters.pitchBend.load());
+    targetEngine.setPitchBendRange(parameters.pitchBendRange.load());
+    targetEngine.setModWheel(parameters.modWheel.load());
 }
 
 void AurelineMainComponent::configureDrumKitBank()
@@ -2600,14 +2929,19 @@ void AurelineMainComponent::configureDrumKitBank()
     }};
     const auto savedState = capturePluginState();
     const auto circuit = readVoiceLibrary(activeLibraryFile(7));
-    engine.clearDrumKit();
+    auto& drumEngine = partEngine(3);
+    drumEngine.clearDrumKit();
     if (circuit.getNumChildren() == static_cast<int>(midiNotes.size()))
         for (std::size_t slot = 0; slot < midiNotes.size(); ++slot)
         {
             restorePluginState(circuit.getChild(static_cast<int>(slot)));
-            applyParameters();
-            engine.setDrumKitPatch(midiNotes[slot], engine.getPatch());
+            applyParametersToEngine(drumEngine);
+            drumEngine.setDrumKitPatch(midiNotes[slot],
+                                       drumEngine.getPatch());
         }
+    auto drumPatch = drumEngine.getPatch();
+    drumPatch.voiceMode = aureline::VoiceMode::drumKit;
+    drumEngine.setPatch(drumPatch);
     restorePluginState(savedState);
     applyParameters();
 }
@@ -2852,8 +3186,10 @@ void AurelineMainComponent::processPluginBlock(juce::AudioBuffer<float>& buffer,
 void AurelineMainComponent::renderAudioBlock(
     const juce::AudioSourceChannelInfo& info, const juce::MidiBuffer& midi)
 {
+    const juce::ScopedLock engineLock(engineStateLock);
     info.clearActiveBufferRegion();
     applyParameters();
+    const auto editedPart = selectedPart.load();
     aureline::PerformanceSequencerSettings settings;
     settings.arpeggiatorEnabled = parameters.arpEnabled.load();
     settings.chordEnabled = parameters.chordEnabled.load();
@@ -2863,48 +3199,84 @@ void AurelineMainComponent::renderAudioBlock(
     settings.direction = parameters.arpDirection.load();
     settings.gate = parameters.arpGate.load();
     settings.scaleRoot = parameters.scaleRoot.load();
-    performanceSequencer.setSettings(settings);
+    partSequencer(editedPart).setSettings(settings);
     if (sequencerResetRequested.exchange(false))
     {
-        performanceSequencer.panic(engine);
-        for (int note = 0; note < 128; ++note)
-            if (heldNotes[static_cast<std::size_t>(note)].load())
-                performanceSequencer.noteOn(engine, note, 100);
+        partSequencer(editedPart).panic(partEngine(editedPart));
+        // State restoration and editor-part selection must never synthesize a
+        // new Note On. Only MIDI/input events may start a voice. Replaying held
+        // notes here could inject a note from another timing context and leave
+        // it sounding after a part switch.
     }
 
     auto handleMessage = [this](const juce::MidiMessage& message)
     {
-        if (message.isNoteOn())
+        const auto part = partForMidiChannel(message.getChannel());
+        if (part < 0)
+            return;
+        auto& targetEngine = partEngine(part);
+        auto& targetSequencer = partSequencer(part);
+        partMidiActivity[static_cast<std::size_t>(part)].store(5);
+        if (message.isController() && message.getControllerNumber() == 0)
+        {
+            const auto bank = message.getControllerValue();
+            if (part < 3 && bank >= 0 && bank < melodicBankCount)
+                midiBankSelect[static_cast<std::size_t>(part)].store(bank);
+        }
+        else if (message.isProgramChange())
+        {
+            const auto program = message.getProgramChangeNumber();
+            if (part < 3 && program >= 0 && program < programsPerBank)
+            {
+                const auto bank =
+                    midiBankSelect[static_cast<std::size_t>(part)].load();
+                pendingProgramChange[static_cast<std::size_t>(part)].store(
+                    bank * programsPerBank + program);
+            }
+        }
+        else if (message.isNoteOn())
         {
             waveformPitchNote.store(message.getNoteNumber(), std::memory_order_relaxed);
             heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(true);
-            performanceSequencer.noteOn(engine, message.getNoteNumber(),
-                                        static_cast<int>(message.getVelocity()));
+            partHeldNotes[static_cast<std::size_t>(part)]
+                         [static_cast<std::size_t>(
+                             message.getNoteNumber())].store(true);
+            targetSequencer.noteOn(targetEngine, message.getNoteNumber(),
+                                   static_cast<int>(message.getVelocity()));
+            enforceGlobalVoiceLimit(part);
         }
         else if (message.isNoteOff())
         {
             heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(false);
-            performanceSequencer.noteOff(engine, message.getNoteNumber());
+            partHeldNotes[static_cast<std::size_t>(part)]
+                         [static_cast<std::size_t>(
+                             message.getNoteNumber())].store(false);
+            targetSequencer.noteOff(targetEngine, message.getNoteNumber());
         }
         else if (message.isPitchWheel())
         {
             const auto value = juce::jlimit(
                 -1.0f, 1.0f,
                 static_cast<float>(message.getPitchWheelValue() - 8192) / 8192.0f);
-            parameters.pitchBend.store(value);
-            engine.setPitchBend(value);
+            if (part == selectedPart.load())
+                parameters.pitchBend.store(value);
+            targetEngine.setPitchBend(value);
         }
         else if (message.isController() && message.getControllerNumber() == 1)
         {
             const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
-            parameters.modWheel.store(value);
-            engine.setModWheel(value);
+            if (part == selectedPart.load())
+                parameters.modWheel.store(value);
+            targetEngine.setModWheel(value);
         }
         else if (message.isController() && message.getControllerNumber() == 64)
-            engine.setSustainPedal(message.getControllerValue() >= 64);
+            targetEngine.setSustainPedal(
+                message.getControllerValue() >= 64);
         else if (message.isAllNotesOff() || message.isAllSoundOff())
         {
-            performanceSequencer.panic(engine);
+            targetSequencer.panic(targetEngine);
+            for (auto& note : partHeldNotes[static_cast<std::size_t>(part)])
+                note.store(false);
         }
     };
 
@@ -2920,9 +3292,21 @@ void AurelineMainComponent::renderAudioBlock(
             handleMessage((*iterator).getMessage());
             ++iterator;
         }
-        const auto output = performanceSequencer.renderStereoSample(engine);
-        left[sample] = static_cast<float>(output.left);
-        right[sample] = static_cast<float>(output.right);
+        enforceGlobalVoiceLimit();
+        aureline::StereoSample mixed;
+        for (int part = 0; part < timbrePartCount; ++part)
+        {
+            const auto output = partSequencer(part).renderStereoSample(
+                partEngine(part));
+            mixed.left += output.left;
+            mixed.right += output.right;
+        }
+        // Preserve the level of a single part while gently containing a
+        // four-part mix. The curve is transparent at ordinary levels.
+        left[sample] = static_cast<float>(
+            mixed.left / (1.0 + std::abs(mixed.left) * 0.18));
+        right[sample] = static_cast<float>(
+            mixed.right / (1.0 + std::abs(mixed.right) * 0.18));
     }
 
     auto writeIndex = scopeWriteIndex.load(std::memory_order_relaxed);
@@ -2936,14 +3320,19 @@ void AurelineMainComponent::renderAudioBlock(
         wavRecorder.push(left, right, info.numSamples);
 }
 
-void AurelineMainComponent::releaseResources() { engine.panic(); }
+void AurelineMainComponent::releaseResources()
+{
+    for (int part = 0; part < timbrePartCount; ++part)
+        partSequencer(part).panic(partEngine(part));
+}
 
 void AurelineMainComponent::handleIncomingMidiMessage(juce::MidiInput*, const juce::MidiMessage& message)
 {
     midiCollector.addMessageToQueue(message);
+    const auto messagePart = partForMidiChannel(message.getChannel());
     if (message.isNoteOn())
         waveformPitchNote.store(message.getNoteNumber(), std::memory_order_relaxed);
-    if (message.isPitchWheel())
+    if (message.isPitchWheel() && messagePart == selectedPart.load())
     {
         const auto value = juce::jlimit(
             -1.0f, 1.0f,
@@ -2959,7 +3348,8 @@ void AurelineMainComponent::handleIncomingMidiMessage(juce::MidiInput*, const ju
                 }
             });
     }
-    else if (message.isController() && message.getControllerNumber() == 1)
+    else if (message.isController() && message.getControllerNumber() == 1
+             && messagePart == selectedPart.load())
     {
         const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
         parameters.modWheel.store(value);
@@ -2988,13 +3378,16 @@ void AurelineMainComponent::playNote(int note, int velocity)
 {
     waveformPitchNote.store(note, std::memory_order_relaxed);
     heldNotes[static_cast<std::size_t>(note)].store(true);
-    midiCollector.addMessageToQueue(juce::MidiMessage::noteOn(1, note, static_cast<juce::uint8>(velocity)));
+    midiCollector.addMessageToQueue(juce::MidiMessage::noteOn(
+        midiChannelForPart(selectedPart.load()), note,
+        static_cast<juce::uint8>(velocity)));
 }
 
 void AurelineMainComponent::releaseNote(int note)
 {
     heldNotes[static_cast<std::size_t>(note)].store(false);
-    midiCollector.addMessageToQueue(juce::MidiMessage::noteOff(1, note));
+    midiCollector.addMessageToQueue(juce::MidiMessage::noteOff(
+        midiChannelForPart(selectedPart.load()), note));
 }
 
 bool AurelineMainComponent::isNoteHeld(int note) const
@@ -3183,6 +3576,107 @@ void AurelineMainComponent::restorePluginState(const juce::ValueTree& state)
         });
 }
 
+juce::ValueTree AurelineMainComponent::captureMultiTimbralState() const
+{
+    juce::ValueTree state("AurelineMultiState");
+    state.setProperty("version", 1, nullptr);
+    state.setProperty("selectedPart", selectedPart.load(), nullptr);
+    const auto currentPart = selectedPart.load();
+
+    for (int part = 0; part < timbrePartCount; ++part)
+    {
+        juce::ValueTree partState("Part");
+        partState.setProperty("index", part, nullptr);
+        partState.setProperty(
+            "voiceName", part == currentPart ? currentVoiceName
+                                              : partVoiceNames[static_cast<std::size_t>(part)],
+            nullptr);
+        partState.setProperty(
+            "voiceBank", part == currentPart ? selectedVoiceBank
+                                              : partVoiceBanks[static_cast<std::size_t>(part)],
+            nullptr);
+        partState.setProperty(
+            "voiceIndex", part == currentPart ? selectedFactoryVoiceIndex
+                                               : partVoiceIndices[static_cast<std::size_t>(part)],
+            nullptr);
+        const auto patchState = part == currentPart
+            ? capturePluginState()
+            : partStates[static_cast<std::size_t>(part)].createCopy();
+        if (patchState.isValid())
+            partState.addChild(patchState, -1, nullptr);
+        state.addChild(partState, -1, nullptr);
+    }
+    return state;
+}
+
+void AurelineMainComponent::restoreMultiTimbralState(
+    const juce::ValueTree& state)
+{
+    if (!state.isValid())
+        return;
+
+    if (state.hasType("AurelineState"))
+    {
+        selectedPart.store(0);
+        restorePluginState(state);
+        partStates[0] = state.createCopy();
+        applyParameters();
+        partSelector.setSelectedId(1, juce::dontSendNotification);
+        return;
+    }
+    if (!state.hasType("AurelineMultiState"))
+        return;
+
+    for (int childIndex = 0; childIndex < state.getNumChildren();
+         ++childIndex)
+    {
+        const auto child = state.getChild(childIndex);
+        if (!child.hasType("Part"))
+            continue;
+        const auto part = juce::jlimit(
+            0, timbrePartCount - 1, static_cast<int>(child["index"]));
+        const auto patchState = child.getChildWithName("AurelineState");
+        if (patchState.isValid())
+            partStates[static_cast<std::size_t>(part)] =
+                patchState.createCopy();
+        partVoiceNames[static_cast<std::size_t>(part)] =
+            child.getProperty("voiceName", part == 3
+                ? juce::String("DRUM KIT") : juce::String("INIT ANALOG"))
+                .toString();
+        partVoiceBanks[static_cast<std::size_t>(part)] =
+            static_cast<int>(child.getProperty("voiceBank",
+                                                part == 3 ? 7 : 0));
+        partVoiceIndices[static_cast<std::size_t>(part)] =
+            static_cast<int>(child.getProperty("voiceIndex", 0));
+        midiBankSelect[static_cast<std::size_t>(part)].store(
+            part == 3 ? 7 : juce::jlimit(
+                0, melodicBankCount - 1,
+                partVoiceBanks[static_cast<std::size_t>(part)]));
+    }
+
+    partStates[3].setProperty("voiceMode",
+                              static_cast<int>(aureline::VoiceMode::drumKit),
+                              nullptr);
+    partVoiceNames[3] = "DRUM KIT";
+    partVoiceBanks[3] = 7;
+
+    const auto wantedPart = juce::jlimit(
+        0, timbrePartCount - 1,
+        static_cast<int>(state.getProperty("selectedPart", 0)));
+    for (int part = 0; part < timbrePartCount; ++part)
+    {
+        selectedPart.store(part);
+        restoreSelectedPartState();
+        applyParameters();
+    }
+    selectedPart.store(wantedPart);
+    restoreSelectedPartState();
+    configureDrumKitBank();
+    partSelector.setSelectedId(wantedPart + 1,
+                               juce::dontSendNotification);
+    syncControlsFromParameters();
+}
+
 void AurelineMainComponent::syncControlsFromParameters()
 {
     const std::array<float, 23> values {
@@ -3362,7 +3856,11 @@ void AurelineMainComponent::sliderValueChanged(juce::Slider* slider)
 
 void AurelineMainComponent::comboBoxChanged(juce::ComboBox* box)
 {
-    if (box == &presetBox)
+    if (box == &partSelector)
+    {
+        selectPart(partSelector.getSelectedId() - 1);
+    }
+    else if (box == &presetBox)
     {
         const int encoded = presetBox.getSelectedId() - 1;
         const int selectedBank = encoded / voiceSlotsPerBank;
@@ -3370,13 +3868,24 @@ void AurelineMainComponent::comboBoxChanged(juce::ComboBox* box)
         selectedVoiceBank = juce::jlimit(0, voiceBankCount - 1, selectedBank);
         lastSelectedBankFile().replaceWithText(juce::String(selectedVoiceBank));
         if (selectedIndex >= 0 && selectedIndex < static_cast<int>(factoryVoices.size()))
+        {
             loadFactoryVoice(static_cast<std::size_t>(selectedIndex));
+            if (selectedPart.load() < 3)
+            {
+                midiBankSelect[static_cast<std::size_t>(
+                    selectedPart.load())].store(selectedVoiceBank);
+                saveSelectedPartState();
+            }
+        }
         else
             selectedFactoryVoiceIndex = -1;
     }
     else if (box == &voiceModeBox)
     {
-        parameters.voiceMode.store(juce::jlimit(0, 3, voiceModeBox.getSelectedId() - 1));
+        const auto maximumMode = selectedPart.load() == 3 ? 3 : 2;
+        parameters.voiceMode.store(selectedPart.load() == 3
+            ? 3 : juce::jlimit(0, maximumMode,
+                               voiceModeBox.getSelectedId() - 1));
         repaint();
     }
     else
@@ -3964,6 +4473,7 @@ void AurelineMainComponent::loadVoiceLibraryFromFile(const juce::File& file,
         loadFactoryVoice(static_cast<std::size_t>(selectedFactoryVoiceIndex));
     if (bank == 7)
         configureDrumKitBank();
+    refreshProgramChangeCache();
     statusLabel.setText("Bank " + juce::String(selectedVoiceBank + 1)
                             + " replaced from: " + file.getFileName(),
                         juce::dontSendNotification);
@@ -4049,6 +4559,8 @@ void AurelineMainComponent::storeCurrentVoice()
                             juce::dontSendNotification);
     if (selectedVoiceBank == 7)
         configureDrumKitBank();
+    else
+        refreshProgramChangeCache();
     statusLabel.setText("Voice stored in slot "
                             + juce::String(selectedFactoryVoiceIndex + 1)
                             + ": " + voiceName,
@@ -4467,6 +4979,12 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
         const int current = juce::jmax(0, selectedFactoryVoiceIndex);
         loadFactoryVoice(static_cast<std::size_t>(
             (current + direction + itemCount) % itemCount));
+        if (selectedPart.load() < 3)
+        {
+            midiBankSelect[static_cast<std::size_t>(
+                selectedPart.load())].store(selectedVoiceBank);
+            saveSelectedPartState();
+        }
     }
     else if (button == &loadVoiceButton)
     {
@@ -4603,7 +5121,8 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
         parameters.voiceMode.store(drumKitModeButton.getToggleState() ? 3 : 0);
         voiceModeBox.setSelectedId(parameters.voiceMode.load() + 1,
                                    juce::dontSendNotification);
-        performanceSequencer.panic(engine);
+        partSequencer(selectedPart.load()).panic(
+            partEngine(selectedPart.load()));
         repaint();
     }
     else if (button == &arpButton)
@@ -4704,9 +5223,16 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
 
 void AurelineMainComponent::timerCallback()
 {
+    processPendingProgramChanges();
     refreshDeviceStatus();
     pitchWheel.setValue(parameters.pitchBend.load(), juce::dontSendNotification);
     modWheel.setValue(parameters.modWheel.load(), juce::dontSendNotification);
+    for (auto& activity : partMidiActivity)
+    {
+        const auto current = activity.load();
+        if (current > 0)
+            activity.store(current - 1);
+    }
     syncPcKeyboardNotes();
     repaint();
 }
@@ -4837,6 +5363,8 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     auto titleArea = headerBounds.removeFromLeft(310).toFloat();
     headerBounds.removeFromRight(112);
     headerBounds.removeFromRight(72);
+    headerBounds.removeFromLeft(154);
+    const auto midiLedArea = headerBounds.removeFromLeft(76).toFloat();
     const auto statusArea = headerBounds.toFloat().reduced(4.0f, 0.0f);
     const auto headerBaseline = titleArea.getBottom() - 5.0f;
 
@@ -4863,6 +5391,34 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     g.drawSingleLineText("v" + version,
                          juce::roundToInt(titleArea.getX() + 126.0f),
                          juce::roundToInt(headerBaseline));
+
+    g.setFont(juce::FontOptions(8.0f, juce::Font::bold));
+    for (int part = 0; part < timbrePartCount; ++part)
+    {
+        const auto cellWidth = midiLedArea.getWidth()
+                             / static_cast<float>(timbrePartCount);
+        const auto centreX = midiLedArea.getX()
+                           + cellWidth * (static_cast<float>(part) + 0.5f);
+        const auto centreY = midiLedArea.getCentreY() - 3.0f;
+        const auto active =
+            partMidiActivity[static_cast<std::size_t>(part)].load() > 0;
+        const auto selected = part == selectedPart.load();
+        g.setColour(juce::Colours::black.withAlpha(0.72f));
+        g.fillEllipse(centreX - 5.0f, centreY - 5.0f, 10.0f, 10.0f);
+        g.setColour(active ? juce::Colour(0xffff3b27)
+                           : juce::Colour(0xff481b16));
+        g.fillEllipse(centreX - 3.8f, centreY - 3.8f, 7.6f, 7.6f);
+        if (active)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.75f));
+            g.fillEllipse(centreX - 2.4f, centreY - 2.8f, 2.2f, 1.7f);
+        }
+        g.setColour(selected ? juce::Colour(themeAmber)
+                             : juce::Colour(themeGold));
+        g.drawSingleLineText(juce::String(part + 1),
+                             juce::roundToInt(centreX - 2.5f),
+                             juce::roundToInt(centreY + 12.0f));
+    }
 
     const auto statusFont = statusLabel.getFont();
     const auto statusText = statusLabel.getText();
@@ -5214,7 +5770,8 @@ void AurelineMainComponent::paint(juce::Graphics& g)
         + parameters.modWheel.load() * parameters.modRange.load();
     const auto lfoAmount = std::isfinite(rawLfoAmount)
         ? juce::jlimit(0.0f, 1.0f, rawLfoAmount) : 0.0f;
-    const auto rawLfoValue = engine.currentLfoValue();
+    const auto rawLfoValue =
+        partEngine(selectedPart.load()).currentLfoValue();
     const auto lfoValue = std::isfinite(rawLfoValue)
         ? juce::jlimit(-1.0, 1.0, rawLfoValue) : 0.0;
     const bool isSilent = waveformOutputLevel <= 0.001f;
@@ -5589,6 +6146,9 @@ void AurelineMainComponent::resized()
     saveLibraryButton.setBounds(libraryButtonArea.reduced(2, 2));
     auto wavButtonArea = header.removeFromRight(72);
     wavRecordButton.setBounds(wavButtonArea.reduced(2, 2));
+    auto partArea = header.removeFromLeft(154);
+    partSelector.setBounds(partArea.reduced(2, 3));
+    header.removeFromLeft(76);
     statusLabel.setBounds(header.withTrimmedBottom(2));
     statusLabel.setVisible(false);
 

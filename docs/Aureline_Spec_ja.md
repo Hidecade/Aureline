@@ -1,7 +1,7 @@
 # Aureline 製品仕様
 
-- 文書バージョン：1.0
-- 対象製品バージョン：1.0.10
+- 文書バージョン：1.1
+- 対象製品バージョン：1.0.11
 - ブランド：Hidecade Instruments
 - ステータス：実装済み仕様
 
@@ -29,6 +29,10 @@ Aurelineは特定機種の完全なクローンではない。他製品のソー
 
 全形式で共通のC++音源エンジン、音色パラメーター、ステレオ出力を使用する。
 デスクトップUIはJUCE、iPhone / AUv3 UIはSwiftUIとApple Audio Unit APIを使用する。
+
+デスクトップ版は4パート・マルチティンバー、各パート最大8ボイス／全体最大16音の
+動的割り当てとする。iPhone Standalone／AUv3はシングルティンバー、最大8ボイスの
+固定仕様とする。
 
 iPhone / AUv3のビルド構成と現行実装は
 [`iOS/AurelineMobile/README.md`](../iOS/AurelineMobile/README.md)を基準とする。
@@ -64,13 +68,24 @@ Poly Modは各ボイス内で処理し、Filter、VCA、Voice Panを含む最終
 
 ### 5.1 Polyphony
 
-- 最大同時発音数：8
+- デスクトップ：4パート、各パート最大8音、全体最大16音
+- iPhone Standalone／AUv3：シングルティンバー、最大8音
 - Voice Mode：`POLY`、`MONO`、`UNISON`、`KIT`
 - KIT：専用BANK 8「DRUM KIT」の32音色をGM系MIDIノートへ割り当て、最大8音同時発音
 - Hi-Hat Choke：Closed／Pedal HatでOpen Hatをリリース
-- KITの詳細：[ドラムキット演奏モード仕様](Aureline_Drum_Kit_Spec_ja.md)
 - Sustain Pedal、All Notes Off、Panicに対応
 - MIDI Note範囲：0〜127
+
+デスクトップの4パートは独立した音源エンジンと音色状態を持つ。全体が16音を
+超えた場合は、次の順序で1音ずつ整理する。
+
+1. 全パート中、Release中で出力レベルが最も小さい音
+2. Part 4の最も古いドラム音
+3. 新しい発音を要求したパートの最も古い音
+4. 最も多く発音している通常パートの最も古い音
+
+無音パートは発音枠を消費しない。各パート内で8音を超えた場合は、そのパート内の
+Release音または最古音を再利用する。
 
 Poly時のボイス割り当ては次の優先順を使用する。
 
@@ -85,7 +100,44 @@ Unison時は5ボイスを使用し、中央、左右のDetune、Pan、微小な�
 独立した開始位相を与える。出力ゲインはボイス数に応じて補正し、最終段を
 ソフトサチュレーションする。
 
-### 5.2 Velocity
+### 5.2 KIT
+
+KITはBANK 8の32音色をノート別の独立した`AnalogPatch`として読み込み、
+1つのドラムセットとして演奏する。サンプル再生は使用しない。ノートオン時に
+対応パッチを割当ボイスへコピーするため、異なるドラム音の余韻を同時に保持できる。
+
+- 最大8音、各ドラム音は1ボイス、UNISONは使用しない
+- 配置キーに関係なく内部基準ノートMIDI 60で発音
+- Closed Hat（42）／Metal Hat（44）でOpen Hat（46）をRelease
+- KITオン時はArpeggiatorとChordをオフ
+- BANK 8のSTORE／ライブラリ読込後にKITを再構築
+- BANK 8の表示名は`DRUM KIT`固定
+
+| Slot | Sound | MIDI | Slot | Sound | MIDI |
+|---:|---|---:|---:|---|---:|
+| 1 | DEEP KICK | 36 | 17 | ACCENT KICK | 52 |
+| 2 | RIM SHOT | 37 | 18 | SHORT KICK | 53 |
+| 3 | CLASSIC SNARE | 38 | 19 | BOOM KICK | 54 |
+| 4 | HAND CLAP | 39 | 20 | TUNED KICK | 55 |
+| 5 | TIGHT SNARE | 40 | 21 | COWBELL | 56 |
+| 6 | LOW TOM | 41 | 22 | CLICK KICK | 57 |
+| 7 | CLOSED HAT | 42 | 23 | SUB DROP | 58 |
+| 8 | DISCO TOM | 43 | 24 | NOISE SNARE | 59 |
+| 9 | METAL HAT | 44 | 25 | HIGH CONGA | 62 |
+| 10 | MID TOM | 45 | 26 | MID CONGA | 63 |
+| 11 | OPEN HAT | 46 | 27 | LOW CONGA | 64 |
+| 12 | ELECTRO SNARE | 47 | 28 | CLAVES | 65 |
+| 13 | HIGH TOM | 48 | 29 | SUB BASS | 66 |
+| 14 | SHORT CYMBAL | 49 | 30 | MUTED COWBELL | 67 |
+| 15 | HAT PULSE | 50 | 31 | MARACAS | 70 |
+| 16 | METAL CYMBAL | 51 | 32 | TRIGGER FX | 72 |
+
+MIDI 60、61、68、69、71および範囲外ノートは発音しない。KIT状態は通常の
+プラグイン状態へ保存する。独立したKITファイルは持たず、BANK 8を
+`.aurelinelibrary.xml`として保存・移行する。キー割り当て編集、複数Choke Group、
+KIT専用Sequencerは持たない。
+
+### 5.3 Velocity
 
 VelocityはVCA Gainへ反映する。Filterの`VELOCITY`設定に応じて、
 Filter Cutoffにも加算する。
@@ -355,16 +407,20 @@ Unison時のみ専用のSoft SaturationとGain補正を適用する。
 
 ## 17. 音色ライブラリ
 
-4つの書換可能バンクを搭載する。
+8つの書換可能バンクを搭載する。
 
 | Bank | Name | 構成 |
 |---:|---|---|
 | 1 | Analog 1 | Brass、Strings / Pad、Piano / Keys、Bass、SE |
 | 2 | Analog 2 | Lead、Poly Mod / Sync、Percussion、Rhythm、SE |
-| 3 | Retro | Vintage Game / Arcade系 |
-| 4 | 8-Bit | Pulse、Noise、Wave Memory、PSG系 |
+| 3 | Circuit | Analog Drum / Percussion系 |
+| 4 | Retro | Vintage Game / Arcade系 |
+| 5 | 8-Bit | Pulse、Noise、Wave Memory、PSG系 |
+| 6 | Bank 6 | User Bank |
+| 7 | Bank 7 | User Bank |
+| 8 | DRUM KIT | KIT専用32音色 |
 
-各バンクは32音色、合計128音色とし、各バンクの最後4スロットを効果音とする。
+各バンクは32音色、合計256スロットとする。BANK 8はKIT専用である。
 
 操作：
 
@@ -413,6 +469,26 @@ Audio Thread外で行う。音声フレームが記録されていない場合�
 
 ## 20. MIDI
 
+デスクトップ版のMIDIパート割り当て：
+
+| Part | MIDI Channel | 用途 |
+|---:|---:|---|
+| 1 | 1 | 通常音色 |
+| 2 | 2 | 通常音色 |
+| 3 | 3 | 通常音色 |
+| 4 | 10 | BANK 8 DRUM KIT |
+
+上記以外のMIDIチャンネルは発音しない。Pitch Bend、CC1、CC64、
+All Notes Offは受信チャンネルのパートだけへ送る。
+
+Part 1〜3はCC0値0〜6をBANK 1〜7、Program Change値0〜31をVOICE 1〜32として
+受信する。CC0を省略したProgram Changeは各パートで最後に選択したバンクを使う。
+Part 4はBANK 8固定で、CC0とProgram Changeを無視する。音色は事前にメモリへ
+読み込み、MIDI受信時にAudio ThreadからファイルI/Oを行わない。
+
+iPhone Standalone／AUv3ではMIDIチャンネル別パート分離、Bank Selectによる
+マルチティンバー制御を行わない。
+
 | MIDI | 動作 |
 |---|---|
 | Note On / Off | 発音 / 消音 |
@@ -437,6 +513,7 @@ Hostが管理する。
 - Audio Device / MIDI Input Status
 - WAV録音、Bank保存
 - Wave EditorはModal Panel
+- Part 1〜4の選択UIとパート別MIDI Activity LED
 
 `FINAL MIX`は、演奏されたNote OnをTriggerとして表示区間を整列し、
 Poly Mod、Filter、VCAを含む最終波形を表示する。視認性のため表示Gainを持ち、
@@ -454,6 +531,10 @@ Poly Mod、Filter、VCAを含む最終波形を表示する。視認性のため
 デスクトップとiPhoneで音源Parameterの意味と保存形式を共通化し、
 画面密度と入力方式のみを各Platformへ最適化する。
 
+デスクトップ状態には4パートそれぞれの音色、音色名、バンク、スロット、
+選択中パートを保存する。旧単音色状態はPart 1へ復元する。iPhone／AUv3は
+単一音色状態を使用する。
+
 ## 22. リアルタイム要件
 
 - Audio Threadで動的メモリ確保を行わない。
@@ -466,7 +547,7 @@ Poly Mod、Filter、VCAを含む最終波形を表示する。視認性のため
 
 ## 23. 実装基準
 
-現行仕様とコードが不一致の場合は、v1.0.10の実装を基準とする。
+現行仕様とコードが不一致の場合は、v1.0.11の実装を基準とする。
 
 - Patchと値域：`Source/Engine/AnalogPatch.*`
 - Voice信号処理：`Source/Engine/AnalogVoice.*`

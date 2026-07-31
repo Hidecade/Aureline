@@ -27,6 +27,8 @@ Aureline Mobile is the iPhone and AUv3 version of Aureline. It shares the C++ sy
 - Shared arpeggiator, diatonic chord, hold, tempo, rate, direction, gate, and scale-root controls
 - Objective-C++ bridge with a fixed-capacity real-time command queue
 - AUv3 instrument with sample-accurate MIDI event dispatch, all synthesis/performance parameters, and state restoration
+- iPhone standalone and AUv3 are intentionally single-timbral with a fixed
+  maximum of eight voices; use one AUv3 instance per host track for multiple sounds
 - Audio interruption, route change, and media-services-reset handling
 
 Real-device performance profiling and host compatibility testing remain release follow-up work.
