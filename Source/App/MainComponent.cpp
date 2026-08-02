@@ -2053,6 +2053,21 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     statusLabel.setJustificationType(juce::Justification::bottomRight);
     addAndMakeVisible(statusLabel);
 
+    timbreModeSelector.setName("timbreModeSelector");
+    timbreModeSelector.addItem("SINGLE", 1);
+    timbreModeSelector.addItem("DUAL", 2);
+    timbreModeSelector.addItem("MULTI", 3);
+    timbreModeSelector.setSelectedId(3, juce::dontSendNotification);
+    timbreModeSelector.setColour(juce::ComboBox::textColourId, juce::Colour(themeGold));
+    timbreModeSelector.setColour(juce::ComboBox::backgroundColourId,
+                                 juce::Colour(themeBackground));
+    timbreModeSelector.setColour(juce::ComboBox::outlineColourId,
+                                 juce::Colour(themeLineGray));
+    timbreModeSelector.setColour(juce::ComboBox::arrowColourId,
+                                 juce::Colour(themeAmber));
+    timbreModeSelector.addListener(this);
+    addAndMakeVisible(timbreModeSelector);
+
     partSelector.setName("partSelector");
     partSelector.addItem("PART 1  CH 1", 1);
     partSelector.addItem("PART 2  CH 2", 2);
@@ -2119,7 +2134,7 @@ AurelineMainComponent::AurelineMainComponent(bool useStandaloneAudio)
     addAndMakeVisible(unisonModeButton);
     drumKitModeButton.setClickingTogglesState(true);
     drumKitModeButton.addListener(this);
-    drumKitModeButton.setEnabled(false);
+    drumKitModeButton.setEnabled(true);
     addAndMakeVisible(drumKitModeButton);
     glideLegatoButton.setClickingTogglesState(true);
     glideLegatoButton.addListener(this);
@@ -2572,6 +2587,53 @@ int AurelineMainComponent::partForMidiChannel(int channel)
     }
 }
 
+int AurelineMainComponent::midiPartMaskForChannel(const int channel) const
+{
+    switch (juce::jlimit(0, 2, timbreRoutingMode.load()))
+    {
+        case 0: return 1 << juce::jlimit(0, timbrePartCount - 1,
+                                        selectedPart.load());
+        case 1: return (1 << 0) | (1 << 1);
+        default:
+        {
+            const auto part = partForMidiChannel(channel);
+            return part >= 0 ? 1 << part : 0;
+        }
+    }
+}
+
+void AurelineMainComponent::updateTimbreModeUi()
+{
+    const auto mode = juce::jlimit(0, 2, timbreRoutingMode.load());
+    if (mode == 0)
+    {
+        if (selectedPart.load() != 0)
+            selectPart(0);
+        partSelector.setVisible(false);
+        return;
+    }
+
+    if (mode == 1 && selectedPart.load() > 1)
+        selectPart(0);
+
+    partSelector.clear(juce::dontSendNotification);
+    if (mode == 1)
+    {
+        partSelector.addItem("PART 1", 1);
+        partSelector.addItem("PART 2", 2);
+    }
+    else
+    {
+        partSelector.addItem("PART 1  CH 1", 1);
+        partSelector.addItem("PART 2  CH 2", 2);
+        partSelector.addItem("PART 3  CH 3", 3);
+        partSelector.addItem("PART 4  DRUM CH 10", 4);
+    }
+    partSelector.setSelectedId(selectedPart.load() + 1,
+                               juce::dontSendNotification);
+    partSelector.setVisible(true);
+}
+
 int AurelineMainComponent::midiChannelForPart(int part)
 {
     return part == 3 ? 10 : juce::jlimit(0, 2, part) + 1;
@@ -2796,7 +2858,9 @@ void AurelineMainComponent::selectPart(int part)
     storeVoiceButton.setEnabled(melodicPart);
     monoModeButton.setEnabled(melodicPart);
     unisonModeButton.setEnabled(melodicPart);
-    drumKitModeButton.setEnabled(false);
+    // KIT is an entry button on melodic parts. Part 4 is permanently the
+    // drum part, so its illuminated KIT state is informational there.
+    drumKitModeButton.setEnabled(melodicPart);
     syncControlsFromParameters();
     repaint();
 }
@@ -3215,72 +3279,79 @@ void AurelineMainComponent::renderAudioBlock(
 
     auto handleMessage = [this](const juce::MidiMessage& message)
     {
-        const auto part = partForMidiChannel(message.getChannel());
-        if (part < 0)
+        const auto partMask = midiPartMaskForChannel(message.getChannel());
+        if (partMask == 0)
             return;
-        auto& targetEngine = partEngine(part);
-        auto& targetSequencer = partSequencer(part);
-        partMidiActivity[static_cast<std::size_t>(part)].store(5);
-        if (message.isController() && message.getControllerNumber() == 0)
+        if (message.isNoteOn())
+            waveformPitchNote.store(message.getNoteNumber(),
+                                    std::memory_order_relaxed);
+
+        for (int part = 0; part < timbrePartCount; ++part)
         {
-            const auto bank = message.getControllerValue();
-            if (part < 3 && bank >= 0 && bank < melodicBankCount)
-                midiBankSelect[static_cast<std::size_t>(part)].store(bank);
-        }
-        else if (message.isProgramChange())
-        {
-            const auto program = message.getProgramChangeNumber();
-            if (part < 3 && program >= 0 && program < programsPerBank)
+            if ((partMask & (1 << part)) == 0)
+                continue;
+            auto& targetEngine = partEngine(part);
+            auto& targetSequencer = partSequencer(part);
+            partMidiActivity[static_cast<std::size_t>(part)].store(5);
+            if (message.isController() && message.getControllerNumber() == 0)
             {
-                const auto bank =
-                    midiBankSelect[static_cast<std::size_t>(part)].load();
-                pendingProgramChange[static_cast<std::size_t>(part)].store(
-                    bank * programsPerBank + program);
+                const auto bank = message.getControllerValue();
+                if (part < 3 && bank >= 0 && bank < melodicBankCount)
+                    midiBankSelect[static_cast<std::size_t>(part)].store(bank);
             }
-        }
-        else if (message.isNoteOn())
-        {
-            waveformPitchNote.store(message.getNoteNumber(), std::memory_order_relaxed);
-            heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(true);
-            partHeldNotes[static_cast<std::size_t>(part)]
-                         [static_cast<std::size_t>(
-                             message.getNoteNumber())].store(true);
-            targetSequencer.noteOn(targetEngine, message.getNoteNumber(),
-                                   static_cast<int>(message.getVelocity()));
-            enforceGlobalVoiceLimit(part);
-        }
-        else if (message.isNoteOff())
-        {
-            heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(false);
-            partHeldNotes[static_cast<std::size_t>(part)]
-                         [static_cast<std::size_t>(
-                             message.getNoteNumber())].store(false);
-            targetSequencer.noteOff(targetEngine, message.getNoteNumber());
-        }
-        else if (message.isPitchWheel())
-        {
-            const auto value = juce::jlimit(
-                -1.0f, 1.0f,
-                static_cast<float>(message.getPitchWheelValue() - 8192) / 8192.0f);
-            if (part == selectedPart.load())
-                parameters.pitchBend.store(value);
-            targetEngine.setPitchBend(value);
-        }
-        else if (message.isController() && message.getControllerNumber() == 1)
-        {
-            const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
-            if (part == selectedPart.load())
-                parameters.modWheel.store(value);
-            targetEngine.setModWheel(value);
-        }
-        else if (message.isController() && message.getControllerNumber() == 64)
-            targetEngine.setSustainPedal(
-                message.getControllerValue() >= 64);
-        else if (message.isAllNotesOff() || message.isAllSoundOff())
-        {
-            targetSequencer.panic(targetEngine);
-            for (auto& note : partHeldNotes[static_cast<std::size_t>(part)])
-                note.store(false);
+            else if (message.isProgramChange())
+            {
+                const auto program = message.getProgramChangeNumber();
+                if (part < 3 && program >= 0 && program < programsPerBank)
+                {
+                    const auto bank =
+                        midiBankSelect[static_cast<std::size_t>(part)].load();
+                    pendingProgramChange[static_cast<std::size_t>(part)].store(
+                        bank * programsPerBank + program);
+                }
+            }
+            else if (message.isNoteOn())
+            {
+                heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(true);
+                partHeldNotes[static_cast<std::size_t>(part)]
+                             [static_cast<std::size_t>(
+                                 message.getNoteNumber())].store(true);
+                targetSequencer.noteOn(targetEngine, message.getNoteNumber(),
+                                       static_cast<int>(message.getVelocity()));
+                enforceGlobalVoiceLimit(part);
+            }
+            else if (message.isNoteOff())
+            {
+                heldNotes[static_cast<std::size_t>(message.getNoteNumber())].store(false);
+                partHeldNotes[static_cast<std::size_t>(part)]
+                             [static_cast<std::size_t>(
+                                 message.getNoteNumber())].store(false);
+                targetSequencer.noteOff(targetEngine, message.getNoteNumber());
+            }
+            else if (message.isPitchWheel())
+            {
+                const auto value = juce::jlimit(
+                    -1.0f, 1.0f,
+                    static_cast<float>(message.getPitchWheelValue() - 8192) / 8192.0f);
+                if (part == selectedPart.load())
+                    parameters.pitchBend.store(value);
+                targetEngine.setPitchBend(value);
+            }
+            else if (message.isController() && message.getControllerNumber() == 1)
+            {
+                const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
+                if (part == selectedPart.load())
+                    parameters.modWheel.store(value);
+                targetEngine.setModWheel(value);
+            }
+            else if (message.isController() && message.getControllerNumber() == 64)
+                targetEngine.setSustainPedal(message.getControllerValue() >= 64);
+            else if (message.isAllNotesOff() || message.isAllSoundOff())
+            {
+                targetSequencer.panic(targetEngine);
+                for (auto& note : partHeldNotes[static_cast<std::size_t>(part)])
+                    note.store(false);
+            }
         }
     };
 
@@ -3333,10 +3404,13 @@ void AurelineMainComponent::releaseResources()
 void AurelineMainComponent::handleIncomingMidiMessage(juce::MidiInput*, const juce::MidiMessage& message)
 {
     midiCollector.addMessageToQueue(message);
-    const auto messagePart = partForMidiChannel(message.getChannel());
+    const auto selectedPartMask = 1 << juce::jlimit(
+        0, timbrePartCount - 1, selectedPart.load());
+    const auto messageTargetsSelectedPart =
+        (midiPartMaskForChannel(message.getChannel()) & selectedPartMask) != 0;
     if (message.isNoteOn())
         waveformPitchNote.store(message.getNoteNumber(), std::memory_order_relaxed);
-    if (message.isPitchWheel() && messagePart == selectedPart.load())
+    if (message.isPitchWheel() && messageTargetsSelectedPart)
     {
         const auto value = juce::jlimit(
             -1.0f, 1.0f,
@@ -3353,7 +3427,7 @@ void AurelineMainComponent::handleIncomingMidiMessage(juce::MidiInput*, const ju
             });
     }
     else if (message.isController() && message.getControllerNumber() == 1
-             && messagePart == selectedPart.load())
+             && messageTargetsSelectedPart)
     {
         const auto value = static_cast<float>(message.getControllerValue()) / 127.0f;
         parameters.modWheel.store(value);
@@ -3585,6 +3659,7 @@ juce::ValueTree AurelineMainComponent::captureMultiTimbralState() const
     juce::ValueTree state("AurelineMultiState");
     state.setProperty("version", 1, nullptr);
     state.setProperty("selectedPart", selectedPart.load(), nullptr);
+    state.setProperty("timbreRoutingMode", timbreRoutingMode.load(), nullptr);
     const auto currentPart = selectedPart.load();
 
     for (int part = 0; part < timbrePartCount; ++part)
@@ -3630,6 +3705,11 @@ void AurelineMainComponent::restoreMultiTimbralState(
     }
     if (!state.hasType("AurelineMultiState"))
         return;
+
+    timbreRoutingMode.store(juce::jlimit(
+        0, 2, static_cast<int>(state.getProperty("timbreRoutingMode", 2))));
+    timbreModeSelector.setSelectedId(timbreRoutingMode.load() + 1,
+                                     juce::dontSendNotification);
 
     for (int childIndex = 0; childIndex < state.getNumChildren();
          ++childIndex)
@@ -3679,6 +3759,7 @@ void AurelineMainComponent::restoreMultiTimbralState(
     partSelector.setSelectedId(wantedPart + 1,
                                juce::dontSendNotification);
     syncControlsFromParameters();
+    updateTimbreModeUi();
 }
 
 void AurelineMainComponent::syncControlsFromParameters()
@@ -3860,7 +3941,23 @@ void AurelineMainComponent::sliderValueChanged(juce::Slider* slider)
 
 void AurelineMainComponent::comboBoxChanged(juce::ComboBox* box)
 {
-    if (box == &partSelector)
+    if (box == &timbreModeSelector)
+    {
+        timbreRoutingMode.store(juce::jlimit(
+            0, 2, timbreModeSelector.getSelectedId() - 1));
+        updateTimbreModeUi();
+        resized();
+        for (int part = 0; part < timbrePartCount; ++part)
+        {
+            partSequencer(part).panic(partEngine(part));
+            for (auto& note : partHeldNotes[static_cast<std::size_t>(part)])
+                note.store(false);
+        }
+        for (auto& note : heldNotes)
+            note.store(false);
+        repaint();
+    }
+    else if (box == &partSelector)
     {
         selectPart(partSelector.getSelectedId() - 1);
     }
@@ -5115,12 +5212,16 @@ void AurelineMainComponent::buttonClicked(juce::Button* button)
     {
         if (drumKitModeButton.getToggleState())
         {
-            monoModeButton.setToggleState(false, juce::dontSendNotification);
-            unisonModeButton.setToggleState(false, juce::dontSendNotification);
+            // KIT selects the dedicated fourth part. Its external MIDI route
+            // remains channel 10; "Part 4" is not MIDI channel 4.
             parameters.arpEnabled.store(false);
             parameters.chordEnabled.store(false);
             arpButton.setToggleState(false, juce::dontSendNotification);
             chordButton.setToggleState(false, juce::dontSendNotification);
+            selectPart(3);
+            partSequencer(3).panic(partEngine(3));
+            repaint();
+            return;
         }
         parameters.voiceMode.store(drumKitModeButton.getToggleState() ? 3 : 0);
         voiceModeBox.setSelectedId(parameters.voiceMode.load() + 1,
@@ -5364,10 +5465,12 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     g.drawRoundedRectangle(woodenChassis.reduced(2.0f), 5.0f, 1.0f);
 
     auto headerBounds = getLocalBounds().reduced(20).removeFromTop(34);
-    auto titleArea = headerBounds.removeFromLeft(310).toFloat();
+    auto titleArea = headerBounds.removeFromLeft(230).toFloat();
     headerBounds.removeFromRight(112);
     headerBounds.removeFromRight(72);
-    headerBounds.removeFromLeft(154);
+    headerBounds.removeFromLeft(94);
+    if (timbreRoutingMode.load() != 0)
+        headerBounds.removeFromLeft(154);
     const auto midiLedArea = headerBounds.removeFromLeft(76).toFloat();
     const auto statusArea = headerBounds.toFloat().reduced(4.0f, 0.0f);
     const auto headerBaseline = titleArea.getBottom() - 5.0f;
@@ -5970,7 +6073,21 @@ void AurelineMainComponent::paint(juce::Graphics& g)
     if (voiceLine.isEmpty())
         voiceLine = "INIT ANALOG";
     voiceLine = voiceLine.substring(0, characterCount).paddedRight(' ', characterCount);
-    const std::array<juce::String, 2> lcdLines { playLine, voiceLine };
+    std::array<juce::String, 2> lcdLines { playLine, voiceLine };
+    if (timbreRoutingMode.load() == 1)
+    {
+        const auto dualVoiceLine = [this](int part)
+        {
+            auto name = part == selectedPart.load()
+                ? currentVoiceName
+                : partVoiceNames[static_cast<std::size_t>(part)];
+            if (name.isEmpty())
+                name = "INIT ANALOG";
+            return ("P" + juce::String(part + 1) + " " + name.toUpperCase())
+                .substring(0, characterCount).paddedRight(' ', characterCount);
+        };
+        lcdLines = { dualVoiceLine(0), dualVoiceLine(1) };
+    }
     for (int line = 0; line < 2; ++line)
         for (int character = 0; character < characterCount; ++character)
         {
@@ -6141,7 +6258,7 @@ void AurelineMainComponent::resized()
 {
     auto area = getLocalBounds().reduced(20);
     auto header = area.removeFromTop(34);
-    auto titleBounds = header.removeFromLeft(310);
+    auto titleBounds = header.removeFromLeft(230);
     titleLabel.setBounds(titleBounds);
     titleLabel.setVisible(false);
     subtitleLabel.setBounds(titleBounds);
@@ -6150,8 +6267,13 @@ void AurelineMainComponent::resized()
     saveLibraryButton.setBounds(libraryButtonArea.reduced(2, 2));
     auto wavButtonArea = header.removeFromRight(72);
     wavRecordButton.setBounds(wavButtonArea.reduced(2, 2));
-    auto partArea = header.removeFromLeft(154);
-    partSelector.setBounds(partArea.reduced(2, 3));
+    auto timbreModeArea = header.removeFromLeft(94);
+    timbreModeSelector.setBounds(timbreModeArea.reduced(2, 3));
+    if (timbreRoutingMode.load() != 0)
+    {
+        auto partArea = header.removeFromLeft(154);
+        partSelector.setBounds(partArea.reduced(2, 3));
+    }
     header.removeFromLeft(76);
     statusLabel.setBounds(header.withTrimmedBottom(2));
     statusLabel.setVisible(false);

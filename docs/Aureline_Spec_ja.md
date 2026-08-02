@@ -1,7 +1,7 @@
 # Aureline 製品仕様
 
-- 文書バージョン：1.1
-- 対象製品バージョン：1.0.11
+- 文書バージョン：1.2
+- 対象製品バージョン：Desktop 1.0.12／iPhone 1.0.11 (Build 13)
 - ブランド：Hidecade Instruments
 - ステータス：実装済み仕様
 
@@ -30,9 +30,9 @@ Aurelineは特定機種の完全なクローンではない。他製品のソー
 全形式で共通のC++音源エンジン、音色パラメーター、ステレオ出力を使用する。
 デスクトップUIはJUCE、iPhone / AUv3 UIはSwiftUIとApple Audio Unit APIを使用する。
 
-デスクトップ版は4パート・マルチティンバー、各パート最大8ボイス／全体最大16音の
-動的割り当てとする。iPhone Standalone／AUv3はシングルティンバー、最大8ボイスの
-固定仕様とする。
+デスクトップ版はSINGLE／DUAL／MULTIルーティングを選択できる。MULTIでは
+4パート・マルチティンバー、各パート最大8ボイス／全体最大16音の動的割り当てとする。
+iPhone Standalone／AUv3はシングルティンバー、最大8ボイスの固定仕様とする。
 
 iPhone / AUv3のビルド構成と現行実装は
 [`iOS/AurelineMobile/README.md`](../iOS/AurelineMobile/README.md)を基準とする。
@@ -68,7 +68,7 @@ Poly Modは各ボイス内で処理し、Filter、VCA、Voice Panを含む最終
 
 ### 5.1 Polyphony
 
-- デスクトップ：4パート、各パート最大8音、全体最大16音
+- デスクトップ：SINGLE／DUAL／MULTI、最大4パート、各パート最大8音、全体最大16音
 - iPhone Standalone／AUv3：シングルティンバー、最大8音
 - Voice Mode：`POLY`、`MONO`、`UNISON`、`KIT`
 - KIT：専用BANK 8「DRUM KIT」の32音色をGM系MIDIノートへ割り当て、最大8音同時発音
@@ -469,7 +469,13 @@ Audio Thread外で行う。音声フレームが記録されていない場合�
 
 ## 20. MIDI
 
-デスクトップ版のMIDIパート割り当て：
+デスクトップ版は次のMIDIルーティングを使用する。
+
+- SINGLE：Part 1へ全MIDIチャンネルを送る
+- DUAL：Part 1／2へ全MIDIチャンネルを送る
+- MULTI：次表のチャンネルで4パートへ分配する
+
+MULTIのMIDIパート割り当て：
 
 | Part | MIDI Channel | 用途 |
 |---:|---:|---|
@@ -513,7 +519,7 @@ Hostが管理する。
 - Audio Device / MIDI Input Status
 - WAV録音、Bank保存
 - Wave EditorはModal Panel
-- Part 1〜4の選択UIとパート別MIDI Activity LED
+- SINGLE／DUAL／MULTI選択、Part選択UI、パート別MIDI Activity LED
 
 `FINAL MIX`は、演奏されたNote OnをTriggerとして表示区間を整列し、
 Poly Mod、Filter、VCAを含む最終波形を表示する。視認性のため表示Gainを持ち、
@@ -532,7 +538,7 @@ Poly Mod、Filter、VCAを含む最終波形を表示する。視認性のため
 画面密度と入力方式のみを各Platformへ最適化する。
 
 デスクトップ状態には4パートそれぞれの音色、音色名、バンク、スロット、
-選択中パートを保存する。旧単音色状態はPart 1へ復元する。iPhone／AUv3は
+選択中パート、ルーティングモードを保存する。旧単音色状態はPart 1へ復元する。iPhone／AUv3は
 単一音色状態を使用する。
 
 ## 22. リアルタイム要件
@@ -547,7 +553,7 @@ Poly Mod、Filter、VCAを含む最終波形を表示する。視認性のため
 
 ## 23. 実装基準
 
-現行仕様とコードが不一致の場合は、v1.0.11の実装を基準とする。
+現行仕様とコードが不一致の場合は、Desktop v1.0.12／iPhone v1.0.11の実装を基準とする。
 
 - Patchと値域：`Source/Engine/AnalogPatch.*`
 - Voice信号処理：`Source/Engine/AnalogVoice.*`

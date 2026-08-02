@@ -140,7 +140,10 @@ struct PlayView: View {
                 HStack(spacing: 10) {
                     HStack(spacing: 2) {
                         playModeButton("PLAY", active: true) {}
-                        playModeButton("EDIT", active: false) { synth.screen = .edit }
+                        playModeButton("EDIT", active: false,
+                                       disabled: Int(synth.value("voiceMode").rounded()) == 3) {
+                            synth.screen = .edit
+                        }
                     }
                     .frame(width: 98)
                     HStack(spacing: 4) {
@@ -309,10 +312,13 @@ struct PlayView: View {
             keyboardScrollWhiteIndex = CGFloat((21..<note).filter { ![1, 3, 6, 8, 10].contains($0 % 12) }.count)
         }
     }
-    private func playModeButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
+    private func playModeButton(_ title: String, active: Bool, disabled: Bool = false,
+                                action: @escaping () -> Void) -> some View {
         Button(action: action) { Text(title).font(.system(size: 11, weight: .bold)).frame(maxWidth: .infinity, maxHeight: .infinity).background(active ? AurelineTheme.amber : AurelineTheme.panelLight).foregroundStyle(active ? .black : AurelineTheme.text).clipShape(RoundedRectangle(cornerRadius: 3)) }
             .buttonStyle(.plain)
             .frame(width: 48, height: 24)
+            .disabled(disabled)
+            .opacity(disabled ? 0.35 : 1)
     }
     private func playVoiceButton(_ title: String, store: Bool = false, disabled: Bool = false,
                                  action: @escaping () -> Void) -> some View {

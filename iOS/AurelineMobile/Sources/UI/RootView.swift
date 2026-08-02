@@ -40,6 +40,7 @@ struct RootView: View {
         .onChange(of: Int(synth.value("voiceMode").rounded())) { mode in
             synth.panic()
             if mode == 3 {
+                synth.screen = .play
                 normalEditKeyboardOctave = editKeyboardOctave
                 editKeyboardOctave = 2
             } else {

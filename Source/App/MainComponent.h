@@ -189,6 +189,8 @@ private:
     aureline::AnalogEngine& partEngine(int part);
     aureline::PerformanceSequencer& partSequencer(int part);
     static int partForMidiChannel(int channel);
+    int midiPartMaskForChannel(int channel) const;
+    void updateTimbreModeUi();
     static int midiChannelForPart(int part);
     void selectPart(int part);
     void saveSelectedPartState();
@@ -258,6 +260,8 @@ private:
     };
     juce::CriticalSection engineStateLock;
     std::atomic<int> selectedPart { 0 };
+    // 0 = SINGLE, 1 = DUAL, 2 = MULTI.
+    std::atomic<int> timbreRoutingMode { 2 };
     juce::MidiMessageCollector midiCollector;
     std::vector<juce::String> connectedMidiInputIds;
     bool ownsStandaloneAudio = true;
@@ -282,6 +286,7 @@ private:
     juce::Label titleLabel;
     juce::Label subtitleLabel;
     juce::Label statusLabel;
+    juce::ComboBox timbreModeSelector;
     juce::ComboBox partSelector;
     juce::ComboBox presetBox;
     juce::TextButton previousVoiceButton { "<" };
