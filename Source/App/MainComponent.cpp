@@ -14,7 +14,11 @@
 namespace
 {
 constexpr int firstKeyboardNote = 36;
+#if JUCE_IOS
 constexpr int keyboardNoteCount = 37;
+#else
+constexpr int keyboardNoteCount = 49;
+#endif
 constexpr int voiceSlotsPerBank = 32;
 constexpr int voiceBankCount = 8;
 constexpr int libraryFormatVersion = 2;

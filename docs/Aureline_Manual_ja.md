@@ -1,6 +1,6 @@
 # Aureline 取扱説明書
 
-- 対象バージョン：1.0.11
+- 対象バージョン：1.0.12
 - ブランド：Hidecade Instruments
 - 対応環境：macOS、Windows、iPhone / AUv3
 
@@ -30,9 +30,9 @@ Aurelineは、2基のオシレーター、ノイズ、4段OTAローパスフィ�
 
 使用する形式のインストーラーを実行します。
 
-- `Aureline-Standalone-1.0.11-macOS.pkg`
-- `Aureline-VST3-1.0.11-macOS.pkg`
-- `Aureline-AU-1.0.11-macOS.pkg`
+- `Aureline-Standalone-1.0.12-macOS.pkg`
+- `Aureline-VST3-1.0.12-macOS.pkg`
+- `Aureline-AU-1.0.12-macOS.pkg`
 
 インストーラーはApple公証済みです。インストール後、DAWを再起動して
 プラグインを再スキャンしてください。
@@ -113,7 +113,7 @@ PERFORMANCEの`KIT`をオンにすると、BANK 8「DRUM KIT」の32音色を
 音色スナップショットで発音するため、Kick、Snare、Hatなどを最大8音まで
 同時に鳴らせます。中心となる配置はMIDIドラムセットに準じています。
 デスクトップ版の画面鍵盤は、通常モードとKITモードのどちらも
-C2（MIDI 36）からC5まで表示します。
+C2（MIDI 36）からC6まで表示します。
 
 - MIDI 36 (C2): Deep Kick
 - MIDI 38 (D2): Classic Snare

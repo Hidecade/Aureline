@@ -6,7 +6,7 @@ Aureline is an eight-voice analog-modeling synthesizer by Hidecade Instruments.
 It combines a direct, classic polysynth workflow with Aureline's own sound
 engine, interface, Wave Memory oscillators, and voice library.
 
-Current release: [v1.0.11](https://github.com/Hidecade/Aureline/releases/tag/v1.0.11)
+Current release: [v1.0.12](https://github.com/Hidecade/Aureline/releases/tag/v1.0.12)
 
 ![Aureline desktop synthesizer interface](docs/images/aureline-desktop.png)
 
