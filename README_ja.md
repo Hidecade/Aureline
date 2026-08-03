@@ -121,6 +121,13 @@ macOS用Standalone、VST3、Audio Unitのインストーラーは`dist/`へ生�
 ./scripts/build-macos-installers.sh
 ```
 
+Windowsでは[Inno Setup 6](https://jrsoftware.org/isinfo.php)をインストールしてから、
+Release版のStandalone、VST3、インストーラーを`dist/`へ生成します。
+
+```powershell
+.\scripts\build-windows-installer.ps1
+```
+
 配布用署名には`AURELINE_APPLICATION_SIGN_IDENTITY`と
 `AURELINE_INSTALLER_SIGN_IDENTITY`を設定します。未指定時はローカル確認用の
 ad-hoc署名パッケージを生成します。

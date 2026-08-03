@@ -123,6 +123,13 @@ Build the macOS Standalone, VST3, and Audio Unit installer packages into
 ./scripts/build-macos-installers.sh
 ```
 
+On Windows, install [Inno Setup 6](https://jrsoftware.org/isinfo.php), then build
+the Release standalone application, VST3 plug-in, and installer into `dist/`:
+
+```powershell
+.\scripts\build-windows-installer.ps1
+```
+
 For distribution signing, set `AURELINE_APPLICATION_SIGN_IDENTITY` and
 `AURELINE_INSTALLER_SIGN_IDENTITY`. Without them, the script creates ad-hoc
 signed packages for local testing.

@@ -27,27 +27,18 @@ jobs:
       - name: Fetch JUCE
         shell: pwsh
         run: git clone --depth 1 --branch 8.0.14 https://github.com/juce-framework/JUCE.git external/JUCE
-      - name: Configure
+      - name: Install Inno Setup
         shell: pwsh
-        run: cmake -S . -B build/windows-release -G "Visual Studio 17 2022" -A x64 -DAURELINE_BUILD_STANDALONE=ON -DAURELINE_BUILD_PLUGINS=ON
-      - name: Build
+        run: choco install innosetup --no-progress -y
+      - name: Build and package
         shell: pwsh
-        run: cmake --build build/windows-release --config Release --target Aureline_Plugin_Standalone Aureline_Plugin_VST3 aureline_engine_tests
-      - name: Test
-        shell: pwsh
-        run: ctest --test-dir build/windows-release -C Release --output-on-failure
-      - name: Package
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
-          New-Item -ItemType Directory -Force dist/Aureline-Windows | Out-Null
-          Copy-Item build/windows-release/Aureline_Plugin_artefacts/Release/Standalone/Aureline.exe dist/Aureline-Windows/
-          Copy-Item -Recurse build/windows-release/Aureline_Plugin_artefacts/Release/VST3/Aureline.vst3 dist/Aureline-Windows/
-          Compress-Archive -Path dist/Aureline-Windows/* -DestinationPath "dist/Aureline-$version-Windows-x64.zip"
+        run: ./scripts/build-windows-installer.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: dist/Aureline-*-Windows-x64.zip
+          name: windows-installer
+          path: |
+            dist/Aureline-*-Windows-x64-Setup.exe
+            dist/Aureline-*-Windows-x64-Setup.exe.sha256
 
   publish:
     needs: [macos, windows]
