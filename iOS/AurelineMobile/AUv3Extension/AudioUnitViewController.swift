@@ -11,6 +11,7 @@ public final class AudioUnitViewController: AUViewController, AUAudioUnitFactory
     private let nextButton = UIButton(type: .system)
     private let mode = UISegmentedControl(items: ["POLY", "MONO", "UNISON"])
     private let portamentoButton = UIButton(type: .system)
+    private let glideKnob = GlideKnob()
     private let statusLabel = UILabel()
 
     public override func viewDidLoad() {
@@ -40,6 +41,7 @@ public final class AudioUnitViewController: AUViewController, AUAudioUnitFactory
 
         configureButton(portamentoButton, title: "PORTA OFF")
         portamentoButton.addTarget(self, action: #selector(stepPortamento), for: .touchUpInside)
+        glideKnob.addTarget(self, action: #selector(glideChanged), for: .valueChanged)
 
         statusLabel.textColor = UIColor(white: 0.72, alpha: 1)
         statusLabel.font = .systemFont(ofSize: 11, weight: .semibold)
@@ -48,7 +50,7 @@ public final class AudioUnitViewController: AUViewController, AUAudioUnitFactory
         let voiceRow = UIStackView(arrangedSubviews: [previousButton, voiceButton, nextButton])
         voiceRow.axis = .horizontal
         voiceRow.spacing = 7
-        let playRow = UIStackView(arrangedSubviews: [mode, portamentoButton])
+        let playRow = UIStackView(arrangedSubviews: [mode, portamentoButton, glideKnob])
         playRow.axis = .horizontal
         playRow.spacing = 8
         let stack = UIStackView(arrangedSubviews: [title, voiceRow, playRow, statusLabel])
@@ -68,7 +70,9 @@ public final class AudioUnitViewController: AUViewController, AUAudioUnitFactory
             mode.widthAnchor.constraint(equalToConstant: 230),
             mode.heightAnchor.constraint(equalToConstant: 36),
             portamentoButton.widthAnchor.constraint(equalToConstant: 110),
-            portamentoButton.heightAnchor.constraint(equalToConstant: 36)
+            portamentoButton.heightAnchor.constraint(equalToConstant: 36),
+            glideKnob.widthAnchor.constraint(equalToConstant: 70),
+            glideKnob.heightAnchor.constraint(equalToConstant: 76)
         ])
         refreshFromAudioUnit()
     }
@@ -108,6 +112,11 @@ public final class AudioUnitViewController: AUViewController, AUAudioUnitFactory
         updateLabels()
     }
 
+    @objc private func glideChanged() {
+        parameter("glide")?.value = AUValue(glideKnob.value)
+        updateLabels()
+    }
+
     private func currentPortamentoPreset() -> Int {
         let glide = parameter("glide")?.value ?? 0
         guard glide > 0.001 else { return 0 }
@@ -142,8 +151,14 @@ public final class AudioUnitViewController: AUViewController, AUAudioUnitFactory
         voiceButton.setTitle(voiceNames.indices.contains(voiceIndex)
             ? voiceNames[voiceIndex] : "--", for: .normal)
         portamentoButton.setTitle(portamentoTitle(currentPortamentoPreset()), for: .normal)
-        statusLabel.text = "\(mode.titleForSegment(at: selectedMode) ?? "POLY") / \(portamentoTitle(currentPortamentoPreset()))"
+        let glide = parameter("glide")?.value ?? 0
+        glideKnob.value = CGFloat(glide)
+        statusLabel.text = "\(mode.titleForSegment(at: selectedMode) ?? "POLY") / \(portamentoTitle(currentPortamentoPreset())) / GLIDE \(formatGlide(glide))"
         rebuildVoiceMenu()
+    }
+
+    private func formatGlide(_ value: AUValue) -> String {
+        value < 0.001 ? "OFF" : String(format: "%.3f s", value)
     }
 
     private func portamentoTitle(_ value: Int) -> String {
@@ -171,5 +186,111 @@ public final class AudioUnitViewController: AUViewController, AUAudioUnitFactory
         button.layer.cornerRadius = 5
         button.layer.borderWidth = 1
         button.layer.borderColor = UIColor(red: 0.50, green: 0.39, blue: 0.20, alpha: 1).cgColor
+    }
+}
+
+private final class GlideKnob: UIControl {
+    var value: CGFloat = 0 {
+        didSet {
+            value = min(5, max(0, value))
+            setNeedsDisplay()
+            accessibilityValue = value < 0.001 ? "Off" : String(format: "%.3f seconds", value)
+        }
+    }
+
+    private var dragStartY: CGFloat = 0
+    private var dragStartPosition: CGFloat = 0
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isAccessibilityElement = true
+        accessibilityLabel = "Glide time"
+        accessibilityTraits = .adjustable
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
+        dragStartY = touch.location(in: self).y
+        dragStartPosition = position(for: value)
+        return true
+    }
+
+    override func continueTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
+        let delta = (dragStartY - touch.location(in: self).y) / 120
+        value = glideValue(for: min(1, max(0, dragStartPosition + delta)))
+        sendActions(for: .valueChanged)
+        return true
+    }
+
+    override func accessibilityIncrement() {
+        value = glideValue(for: min(1, position(for: value) + 0.05))
+        sendActions(for: .valueChanged)
+    }
+
+    override func accessibilityDecrement() {
+        value = glideValue(for: max(0, position(for: value) - 0.05))
+        sendActions(for: .valueChanged)
+    }
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        let center = CGPoint(x: rect.midX, y: 29)
+        let radius: CGFloat = 19
+        let start = CGFloat.pi * 0.75
+        let sweep = CGFloat.pi * 1.5
+        let end = start + sweep
+
+        context.setLineWidth(4)
+        context.setLineCap(.round)
+        context.setStrokeColor(UIColor(red: 0.25, green: 0.21, blue: 0.16, alpha: 1).cgColor)
+        context.addArc(center: center, radius: radius, startAngle: start, endAngle: end, clockwise: false)
+        context.strokePath()
+
+        let angle = start + sweep * position(for: value)
+        context.setStrokeColor(UIColor(red: 1, green: 0.58, blue: 0.22, alpha: 1).cgColor)
+        context.addArc(center: center, radius: radius, startAngle: start, endAngle: angle, clockwise: false)
+        context.strokePath()
+
+        context.setFillColor(UIColor(red: 0.14, green: 0.12, blue: 0.095, alpha: 1).cgColor)
+        context.fillEllipse(in: CGRect(x: center.x - 15, y: center.y - 15, width: 30, height: 30))
+        context.setStrokeColor(UIColor(red: 1, green: 0.68, blue: 0.34, alpha: 1).cgColor)
+        context.setLineWidth(2)
+        context.move(to: center)
+        context.addLine(to: CGPoint(x: center.x + cos(angle) * 12,
+                                    y: center.y + sin(angle) * 12))
+        context.strokePath()
+
+        let labelStyle: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 10, weight: .bold),
+            .foregroundColor: UIColor(red: 1, green: 0.68, blue: 0.34, alpha: 1)
+        ]
+        let valueStyle: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold),
+            .foregroundColor: UIColor(white: 0.76, alpha: 1)
+        ]
+        drawCentered("GLIDE", y: 52, style: labelStyle)
+        drawCentered(value < 0.001 ? "OFF" : String(format: "%.3fs", value), y: 64, style: valueStyle)
+    }
+
+    private func drawCentered(_ text: String, y: CGFloat,
+                              style: [NSAttributedString.Key: Any]) {
+        let size = text.size(withAttributes: style)
+        text.draw(at: CGPoint(x: (bounds.width - size.width) * 0.5, y: y), withAttributes: style)
+    }
+
+    // The logarithmic response leaves useful travel for short synth glides while
+    // retaining the full five-second parameter range.
+    private func position(for glide: CGFloat) -> CGFloat {
+        guard glide >= 0.005 else { return 0 }
+        return min(1, max(0, log(glide / 0.005) / log(1000)))
+    }
+
+    private func glideValue(for position: CGFloat) -> CGFloat {
+        guard position > 0.01 else { return 0 }
+        return 0.005 * pow(1000, position)
     }
 }

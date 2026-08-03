@@ -70,7 +70,8 @@ Standalone版のAudio/MIDI機器はウインドウ上部の`Options`から設定
 - `AURELINE`：製品名とバージョン
 - `Audio`：現在の出力デバイス
 - `MIDI`：現在選択されているMIDI入力
-- `PART 1`〜`PART 4`：デスクトップ版の編集・演奏対象パート
+- `SINGLE / DUAL / MULTI`：デスクトップ版のMIDIルーティングモード
+- `PART 1`〜`PART 4`：DUAL／MULTIでの編集・演奏対象パート
 - Part LED：各パートのMIDI受信時に点灯
 - `WAV`：最終ステレオ出力の録音
 - `SAVE BANK`：現在の32音色バンクを書き出す
@@ -428,6 +429,9 @@ iPhone版は横画面で使用します。画面下部の鍵盤を残したま�
 AUv3版ではAudioとMIDIをホストアプリが管理します。Standalone版ではCore MIDI入力と
 画面鍵盤を使用できます。
 
+AUv3のコンパクト画面では、`PORTA`でOFF／FULL／FINGERのプリセットを切り替え、
+`GLIDE`ノブで移動時間を0〜5秒の範囲で連続調整できます。
+
 iPhone版とAUv3版はシングルティンバー、最大8ボイスの固定仕様です。
 GarageBandなどで複数音色を同時に使用する場合は、トラックごとにAureline AUv3を
 別インスタンスとして読み込みます。
@@ -440,10 +444,17 @@ GarageBandなどで複数音色を同時に使用する場合は、トラック�
 
 ## 20. MIDI
 
-### デスクトップ版の4パート演奏
+### デスクトップ版のルーティングモード
 
-macOS／WindowsのStandalone、VST3、Audio Unit版は4パート・
-マルチティンバーで動作します。ヘッダーの`PART`で編集対象を切り替えます。
+macOS／WindowsのStandalone、VST3、Audio Unit版は、ヘッダーで次のモードを
+選択できます。
+
+- `SINGLE`：Part 1だけを全MIDIチャンネルから演奏
+- `DUAL`：Part 1とPart 2を全MIDIチャンネルから重ねて演奏
+- `MULTI`：MIDIチャンネル別の4パート・マルチティンバー演奏
+
+`DUAL`と`MULTI`では、ヘッダーの`PART`で編集対象を切り替えます。
+次のチャンネル割り当ては`MULTI`で使用します。
 
 | Part | MIDI Channel | 用途 |
 |---:|---:|---|

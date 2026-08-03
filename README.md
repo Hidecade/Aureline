@@ -28,10 +28,10 @@ Current release: [v1.0.12](https://github.com/Hidecade/Aureline/releases/tag/v1.
 - Eight writable 32-voice banks; Circuit is bank 3, Retro bank 4, 8-Bit bank 5, and the dedicated DRUM KIT is bank 8
 - Cross-platform voice and bank files
 - 24-bit stereo WAV recording in the macOS and Windows standalone apps
-- Four-part desktop multitimbral operation: up to 8 voices per part, dynamically shared within a 16-voice global limit
+- Selectable SINGLE, DUAL, and MULTI desktop routing; MULTI provides four parts with up to 8 voices per part, dynamically shared within a 16-voice global limit
 - Parts 1–3 receive melodic voices on MIDI channels 1–3; Part 4 is the dedicated DRUM KIT on channel 10
 - Parts 1–3 accept CC0 Bank Select (Banks 1–7) and Program Change (Voices 1–32)
-- Header part selector and per-part MIDI activity LEDs
+- Header routing/part selectors and per-part MIDI activity LEDs
 
 ## Formats
 
